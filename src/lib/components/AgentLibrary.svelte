@@ -101,9 +101,19 @@
   // Rows keyed by `dest` (the unique {#each} key). Reassign the Set on every
   // change so Svelte 5 reactivity fires reliably.
   let selected = $state<Set<string>>(new Set());
+  let selectMode = $state(false);
   let menuOpen = $state(false);
   let bulkBusy = $state(false);
   let confirmDelete = $state(false);
+
+  function enterSelect() {
+    selectMode = true;
+  }
+  function exitSelect() {
+    selectMode = false;
+    menuOpen = false;
+    clearSelection();
+  }
 
   const allSelected = $derived(rows.length > 0 && selected.size === rows.length);
   const someSelected = $derived(selected.size > 0 && selected.size < rows.length);
@@ -157,7 +167,7 @@
 <section class="lib">
   <header class="lib-head">
     <div class="lib-titles">
-      {#if rows.length > 0}
+      {#if selectMode && rows.length > 0}
         <input
           type="checkbox"
           class="head-check"
@@ -169,7 +179,7 @@
         />
       {/if}
       <p class="lib-sub">
-        {#if selected.size > 0}
+        {#if selectMode}
           <span class="sel">{selected.size} selected</span>
         {:else}
           {rows.length} install{rows.length === 1 ? "" : "s"}
@@ -178,31 +188,37 @@
       </p>
     </div>
     <div class="head-actions">
-      {#if selected.size > 0}
-        <div class="bulk-wrap">
-          <button class="ghost-btn" disabled={bulkBusy} onclick={() => (menuOpen = !menuOpen)}>
-            <span>{bulkBusy ? "Working…" : "With selected"}</span>
-            <ChevronDown size={14} />
-          </button>
-          {#if menuOpen}
-            <div class="bulk-menu" role="menu">
-              <button class="bulk-opt" role="menuitem" onclick={() => runBulk("update", "Updated")}>
-                <RefreshIcon size={14} /><span>Update — replace with catalog version</span>
-              </button>
-              <button class="bulk-opt" role="menuitem" onclick={() => runBulk("track", "Tracked")}>
-                <PlusIcon size={14} /><span>Track — keep file, start managing</span>
-              </button>
-              <button class="bulk-opt danger" role="menuitem" onclick={() => { menuOpen = false; confirmDelete = true; }}>
-                <TrashIcon size={14} /><span>Delete — remove files from disk</span>
-              </button>
-            </div>
-          {/if}
-        </div>
-        <button class="ghost-btn" onclick={clearSelection}>Clear</button>
+      {#if selectMode}
+        {#if selected.size > 0}
+          <div class="bulk-wrap">
+            <button class="ghost-btn" disabled={bulkBusy} onclick={() => (menuOpen = !menuOpen)}>
+              <span>{bulkBusy ? "Working…" : "With selected"}</span>
+              <ChevronDown size={14} />
+            </button>
+            {#if menuOpen}
+              <div class="bulk-menu" role="menu">
+                <button class="bulk-opt" role="menuitem" onclick={() => runBulk("update", "Updated")}>
+                  <RefreshIcon size={14} /><span>Update — replace with catalog version</span>
+                </button>
+                <button class="bulk-opt" role="menuitem" onclick={() => runBulk("track", "Tracked")}>
+                  <PlusIcon size={14} /><span>Track — keep file, start managing</span>
+                </button>
+                <button class="bulk-opt danger" role="menuitem" onclick={() => { menuOpen = false; confirmDelete = true; }}>
+                  <TrashIcon size={14} /><span>Delete — remove files from disk</span>
+                </button>
+              </div>
+            {/if}
+          </div>
+        {/if}
+        <button class="ghost-btn primary" onclick={exitSelect}>Done</button>
+      {:else}
+        {#if rows.length > 0}
+          <button class="ghost-btn" onclick={enterSelect}>Select</button>
+        {/if}
+        <button class="ghost-btn" onclick={() => install.reconcile()} title="Re-scan">
+          <RefreshIcon size={15} /><span>Rescan</span>
+        </button>
       {/if}
-      <button class="ghost-btn" onclick={() => install.reconcile()} title="Re-scan">
-        <RefreshIcon size={15} /><span>Rescan</span>
-      </button>
     </div>
   </header>
 
@@ -218,14 +234,16 @@
     <ul class="rows">
       {#each rows as r (r.dest)}
         {@const busy = install.busy === `${r.slug}:${r.tool}`}
-        <li class="row" class:busy class:picked={selected.has(r.dest)}>
-          <input
-            type="checkbox"
-            class="r-check"
-            checked={selected.has(r.dest)}
-            onchange={() => toggleRow(r.dest)}
-            aria-label={`Select ${r.name}`}
-          />
+        <li class="row" class:busy class:picked={selectMode && selected.has(r.dest)}>
+          {#if selectMode}
+            <input
+              type="checkbox"
+              class="r-check"
+              checked={selected.has(r.dest)}
+              onchange={() => toggleRow(r.dest)}
+              aria-label={`Select ${r.name}`}
+            />
+          {/if}
           <span class="r-emoji" aria-hidden="true">{emoji(r.slug)}</span>
           <div class="r-main">
             <span class="r-name">{r.name}</span>
@@ -235,6 +253,7 @@
             </span>
           </div>
           <Pill tone={tone(r.state)}>{stateLabel(r)}</Pill>
+          {#if !selectMode}
           <div class="r-actions">
             {#if canDiff(r.state)}
               <button class="act" title="See what's different from the catalog" onclick={() => openDiff(r)}>
@@ -273,6 +292,7 @@
               </button>
             {/if}
           </div>
+          {/if}
         </li>
       {/each}
     </ul>
@@ -348,6 +368,8 @@
     font-size: var(--text-body-sm); cursor: pointer;
   }
   .ghost-btn:hover { color: var(--color-text-primary); background: var(--color-surface-sunken); }
+  .ghost-btn.primary { color: var(--color-brand); border-color: var(--color-brand); }
+  .ghost-btn.primary:hover { background: color-mix(in srgb, var(--color-brand) 12%, transparent); color: var(--color-brand); }
   .rows { overflow-y: auto; padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: 1px; }
   .row {
     display: flex; align-items: center; gap: var(--space-3);
