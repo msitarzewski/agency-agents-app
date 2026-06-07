@@ -8,10 +8,12 @@
   import Pill from "./Pill.svelte";
   import EmptyState from "./EmptyState.svelte";
   import LoadingState from "./LoadingState.svelte";
+  import DiffModal from "./DiffModal.svelte";
   import RefreshIcon from "@lucide/svelte/icons/refresh-cw";
   import TrashIcon from "@lucide/svelte/icons/trash-2";
   import DownloadIcon from "@lucide/svelte/icons/download";
   import PlusIcon from "@lucide/svelte/icons/plus";
+  import GitCompareIcon from "@lucide/svelte/icons/git-compare";
 
   import { onMount } from "svelte";
   import { install } from "$lib/stores/install.svelte";
@@ -81,6 +83,17 @@
       toast.error("Action failed", String(e));
     }
   }
+
+  // Diff viewer — for rows where the filename matches a catalog agent but the
+  // bytes differ (foreign / modified / outdated). "What's actually different?"
+  let diffTarget = $state<{ slug: string; tool: InstalledAgent["tool"]; projectPath: string | null; name: string } | null>(null);
+  const DIFFABLE: InstallState[] = ["foreign", "modified", "outdated"];
+  function canDiff(s: InstallState): boolean {
+    return DIFFABLE.includes(s);
+  }
+  function openDiff(r: InstalledAgent) {
+    diffTarget = { slug: r.slug, tool: r.tool, projectPath: r.projectPath, name: r.name };
+  }
 </script>
 
 <section class="lib">
@@ -119,6 +132,11 @@
           </div>
           <Pill tone={tone(r.state)}>{stateLabel(r)}</Pill>
           <div class="r-actions">
+            {#if canDiff(r.state)}
+              <button class="act" title="See what's different from the catalog" onclick={() => openDiff(r)}>
+                <GitCompareIcon size={14} /><span>Diff</span>
+              </button>
+            {/if}
             {#if r.state === "outdated"}
               <button class="act" disabled={busy} onclick={() => act(() => install.update(r.slug, r.tool, r.projectPath), `Updated ${r.name}`)}>
                 <RefreshIcon size={14} /><span>Update</span>
@@ -134,8 +152,14 @@
                 <DownloadIcon size={14} /><span>Reinstall</span>
               </button>
             {:else if r.state === "foreign"}
-              <!-- Track is non-destructive: records provenance, never writes. -->
-              <button class="act primary" disabled={busy} title="Start tracking this file — no changes are written" onclick={() => act(() => install.track(r.slug, r.tool, r.projectPath), `Tracking ${r.name}`)}>
+              <!-- Update: replace the on-disk file with the catalog/repo version
+                   (your copy is backed up to backups/ first). The common "pull
+                   what the repo has" action when a local install drifts behind. -->
+              <button class="act" disabled={busy} title="Replace with the catalog version (your copy is backed up)" onclick={() => act(() => install.update(r.slug, r.tool, r.projectPath), `Updated ${r.name} from the catalog (your copy was backed up)`)}>
+                <RefreshIcon size={14} /><span>Update</span>
+              </button>
+              <!-- Track is non-destructive: records provenance, keeps your file. -->
+              <button class="act primary" disabled={busy} title="Keep your file as-is — just start tracking it (no changes written)" onclick={() => act(() => install.track(r.slug, r.tool, r.projectPath), `Tracking ${r.name}`)}>
                 <PlusIcon size={14} /><span>Track</span>
               </button>
             {/if}
@@ -150,6 +174,16 @@
     </ul>
   {/if}
 </section>
+
+{#if diffTarget}
+  <DiffModal
+    slug={diffTarget.slug}
+    tool={diffTarget.tool}
+    projectPath={diffTarget.projectPath}
+    name={diffTarget.name}
+    onClose={() => (diffTarget = null)}
+  />
+{/if}
 
 <style>
   .lib { display: flex; flex-direction: column; height: 100%; min-height: 0; }
