@@ -1,7 +1,7 @@
 //! Settings persistence (Phase 12d).
 //!
 //! Stores user-configurable preferences in
-//! `~/Library/Application Support/brew-browser/settings.json`. Loaded once
+//! `~/Library/Application Support/com.zerologic.agency-agents-app/settings.json`. Loaded once
 //! at app startup into `AppState.settings` and refreshed by every
 //! `settings_set` / `settings_reset` call so live readers (e.g. the
 //! paranoid-mode gate consulted by `require_network`) see changes
@@ -71,10 +71,9 @@ pub struct Settings {
     /// Clamped to `[1, 365]` on every load and save.
     pub catalog_stale_banner_days: u32,
 
-    /// Cask icon fetching mode. Default `All` (matches the current Phase
-    /// 8 behaviour where every uninstalled cask with a homepage probes
-    /// for a favicon). `InstalledOnly` skips the homepage cascade
-    /// entirely. `Off` disables even installed-app icon extraction.
+    /// Legacy icon-fetching mode inherited from the source app. Retained in
+    /// the settings schema for compatibility until the network settings model
+    /// is pruned.
     pub cask_icon_mode: CaskIconMode,
 
     /// Trending cache TTL in minutes. Default 60 (matches the existing
@@ -92,13 +91,8 @@ pub struct Settings {
     /// outbound call. Paranoid mode overrides this regardless.
     pub github_enabled: bool,
 
-    /// Phase 13 — master AI Features toggle. When false, ALL AI-derived
-    /// data is hidden in the UI: categories (Phase 9), enrichment (Phase
-    /// 13), donut chart, category pills, enriched summaries, use-cases,
-    /// similar packages, tags. Default **true** so users who opt in to
-    /// brew-browser get the enriched experience by default; the toggle
-    /// lives in Settings → Appearance for users who prefer brew's
-    /// native metadata only.
+    /// Phase 13 — master AI Features toggle. When false, AI-derived
+    /// presentation data is hidden in the UI. Default **true**.
     ///
     /// This is a *rendering* gate — the enrichment payload is bundled
     /// into the binary regardless, so toggling this on/off doesn't
@@ -125,56 +119,21 @@ pub struct Settings {
     #[serde(default)]
     pub skipped_update_versions: Vec<String>,
 
-    /// v0.4.0 — opt-in fetch of historical install trends from
-    /// `brew-browser.zerologic.com/trending-history/*`. When **false**
-    /// (default), the Trending tab and PackageDetail render only what
-    /// `formulae.brew.sh` exposes natively (30d/90d/365d snapshots) and
-    /// the new endpoint is never contacted. When **true**, the app
-    /// fetches per-package historical series to power sparklines.
-    ///
-    /// Distinct trust boundary from the always-on Homebrew endpoints —
-    /// `brew-browser.zerologic.com` is operated by the project, not
-    /// upstream Homebrew. See `memory-bank/security.md` for the
-    /// endpoint audit and `README.md` for the disclosed outbound paths.
-    ///
-    /// Paranoid mode overrides this regardless: when paranoid is on,
-    /// `require_enhanced_trending` denies even with this flag set.
+    /// Legacy enhanced-trending toggle inherited from the source app.
+    /// Retained for settings-file compatibility; Agency Agents should not
+    /// wire a runtime feature to this without a fresh endpoint audit.
     #[serde(default)]
     pub enhanced_trending_enabled: bool,
 
-    /// v0.5.0 — opt-in vulnerability scanning of installed Homebrew
-    /// formulae. When **false** (default), the app makes no vulnerability
-    /// queries and surfaces no CVE badges. When **true**, the backend
-    /// shells out to the official `brew vulns --json` subcommand (which
-    /// queries OSV.dev via its GIT ecosystem) and, when [`Self::github_enabled`]
-    /// is also on, enriches GHSA-prefixed results via the GitHub
-    /// Advisories API.
-    ///
-    /// Distinct trust boundary from the always-on Homebrew endpoints:
-    /// `brew vulns` is an official Homebrew subcommand but it talks to
-    /// `api.osv.dev` (Google) and indirectly to the source forges
-    /// (github.com, gitlab.com, codeberg.org) for version-tag lookups.
-    /// See `memory-bank/security.md` for the endpoint audit and
-    /// `README.md` for the disclosed outbound paths.
-    ///
-    /// Paranoid mode overrides this regardless: when paranoid is on,
-    /// `require_vulnerability_scanning` denies even with this flag set.
+    /// Legacy vulnerability-scanning toggle inherited from the source app.
+    /// Retained for settings-file compatibility; Agency Agents does not shell
+    /// out to a vulnerability scanner.
     #[serde(default)]
     pub vulnerability_scanning_enabled: bool,
 
-    /// Opt-in *live* refresh of AI categories + descriptions. When **false**
-    /// (default), the app uses only the bundled `categories.json` /
-    /// `enrichment.json.gz` baked in at build time — no network. When **true**,
-    /// the app fetches fresher data from
-    /// `brew-browser.zerologic.com/enrichment/*` on catalog refresh + per
-    /// package shown: a tiny `version.json` probe, the full `categories.json`
-    /// when its version is newer, and per-token `entry/<token>.json` on demand.
-    /// Live data overlays the bundled baseline; misses fall back to bundled.
-    ///
-    /// Distinct trust boundary — same first-party host as Enhanced Trending
-    /// (`brew-browser.zerologic.com`), a new `…/enrichment/*` path. Only the
-    /// package name you're viewing is sent (one GET per token); no IP logged,
-    /// no cookies. Paranoid mode overrides this regardless.
+    /// Legacy live-enrichment toggle inherited from the source app. Retained
+    /// for settings-file compatibility; Agency Agents currently reads metadata
+    /// from the active AA catalog.
     #[serde(default)]
     pub live_enrichment_enabled: bool,
 }
@@ -200,7 +159,7 @@ impl Default for Settings {
             github_enabled: false,
             // On by default per Phase 13 plan: AI-enriched rendering is
             // a value-add the project wants to show off out of the box.
-            // Toggling off reverts the UI to brew's native metadata only.
+            // Toggling off reverts the UI to plain source/catalog metadata.
             ai_features_enabled: default_ai_features_enabled(),
             // Off by default per Phase 15 plan: the manifest endpoint
             // stays cold until the user explicitly opts in (or hits the
@@ -209,20 +168,11 @@ impl Default for Settings {
             // Empty by default — populated as the user dismisses
             // individual versions via the title-bar indicator's `×`.
             skipped_update_versions: Vec::new(),
-            // Off by default per v0.4.0 plan: brew-browser.zerologic.com
-            // (our infra) stays cold until the user explicitly opts in
-            // via Settings → Network. Velocity sorting + heat/cool
-            // badges still work without this — they're computed from
-            // the always-on Homebrew analytics windows.
+            // Off by default; retained legacy field.
             enhanced_trending_enabled: false,
-            // Off by default per v0.5.0 plan: no vulnerability scanning
-            // until the user explicitly opts in via Settings → Network.
-            // No `brew vulns` invocation, no OSV traffic, no GHSA lookups
-            // until then.
+            // Off by default; retained legacy field.
             vulnerability_scanning_enabled: false,
-            // Off by default: the app ships with a bundled categories +
-            // enrichment baseline and contacts brew-browser.zerologic.com/
-            // enrichment/* only when the user opts in via Settings → Network.
+            // Off by default; retained legacy field.
             live_enrichment_enabled: false,
         }
     }
@@ -502,7 +452,7 @@ pub(crate) async fn persist(app_data_dir: &Path, mut settings: Settings) -> Resu
 
     // Defense in depth — ensure the parent dir exists. `AppState::build`
     // already mkdir_p'd it, but a fresh checkout of the app on a system
-    // that's never run brew-browser could plausibly hit this otherwise.
+    // that's never run Agency Agents could plausibly hit this otherwise.
     if !app_data_dir.exists() {
         tokio::fs::create_dir_all(app_data_dir).await.map_err(|e| {
             AppError::Io {
@@ -983,10 +933,8 @@ mod tests {
         }
     }
 
-    /// v0.4.0 — `enhanced_trending_enabled` defaults to false. This is
-    /// load-bearing: the new endpoint must never be hit without explicit
-    /// user opt-in, so a forgotten default-true would silently leak the
-    /// fact that brew-browser is in use.
+    /// Legacy `enhanced_trending_enabled` defaults to false. This is retained
+    /// so old settings files do not accidentally enable unused network paths.
     #[test]
     fn enhanced_trending_defaults_to_false() {
         let s = Settings::default();
@@ -1055,9 +1003,9 @@ mod tests {
         }
     }
 
-    /// v0.5.0 — `vulnerability_scanning_enabled` defaults to false. Load-
-    /// bearing: no `brew vulns` subprocess, no OSV traffic, no GHSA lookups
-    /// until the user opts in via Settings → Network.
+    /// Legacy `vulnerability_scanning_enabled` defaults to false. Load-bearing:
+    /// no scanner subprocess or enrichment traffic unless the user explicitly
+    /// opts in to a future reworked feature.
     #[test]
     fn vulnerability_scanning_defaults_to_false() {
         let s = Settings::default();

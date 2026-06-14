@@ -12,6 +12,7 @@
   import { github } from "$lib/stores/github.svelte";
   import { safeOpenUrl } from "$lib/util/url";
   import { SPONSOR_URL } from "$lib/util/donate";
+  import { shortcut } from "$lib/util/platform";
   import type { ThemePreference } from "$lib/types";
 
   /**
@@ -137,7 +138,7 @@
     type="button"
     class="ctrl"
     onclick={() => ui.openSettings()}
-    title="Settings (⌘,)"
+    title={`Settings (${shortcut(",")})`}
     aria-label="Open Settings"
   >
     <SettingsIcon size={14} />

@@ -77,6 +77,78 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     s
 }
 
+/// Match `scripts/lib.sh#get_field`: return the first literal `field: value`
+/// line between exact `---` fences. The shell helper does not parse YAML, so
+/// quotes and other source spelling must be preserved for byte parity.
+fn source_field<'a>(source: &'a str, field: &str) -> &'a str {
+    let prefix = format!("{field}: ");
+    let mut fences = 0;
+    for line in source.lines() {
+        if line == "---" {
+            fences += 1;
+            continue;
+        }
+        if fences == 1 {
+            if let Some(value) = line.strip_prefix(&prefix) {
+                return value;
+            }
+        } else if fences >= 2 {
+            break;
+        }
+    }
+    ""
+}
+
+/// Match `body="$(get_body "$file")"` from the upstream converter. `awk`
+/// emits one newline per body line and command substitution strips every
+/// trailing newline before the heredoc adds exactly one back.
+fn source_body(source: &str) -> String {
+    let mut fences = 0;
+    let mut body = String::new();
+    for line in source.lines() {
+        if line == "---" {
+            fences += 1;
+            continue;
+        }
+        if fences >= 2 {
+            body.push_str(line);
+            body.push('\n');
+        }
+    }
+    while body.ends_with('\n') {
+        body.pop();
+    }
+    body
+}
+
+/// Match `scripts/lib.sh#slugify`.
+pub fn slugify(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    let mut previous_dash = false;
+    for ch in value.chars().flat_map(char::to_lowercase) {
+        if ch.is_ascii_lowercase() || ch.is_ascii_digit() {
+            out.push(ch);
+            previous_dash = false;
+        } else if !out.is_empty() && !previous_dash {
+            out.push('-');
+            previous_dash = true;
+        }
+    }
+    while out.ends_with('-') {
+        out.pop();
+    }
+    out
+}
+
+/// Filename stem emitted by `convert.sh`. Identity tools preserve the source
+/// filename; transform tools derive it from frontmatter `name`.
+pub fn output_slug(agent: &Agent, raw_source: &str, tool: Tool) -> String {
+    match tool {
+        Tool::ClaudeCode | Tool::Copilot => agent.slug.clone(),
+        _ => slugify(source_field(raw_source, "name")),
+    }
+}
+
 fn unsupported(tool: Tool) -> AppError {
     AppError::Io {
         message: format!(
@@ -88,8 +160,11 @@ fn unsupported(tool: Tool) -> AppError {
 
 /// Render the file content for `tool` from `agent` (+ the raw corpus `.md`
 /// source, used verbatim by identity tools). Deterministic.
-pub fn render(agent: &Agent, raw_source: &str, tool: Tool) -> Result<String, AppError> {
-    let body = agent.body.as_str();
+pub fn render(_agent: &Agent, raw_source: &str, tool: Tool) -> Result<String, AppError> {
+    let name = source_field(raw_source, "name");
+    let description = source_field(raw_source, "description");
+    let body = source_body(raw_source);
+    let slug = slugify(name);
     let out = match tool {
         // Identity — ship the corpus `.md` exactly as authored.
         Tool::ClaudeCode | Tool::Copilot => raw_source.to_string(),
@@ -97,37 +172,40 @@ pub fn render(agent: &Agent, raw_source: &str, tool: Tool) -> Result<String, App
         // Cursor `.mdc`: description + globs + alwaysApply frontmatter.
         Tool::Cursor => format!(
             "---\ndescription: {desc}\nglobs: \"\"\nalwaysApply: false\n---\n{body}\n",
-            desc = agent.description,
+            desc = description,
         ),
 
         // Codex TOML: minimal required fields, control chars escaped.
         Tool::Codex => format!(
             "name = \"{name}\"\ndescription = \"{desc}\"\ndeveloper_instructions = \"{body}\"\n",
-            name = toml_escape(&agent.name),
-            desc = toml_escape(&agent.description),
-            body = toml_escape(body),
+            name = toml_escape(name),
+            desc = toml_escape(description),
+            body = toml_escape(&body),
         ),
 
         // Gemini CLI subagent `.md`: name(=slug) + description frontmatter.
         Tool::GeminiCli => format!(
             "---\nname: {slug}\ndescription: {desc}\n---\n{body}\n",
-            slug = agent.slug,
-            desc = agent.description,
+            desc = description,
         ),
 
-        // Qwen Code SubAgent `.md`: same shape as Gemini CLI.
-        Tool::Qwen => format!(
-            "---\nname: {slug}\ndescription: {desc}\n---\n{body}\n",
-            slug = agent.slug,
-            desc = agent.description,
-        ),
+        // Qwen Code SubAgent `.md`: optional tools line is preserved literally.
+        Tool::Qwen => {
+            let tools = source_field(raw_source, "tools");
+            if tools.is_empty() {
+                format!("---\nname: {slug}\ndescription: {description}\n---\n{body}\n")
+            } else {
+                format!(
+                    "---\nname: {slug}\ndescription: {description}\ntools: {tools}\n---\n{body}\n"
+                )
+            }
+        }
 
         // OpenCode `.md`: name + description + mode + hex color frontmatter.
         Tool::Opencode => format!(
             "---\nname: {name}\ndescription: {desc}\nmode: subagent\ncolor: '{color}'\n---\n{body}\n",
-            name = agent.name,
-            desc = agent.description,
-            color = resolve_opencode_color(agent.color.as_deref().unwrap_or("")),
+            desc = description,
+            color = resolve_opencode_color(source_field(raw_source, "color")),
         ),
 
         Tool::Windsurf | Tool::Aider | Tool::Openclaw | Tool::Antigravity => {
@@ -242,6 +320,9 @@ fn toml_escape(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
+    use std::fs;
+    use std::process::Command;
 
     fn agent() -> Agent {
         Agent {
@@ -256,6 +337,10 @@ mod tests {
         }
     }
 
+    fn raw() -> &'static str {
+        "---\nname: Frontend Developer\ndescription: Builds UIs.\ncolor: blue\nemoji: 🎨\nvibe: Ships pixels.\n---\nYou are a frontend dev.\n"
+    }
+
     #[test]
     fn claude_code_is_identity() {
         let a = agent();
@@ -266,7 +351,7 @@ mod tests {
 
     #[test]
     fn cursor_mdc_shape() {
-        let out = render(&agent(), "", Tool::Cursor).unwrap();
+        let out = render(&agent(), raw(), Tool::Cursor).unwrap();
         assert!(out.starts_with("---\ndescription: Builds UIs.\nglobs: \"\"\nalwaysApply: false\n---\n"));
         assert!(out.contains("You are a frontend dev."));
     }
@@ -275,14 +360,16 @@ mod tests {
     fn codex_toml_escapes() {
         let mut a = agent();
         a.description = "has \"quotes\" and\nnewline".into();
-        let out = render(&a, "", Tool::Codex).unwrap();
-        assert!(out.contains("description = \"has \\\"quotes\\\" and\\nnewline\""));
+        let source = "---\nname: Frontend Developer\ndescription: has \"quotes\" and\tcontrols\n---\nline 1\nline \"2\"\n";
+        let out = render(&a, source, Tool::Codex).unwrap();
+        assert!(out.contains("description = \"has \\\"quotes\\\" and\\tcontrols\""));
+        assert!(out.contains("developer_instructions = \"line 1\\nline \\\"2\\\"\""));
         assert!(out.starts_with("name = \"Frontend Developer\""));
     }
 
     #[test]
     fn opencode_color_maps_to_hex() {
-        let out = render(&agent(), "", Tool::Opencode).unwrap();
+        let out = render(&agent(), raw(), Tool::Opencode).unwrap();
         assert!(out.contains("color: '#3498DB'"), "blue → #3498DB: {out}");
         assert!(out.contains("mode: subagent"));
     }
@@ -291,23 +378,155 @@ mod tests {
     fn opencode_unknown_color_falls_back() {
         let mut a = agent();
         a.color = None;
-        let out = render(&a, "", Tool::Opencode).unwrap();
+        let source = "---\nname: Frontend Developer\ndescription: Builds UIs.\n---\nBody\n";
+        let out = render(&a, source, Tool::Opencode).unwrap();
         assert!(out.contains("color: '#6B7280'"));
     }
 
     #[test]
     fn gemini_uses_slug_as_name() {
-        let out = render(&agent(), "", Tool::GeminiCli).unwrap();
+        let out = render(&agent(), raw(), Tool::GeminiCli).unwrap();
         assert!(out.starts_with("---\nname: frontend-developer\ndescription: Builds UIs.\n---\n"));
     }
 
     #[test]
     fn render_is_deterministic() {
         for tool in [Tool::Cursor, Tool::Codex, Tool::Opencode, Tool::GeminiCli, Tool::Qwen] {
-            let a = render(&agent(), "raw", tool).unwrap();
-            let b = render(&agent(), "raw", tool).unwrap();
+            let a = render(&agent(), raw(), tool).unwrap();
+            let b = render(&agent(), raw(), tool).unwrap();
             assert_eq!(a, b, "{tool:?} must be deterministic");
         }
+    }
+
+    #[test]
+    fn source_helpers_match_shell_semantics() {
+        let source = "---\nname: \"Quoted Name\"\ndescription: has: colon\ntools: Read, Write\n---\nBody\n---\nTail\n\n";
+        assert_eq!(source_field(source, "name"), "\"Quoted Name\"");
+        assert_eq!(source_field(source, "description"), "has: colon");
+        assert_eq!(source_body(source), "Body\nTail");
+        assert_eq!(slugify("FP&A / QA"), "fp-a-qa");
+    }
+
+    #[test]
+    fn qwen_preserves_optional_tools() {
+        let source = "---\nname: Frontend Developer\ndescription: Builds UIs.\ntools: Read, Write\n---\nBody\n";
+        let out = render(&agent(), source, Tool::Qwen).unwrap();
+        assert!(out.contains("\ntools: Read, Write\n"));
+
+        let without = render(&agent(), raw(), Tool::Qwen).unwrap();
+        assert!(!without.contains("\ntools: "));
+    }
+
+    #[test]
+    fn output_slug_matches_converter_identity_rules() {
+        let mut a = agent();
+        a.slug = "engineering-frontend-developer".into();
+        assert_eq!(
+            output_slug(&a, raw(), Tool::ClaudeCode),
+            "engineering-frontend-developer"
+        );
+        assert_eq!(output_slug(&a, raw(), Tool::Codex), "frontend-developer");
+    }
+
+    fn collect_markdown(root: &Path, out: &mut Vec<PathBuf>) {
+        let Ok(entries) = fs::read_dir(root) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                collect_markdown(&path, out);
+            } else if path.extension().and_then(|e| e.to_str()) == Some("md") {
+                out.push(path);
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "requires AGENCY_AGENTS_PARITY_ROOT and executes upstream convert.sh"]
+    fn upstream_convert_sh_is_byte_identical_for_transform_tools() {
+        let root = std::env::var("AGENCY_AGENTS_PARITY_ROOT")
+            .expect("set AGENCY_AGENTS_PARITY_ROOT to an agency-agents clone");
+        let root = PathBuf::from(root);
+        let script = root.join("scripts/convert.sh");
+        assert!(script.is_file(), "missing {}", script.display());
+
+        let script_text = fs::read_to_string(&script).unwrap();
+        let dirs_start = script_text.find("AGENT_DIRS=(").expect("AGENT_DIRS");
+        let dirs_tail = &script_text[dirs_start + "AGENT_DIRS=(".len()..];
+        let dirs_body = dirs_tail.split(')').next().expect("AGENT_DIRS close");
+        let categories: Vec<&str> = dirs_body.split_whitespace().collect();
+
+        let temp = tempfile::tempdir().unwrap();
+        let tools = [
+            (Tool::Cursor, "cursor/rules", "mdc"),
+            (Tool::Codex, "codex/agents", "toml"),
+            (Tool::GeminiCli, "gemini-cli/agents", "md"),
+            (Tool::Opencode, "opencode/agents", "md"),
+            (Tool::Qwen, "qwen/agents", "md"),
+        ];
+        for (_, tool_id, _) in tools {
+            let tool = tool_id.split('/').next().unwrap();
+            let status = Command::new("bash")
+                .arg(&script)
+                .args(["--tool", tool, "--out"])
+                .arg(temp.path())
+                .status()
+                .unwrap();
+            assert!(status.success(), "convert.sh failed for {tool}");
+        }
+
+        let mut files = Vec::new();
+        for category in categories {
+            collect_markdown(&root.join(category), &mut files);
+        }
+        files.sort();
+
+        let mut conversion_slugs = HashSet::new();
+        let mut compared = 0usize;
+        for path in files {
+            let raw = fs::read_to_string(&path).unwrap();
+            let name = source_field(&raw, "name");
+            if name.is_empty() || !raw.starts_with("---\n") {
+                continue;
+            }
+            let source_slug = path.file_stem().unwrap().to_string_lossy().to_string();
+            let agent = Agent {
+                slug: source_slug,
+                name: name.to_string(),
+                description: String::new(),
+                category: String::new(),
+                emoji: None,
+                color: None,
+                vibe: None,
+                body: String::new(),
+            };
+            let converted_slug = output_slug(&agent, &raw, Tool::Codex);
+            assert!(
+                conversion_slugs.insert(converted_slug.clone()),
+                "duplicate conversion slug: {converted_slug}"
+            );
+            for (tool, subdir, ext) in tools {
+                let expected_path =
+                    temp.path().join(subdir).join(format!("{converted_slug}.{ext}"));
+                let expected = fs::read(&expected_path)
+                    .unwrap_or_else(|e| panic!("read {}: {e}", expected_path.display()));
+                let actual = render(&agent, &raw, tool).unwrap();
+                assert_eq!(
+                    actual.as_bytes(),
+                    expected,
+                    "{tool:?} parity mismatch for {}",
+                    path.display()
+                );
+                compared += 1;
+            }
+        }
+        assert!(compared > 0);
+        eprintln!(
+            "renderer parity: {} agents, {} byte comparisons",
+            conversion_slugs.len(),
+            compared
+        );
     }
 
     #[test]

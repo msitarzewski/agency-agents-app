@@ -150,7 +150,7 @@ class UiStore {
       Persisted to localStorage so the next launch reads it. */
   vibrancyMaterial: VibrancyMaterial = $state("HudWindow");
 
-  /** Whether destructive actions (Uninstall, Zap, Delete Brewfile) require
+  /** Whether destructive actions require
       a confirm dialog. Defaults true; turning it off is a "trust me" mode
       for power users. */
   confirmDestructive: boolean = $state(true);

@@ -125,7 +125,12 @@ async fn backup_if_differs(
 ) -> Result<(), AppError> {
     let existing = match tokio::fs::read(dest).await {
         Ok(b) => b,
-        Err(_) => return Ok(()), // nothing on disk → nothing to preserve
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => {
+            return Err(AppError::Io {
+                message: format!("read existing file {} before backup: {e}", dest.display()),
+            })
+        }
     };
     if existing == new_bytes {
         return Ok(()); // identical → not a destructive write
@@ -159,7 +164,12 @@ async fn do_install(
     let home = home()?;
     let proot = project_path.as_ref().map(PathBuf::from);
     let backups = backups_dir(app)?;
-    let record = write_agent_files(
+    let mut ledger = load_ledger(app).await?;
+    let existing_dest = ledger
+        .iter()
+        .find(|r| r.slug == slug && r.tool == tool && r.project_path == project_path)
+        .map(|r| PathBuf::from(&r.dest));
+    let record = write_agent_files_to(
         &agent,
         &raw,
         tool,
@@ -170,10 +180,10 @@ async fn do_install(
         &entry.body_hash,
         &corpus.version(),
         &now_iso(),
+        existing_dest.as_deref(),
     )
     .await?;
 
-    let mut ledger = load_ledger(app).await?;
     ledger.retain(|r| !(r.slug == slug && r.tool == tool && r.project_path == project_path));
     ledger.push(record.clone());
     save_ledger(app, &ledger).await?;
@@ -240,10 +250,11 @@ fn track_agent_record(
     installed_at: &str,
 ) -> Result<InstallRecord, AppError> {
     let (_bytes, rendered_hash) = render::render_with_hash(agent, raw, tool)?;
-    let paths = render::dests(tool, &agent.slug, home, project_root)?;
+    let paths = candidate_dests(agent, raw, tool, home, project_root)?;
+    let primary = paths.iter().find(|p| p.exists()).unwrap_or(&paths[0]);
     Ok(record_for(
         agent,
-        &paths[0],
+        primary,
         tool,
         project_root,
         rendered_hash,
@@ -252,6 +263,72 @@ fn track_agent_record(
         corpus_version,
         installed_at,
     ))
+}
+
+/// Possible physical destinations for one logical install. App-authored files
+/// historically used the catalog filename slug; upstream `convert.sh` uses
+/// `slugify(name)` for transform tools. Recognize both without changing the
+/// catalog's stable identity.
+fn candidate_dests(
+    agent: &crate::types::Agent,
+    raw: &str,
+    tool: Tool,
+    home: &Path,
+    project_root: Option<&Path>,
+) -> Result<Vec<PathBuf>, AppError> {
+    let mut paths = render::dests(tool, &agent.slug, home, project_root)?;
+    let conversion_slug = render::output_slug(agent, raw, tool);
+    if conversion_slug != agent.slug {
+        for path in render::dests(tool, &conversion_slug, home, project_root)? {
+            if !paths.contains(&path) {
+                paths.push(path);
+            }
+        }
+    }
+    Ok(paths)
+}
+
+/// Back up divergent files, then remove every existing physical destination.
+/// Backup is a separate first pass so a preservation failure cannot occur after
+/// an earlier destination has already been deleted.
+async fn remove_agent_files(
+    agent: &crate::types::Agent,
+    raw: &str,
+    tool: Tool,
+    home: &Path,
+    project_root: Option<&Path>,
+    ledger_dest: Option<&Path>,
+    backup_dir: &Path,
+    stamp: &str,
+) -> Result<(), AppError> {
+    let (canonical, _) = render::render_with_hash(agent, raw, tool)?;
+    let mut paths = candidate_dests(agent, raw, tool, home, project_root)?;
+    if let Some(path) = ledger_dest {
+        let path = path.to_path_buf();
+        if !paths.contains(&path) {
+            paths.push(path);
+        }
+    }
+
+    let existing: Vec<PathBuf> = paths.into_iter().filter(|p| p.exists()).collect();
+    for (index, path) in existing.iter().enumerate() {
+        let backup_stamp = format!("{stamp}-{index}");
+        backup_if_differs(path, canonical.as_bytes(), backup_dir, &backup_stamp).await?;
+    }
+    for path in existing {
+        remove_file_strict(&path).await?;
+    }
+    Ok(())
+}
+
+async fn remove_file_strict(path: &Path) -> Result<(), AppError> {
+    match tokio::fs::remove_file(path).await {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(AppError::Io {
+            message: format!("remove agent file {}: {e}", path.display()),
+        }),
+    }
 }
 
 /// Render + write the agent file(s) and build the ledger record. Pure of Tauri
@@ -264,6 +341,7 @@ fn track_agent_record(
 /// write is reversible. `None` skips backups (only for callers that have already
 /// guaranteed there's nothing to preserve).
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 async fn write_agent_files(
     agent: &crate::types::Agent,
     raw: &str,
@@ -276,8 +354,45 @@ async fn write_agent_files(
     corpus_version: &str,
     installed_at: &str,
 ) -> Result<InstallRecord, AppError> {
+    write_agent_files_to(
+        agent,
+        raw,
+        tool,
+        home,
+        project_root,
+        backup_dir,
+        source_hash,
+        body_hash,
+        corpus_version,
+        installed_at,
+        None,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn write_agent_files_to(
+    agent: &crate::types::Agent,
+    raw: &str,
+    tool: Tool,
+    home: &Path,
+    project_root: Option<&Path>,
+    backup_dir: Option<&Path>,
+    source_hash: &str,
+    body_hash: &str,
+    corpus_version: &str,
+    installed_at: &str,
+    preferred_dest: Option<&Path>,
+) -> Result<InstallRecord, AppError> {
     let (bytes, rendered_hash) = render::render_with_hash(agent, raw, tool)?;
-    let paths = render::dests(tool, &agent.slug, home, project_root)?;
+    let mut paths = render::dests(tool, &agent.slug, home, project_root)?;
+    if let Some(preferred) = preferred_dest {
+        if paths.len() == 1 {
+            paths[0] = preferred.to_path_buf();
+        } else if let Some(index) = paths.iter().position(|p| p == preferred) {
+            paths.swap(0, index);
+        }
+    }
     for dest in &paths {
         if let Some(bdir) = backup_dir {
             backup_if_differs(dest, bytes.as_bytes(), bdir, installed_at).await?;
@@ -451,8 +566,16 @@ pub async fn agent_diff(
 
     let home = home()?;
     let proot = project_path.as_ref().map(PathBuf::from);
-    let paths = render::dests(tool, &slug, &home, proot.as_deref())?;
-    let dest = &paths[0];
+    let ledger = load_ledger(&app).await?;
+    let ledger_dest = ledger
+        .iter()
+        .find(|r| r.slug == slug && r.tool == tool && r.project_path == project_path)
+        .map(|r| PathBuf::from(&r.dest));
+    let candidates = candidate_dests(&agent, &raw, tool, &home, proot.as_deref())?;
+    let dest = ledger_dest
+        .as_ref()
+        .or_else(|| candidates.iter().find(|p| p.exists()))
+        .unwrap_or(&candidates[0]);
     let on_disk = match read_capped(dest, MAX_INSTALLED_BYTES).await {
         Ok(b) => Some(String::from_utf8_lossy(&b).into_owned()),
         Err(_) => None,
@@ -473,19 +596,34 @@ pub async fn agent_diff(
 #[tauri::command]
 pub async fn uninstall_agent(
     app: AppHandle,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
     slug: String,
     tool: Tool,
     project_path: Option<String>,
 ) -> Result<(), AppError> {
+    let corpus = corpus::ensure_corpus(&app, &state).await?;
+    let agent = corpus.get(&slug).ok_or_else(|| AppError::Io {
+        message: format!("unknown agent: {slug}"),
+    })?;
+    let raw = corpus::read_source(&app, &agent.category, &slug).await?;
     let home = home()?;
     let proot = project_path.as_ref().map(PathBuf::from);
-    if let Ok(paths) = render::dests(tool, &slug, &home, proot.as_deref()) {
-        for dest in paths {
-            let _ = tokio::fs::remove_file(&dest).await; // best-effort
-        }
-    }
     let mut ledger = load_ledger(&app).await?;
+    let ledger_dest = ledger
+        .iter()
+        .find(|r| r.slug == slug && r.tool == tool && r.project_path == project_path)
+        .map(|r| PathBuf::from(&r.dest));
+    remove_agent_files(
+        &agent,
+        &raw,
+        tool,
+        &home,
+        proot.as_deref(),
+        ledger_dest.as_deref(),
+        &backups_dir(&app)?,
+        &now_iso(),
+    )
+    .await?;
     ledger.retain(|r| !(r.slug == slug && r.tool == tool && r.project_path == project_path));
     save_ledger(&app, &ledger).await?;
     Ok(())
@@ -577,11 +715,15 @@ pub async fn installs_reconcile(
             };
             while let Ok(Some(ent)) = rd.next_entry().await {
                 let path = ent.path();
-                let Some(slug) = path.file_stem().and_then(|s| s.to_str()) else { continue };
-                let Some(agent) = corpus.get(slug) else {
+                let Some(file_slug) = path.file_stem().and_then(|s| s.to_str()) else { continue };
+                let Some(agent) = corpus
+                    .get(file_slug)
+                    .or_else(|| corpus.get_by_conversion_slug(file_slug))
+                else {
                     continue; // unrecognized → not ours to claim
                 };
-                if ledger_keys.contains(&(slug.to_string(), tool, proj.clone())) {
+                let slug = agent.slug.clone();
+                if ledger_keys.contains(&(slug.clone(), tool, proj.clone())) {
                     continue; // already in the ledger
                 }
                 // Byte-identical to the catalog ⇒ in sync ⇒ Current. Otherwise a
@@ -592,7 +734,7 @@ pub async fn installs_reconcile(
                     InstallState::Foreign
                 };
                 out.push(InstalledAgent {
-                    slug: slug.to_string(),
+                    slug,
                     name: agent.name.clone(),
                     tool,
                     scope: tool.scope(),
@@ -893,7 +1035,7 @@ mod tests {
         .await
         .unwrap();
 
-        let path = home.path().join(".codex/agents/frontend-developer.toml");
+        let path = home.path().join(".codex").join("agents").join("frontend-developer.toml");
         assert!(path.exists(), "install wrote the file");
         let on_disk = std::fs::read(&path).unwrap();
         let disk_hash = render::sha256_hex(&on_disk);
@@ -977,7 +1119,7 @@ mod tests {
         )
         .unwrap();
 
-        let path = home.path().join(".codex/agents/frontend-developer.toml");
+        let path = home.path().join(".codex/agents").join("frontend-developer.toml");
         assert!(!path.exists(), "Track must not write the agent file");
         assert_eq!(rec.dest, path.to_string_lossy(), "record points at the canonical dest");
 
@@ -994,6 +1136,60 @@ mod tests {
             classify(Some("hand-edited"), &rec.rendered_hash, &rec.source_hash, Some("src-1")),
             InstallState::Modified,
             "a tracked file that differs reconciles as Modified (never silently clobbered)"
+        );
+    }
+
+    #[tokio::test]
+    async fn tracked_conversion_slug_update_reuses_existing_destination() {
+        let home = tempfile::tempdir().unwrap();
+        let backups = tempfile::tempdir().unwrap();
+        let mut agent = sample_agent();
+        agent.slug = "engineering-frontend-developer".into();
+        let raw = "---\nname: Frontend Developer\ndescription: Builds UIs.\n---\nBODY\n";
+        let conversion_dest = home.path().join(".codex/agents").join("frontend-developer.toml");
+        std::fs::create_dir_all(conversion_dest.parent().unwrap()).unwrap();
+        std::fs::write(&conversion_dest, b"OLDER CLI OUTPUT").unwrap();
+
+        let tracked = track_agent_record(
+            &agent,
+            raw,
+            Tool::Codex,
+            home.path(),
+            None,
+            "src-1",
+            "body-1",
+            "v1",
+            "2026-06-12T00:00:00Z",
+        )
+        .unwrap();
+        assert_eq!(tracked.dest, conversion_dest.to_string_lossy());
+
+        write_agent_files_to(
+            &agent,
+            raw,
+            Tool::Codex,
+            home.path(),
+            None,
+            Some(backups.path()),
+            "src-2",
+            "body-2",
+            "v2",
+            "2026-06-12T01:00:00Z",
+            Some(&conversion_dest),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(&conversion_dest).unwrap(),
+            render::render(&agent, raw, Tool::Codex).unwrap()
+        );
+        assert!(
+            !home
+                .path()
+                .join(".codex/agents/engineering-frontend-developer.toml")
+                .exists(),
+            "update must not create a duplicate source-slug file"
         );
     }
 
@@ -1039,6 +1235,149 @@ mod tests {
         assert_eq!(before, after, "identical render leaves the file unchanged");
         let count = std::fs::read_dir(backups.path()).unwrap().count();
         assert_eq!(count, 1, "no-op write adds no backup");
+    }
+
+    #[tokio::test]
+    async fn uninstall_canonical_file_needs_no_backup() {
+        let home = tempfile::tempdir().unwrap();
+        let backups = tempfile::tempdir().unwrap();
+        let agent = sample_agent();
+        let raw = "---\nname: Frontend Developer\ndescription: Builds UIs.\n---\nBODY\n";
+        let dest = home.path().join(".codex/agents/frontend-developer.toml");
+        std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+        std::fs::write(&dest, render::render(&agent, raw, Tool::Codex).unwrap()).unwrap();
+
+        remove_agent_files(
+            &agent,
+            raw,
+            Tool::Codex,
+            home.path(),
+            None,
+            None,
+            backups.path(),
+            "2026-06-12T00:00:00Z",
+        )
+        .await
+        .unwrap();
+
+        assert!(!dest.exists());
+        assert_eq!(std::fs::read_dir(backups.path()).unwrap().count(), 0);
+    }
+
+    #[tokio::test]
+    async fn uninstall_modified_file_backs_up_before_delete() {
+        let home = tempfile::tempdir().unwrap();
+        let backups = tempfile::tempdir().unwrap();
+        let agent = sample_agent();
+        let raw = "---\nname: Frontend Developer\ndescription: Builds UIs.\n---\nBODY\n";
+        let dest = home.path().join(".codex/agents/frontend-developer.toml");
+        std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+        std::fs::write(&dest, b"USER MODIFIED").unwrap();
+
+        remove_agent_files(
+            &agent,
+            raw,
+            Tool::Codex,
+            home.path(),
+            None,
+            None,
+            backups.path(),
+            "2026-06-12T00:00:00Z",
+        )
+        .await
+        .unwrap();
+
+        assert!(!dest.exists());
+        let saved: Vec<_> = std::fs::read_dir(backups.path())
+            .unwrap()
+            .map(|entry| std::fs::read(entry.unwrap().path()).unwrap())
+            .collect();
+        assert_eq!(saved, vec![b"USER MODIFIED".to_vec()]);
+    }
+
+    #[tokio::test]
+    async fn uninstall_missing_file_is_successful() {
+        let home = tempfile::tempdir().unwrap();
+        let backups = tempfile::tempdir().unwrap();
+        remove_agent_files(
+            &sample_agent(),
+            "---\nname: Frontend Developer\n---\nBODY\n",
+            Tool::Codex,
+            home.path(),
+            None,
+            None,
+            backups.path(),
+            "2026-06-12T00:00:00Z",
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn uninstall_copilot_removes_both_destinations() {
+        let home = tempfile::tempdir().unwrap();
+        let backups = tempfile::tempdir().unwrap();
+        let agent = sample_agent();
+        let raw = "---\nname: Frontend Developer\n---\nBODY\n";
+        for dest in render::dests(Tool::Copilot, &agent.slug, home.path(), None).unwrap() {
+            std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+            std::fs::write(dest, raw).unwrap();
+        }
+
+        remove_agent_files(
+            &agent,
+            raw,
+            Tool::Copilot,
+            home.path(),
+            None,
+            None,
+            backups.path(),
+            "2026-06-12T00:00:00Z",
+        )
+        .await
+        .unwrap();
+
+        for dest in render::dests(Tool::Copilot, &agent.slug, home.path(), None).unwrap() {
+            assert!(!dest.exists());
+        }
+    }
+
+    #[tokio::test]
+    async fn uninstall_backup_failure_preserves_original() {
+        let home = tempfile::tempdir().unwrap();
+        let scratch = tempfile::tempdir().unwrap();
+        let backup_path = scratch.path().join("not-a-directory");
+        std::fs::write(&backup_path, b"occupied").unwrap();
+        let agent = sample_agent();
+        let raw = "---\nname: Frontend Developer\n---\nBODY\n";
+        let dest = home.path().join(".codex/agents/frontend-developer.toml");
+        std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+        std::fs::write(&dest, b"USER MODIFIED").unwrap();
+
+        assert!(
+            remove_agent_files(
+                &agent,
+                raw,
+                Tool::Codex,
+                home.path(),
+                None,
+                None,
+                &backup_path,
+                "2026-06-12T00:00:00Z",
+            )
+            .await
+            .is_err()
+        );
+        assert_eq!(std::fs::read(&dest).unwrap(), b"USER MODIFIED");
+    }
+
+    #[tokio::test]
+    async fn uninstall_removal_failure_is_reported() {
+        let temp = tempfile::tempdir().unwrap();
+        let directory = temp.path().join("directory");
+        std::fs::create_dir(&directory).unwrap();
+        assert!(remove_file_strict(&directory).await.is_err());
+        assert!(directory.exists());
     }
 
     #[test]

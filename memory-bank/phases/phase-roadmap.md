@@ -28,7 +28,9 @@ Phases 0–3 are DONE (details below). The Library "frozen" saga is resolved (ro
    write through a symlink; recurse subdirs; recognize whole-dir aliases). Library & Tools stay
    separate.
 4. **Renderer-parity test** vs `scripts/convert.sh` (CLI-installed transform-tool files must not
-   read as "modified").
+   read as "modified"). ✅ DONE 2026-06-14 — `--ignored` test diffs the real converter byte-for-byte:
+   232 agents × 5 transform tools = 1160/1160 byte-identical. Plus uninstall safety (backup-first) +
+   cross-platform chrome (tauri.macos.conf.json split) shipped in the same Phase C branch.
 5. **Phase 4** Trending + GitHub · **Phase 5** Quality (lint+originality) · **Phase 6** Release
    (signed/notarized DMG, updater key). Deferred: 4 multi-file renderers (task #8).
 

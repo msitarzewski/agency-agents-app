@@ -21,7 +21,7 @@
    *
    * `direction` controls which way a positive delta grows the pane.  For a
    * left-edge handle on a right-anchored pane, dragging LEFT grows the pane,
-   * so direction = "left". The default fits brew-browser's right-side detail pane.
+   * so direction = "left". The default fits Agency Agents' right-side detail pane.
    */
 
   type Props = {

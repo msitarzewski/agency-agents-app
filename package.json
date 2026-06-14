@@ -8,6 +8,8 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "build:phase-c": "tools/phase-c/phase-c.sh",
+    "build:phase-c:full": "PHASE_C_INCLUDE_VMS=1 tools/phase-c/phase-c.sh",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",

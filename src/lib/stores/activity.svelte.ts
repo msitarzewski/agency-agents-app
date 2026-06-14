@@ -4,15 +4,15 @@
  *
  * Persistence: completed jobs (succeeded/failed/canceled) are mirrored to
  * localStorage so the Activity view survives app restarts. Running jobs are
- * NOT persisted — when the app dies the underlying `brew` child process dies
+ * NOT persisted — when the app dies the underlying backend operation dies
  * with it; there is no way to reattach to an in-flight install across launches.
  * On restore, any persisted "running" job is reclassified as "canceled" so the
  * historical record reflects reality.
  */
 
-import type { ActivityJob, ActivityLine, BrewStreamEvent } from "$lib/types";
+import type { ActivityJob, ActivityLine, AppStreamEvent } from "$lib/types";
 
-const STORAGE_KEY = "brew-browser:activity:v1";
+const STORAGE_KEY = "agency-agents:activity:v1";
 /** Cap how many jobs we persist. Older drop off the tail.
  *  Raised from 50 in earlier builds — most users never hit it, and
  *  a fatter history is more useful than the storage saving. */
@@ -77,7 +77,7 @@ class ActivityStore {
 
   /**
    * Schedule a debounced write to localStorage. Coalesces rapid line bursts
-   * (e.g. brew's compile output) into a single write at most every
+   * into a single write at most every
    * PERSIST_DEBOUNCE_MS milliseconds.
    */
   private schedulePersist(): void {
@@ -137,7 +137,7 @@ class ActivityStore {
     this.persistNow();
   }
 
-  handleEvent(evt: BrewStreamEvent) {
+  handleEvent(evt: AppStreamEvent) {
     const idx = this.jobs.findIndex((j) => j.jobId === evt.jobId);
     if (idx === -1) {
       // event for an unknown job — could happen on race conditions; ignore quietly.

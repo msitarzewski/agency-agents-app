@@ -435,7 +435,8 @@
     <div class="cd-head"><AlertTriangle size={20} /><h2>Delete {selected.size} agent{selected.size === 1 ? "" : "s"}?</h2></div>
     <p class="cd-body">
       This <strong>permanently removes {selInstalls.length} file{selInstalls.length === 1 ? "" : "s"} from disk</strong>
-      (every tool these agents are installed in) — including any installed outside this app. <strong>There is no undo.</strong>
+      (every tool these agents are installed in) — including any installed outside this app.
+      Modified files are backed up before removal; catalog-identical files can be installed again.
     </p>
     <p class="cd-note">Tip: to swap in the catalog version instead, use <strong>Update</strong> — it backs your copy up first.</p>
     <div class="cd-actions">

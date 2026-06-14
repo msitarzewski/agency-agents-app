@@ -18,7 +18,7 @@ use crate::error::AppError;
 /// Shared application state. Registered via `Builder::manage()`.
 pub struct AppState {
     /// Resolved app-data root — the OS-canonical
-    /// `~/Library/Application Support/brew-browser/` directory. The
+    /// `~/Library/Application Support/com.zerologic.agency-agents-app/` directory. The
     /// corpus, install ledger, github cache, and settings file all
     /// derive their paths from this; the security gates that check "is
     /// this path inside our app data dir?" anchor on it too.
@@ -115,7 +115,7 @@ impl AppState {
 }
 
 /// Resolve the canonical app-data root:
-/// `~/Library/Application Support/brew-browser/`. The corpus, install
+/// `~/Library/Application Support/com.zerologic.agency-agents-app/`. The corpus, install
 /// ledger, github cache, and settings file all derive their paths from
 /// this; the security gates that check "is this path inside our app data
 /// dir?" anchor on it too.

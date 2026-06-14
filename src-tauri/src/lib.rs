@@ -1,4 +1,4 @@
-//! brew-browser — Tauri 2 backend entrypoint.
+//! Agency Agents — Tauri 2 backend entrypoint.
 //!
 //! Module layout per `memory-bank/backendApi.md` §9. This file is the
 //! Tauri Builder + invoke_handler registration; every command lives
@@ -28,15 +28,15 @@ use commands::*;
 // **Placeholder.** Replace before cutting a release. The real key is
 // generated per `BUILD.md` instructions:
 //
-//     tauri signer generate -w ~/.config/brew-browser/updater.key
+//     tauri signer generate -w ~/.config/agency-agents-app/updater.key
 //
 // The matching public key the command prints is what goes here.
 // Keep the private key chmod 600 outside the repo — it's the only
-// thing standing between a compromised brew-browser.zerologic.com
+// thing standing between a compromised agency-agents-app.zerologic.com
 // and a malicious binary push.
 //
-// Real minisign public key, set 2026-05-25 for v0.3.0. The matching
-// private key lives at `~/.config/brew-browser/updater.key` (chmod 600,
+// Real minisign public key. The matching private key lives at
+// `~/.config/agency-agents-app/updater.key` (chmod 600,
 // outside the repo). The signature verification at install time
 // validates every downloaded `.app.tar.gz` against this pubkey; any
 // mismatch aborts the install with no on-disk side effects.
@@ -57,7 +57,7 @@ pub fn run() {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn,brew_browser_lib=info")),
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn,agency_agents_app=info")),
         )
         .try_init();
 
@@ -191,8 +191,8 @@ pub fn run() {
 // `ui.openSettings()`). This keeps the menu definition Rust-side and the
 // modal rendering entirely in Svelte.
 
-const MENU_EVENT_ABOUT: &str = "brew-browser/menu/about";
-const MENU_EVENT_SETTINGS: &str = "brew-browser/menu/settings";
+const MENU_EVENT_ABOUT: &str = "agency-agents/menu/about";
+const MENU_EVENT_SETTINGS: &str = "agency-agents/menu/settings";
 
 fn build_app_menu<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,

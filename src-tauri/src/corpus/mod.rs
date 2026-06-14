@@ -233,6 +233,16 @@ impl Corpus {
         self.agents.iter().find(|a| a.slug == slug).cloned()
     }
 
+    /// Resolve a filename emitted by `convert.sh` back to the catalog's
+    /// filename-based identity. Most upstream filenames include a division
+    /// prefix while transformed installs use `slugify(frontmatter.name)`.
+    pub fn get_by_conversion_slug(&self, slug: &str) -> Option<Agent> {
+        self.agents
+            .iter()
+            .find(|a| crate::render::slugify(&a.name) == slug)
+            .cloned()
+    }
+
     /// Index row (hashes + category) by slug, for the install/reconcile layer.
     pub fn entry(&self, slug: &str) -> Option<CorpusEntry> {
         self.index.get(slug).cloned()
@@ -1723,6 +1733,26 @@ echo done
     #[test]
     fn parse_agent_dirs_none_when_absent() {
         assert!(parse_agent_dirs("nothing here").is_none());
+    }
+
+    #[tokio::test]
+    async fn conversion_slug_resolves_filename_prefixed_agent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+        std::fs::create_dir_all(dir.join("engineering")).unwrap();
+        std::fs::write(
+            dir.join("engineering/engineering-frontend-developer.md"),
+            "---\nname: Frontend Developer\ndescription: Builds UIs.\n---\nBody\n",
+        )
+        .unwrap();
+        let corpus = build_from_dir(dir, "v", &["engineering".into()])
+            .await
+            .unwrap();
+
+        let agent = corpus
+            .get_by_conversion_slug("frontend-developer")
+            .expect("convert.sh filename resolves");
+        assert_eq!(agent.slug, "engineering-frontend-developer");
     }
 
     #[tokio::test]

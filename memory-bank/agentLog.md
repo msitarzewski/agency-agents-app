@@ -356,3 +356,44 @@ survives the legacy path. Web research (9to5Mac gray-box, Apple forums 801181, h
   Re-run the `actool` step whenever `AppIcon.icon` changes. Tahoe caches icons HARD; if a build looks
   stale, `lsregister -kill -r -domain local -domain system -domain user` + clear iconservices + restart
   Dock/Finder.
+
+## 2026-06-14 — Phase C: renderer parity VERIFIED + uninstall safety + cross-platform chrome
+Picked up the in-flight `codex/renderer-parity-safety-phase-c` branch (nothing committed; entire diff
+was working-tree only). Resolved the two IMMEDIATE backlog items and the deferred Phase C chrome.
+- **#1 Renderer parity — VERIFIED (was load-bearing + unproven).** `render/mod.rs` reimplements the
+  upstream shell converter's exact byte semantics: `source_field` mirrors `scripts/lib.sh#get_field`
+  (first literal `field: value` between `---` fences, quotes/spelling preserved — NOT YAML parsing);
+  `source_body` mirrors `body="$(get_body)"` (awk one-newline-per-line + command-substitution strips
+  trailing newlines, heredoc re-adds exactly one); `slugify` mirrors `lib.sh#slugify`; `output_slug`
+  encodes the converter's filename rules (identity tools preserve the source filename, transform tools
+  derive from frontmatter `name`); Qwen's optional `tools` line preserved literally. New `--ignored`
+  test `upstream_convert_sh_is_byte_identical_for_transform_tools` shells out to the REAL catalog
+  `scripts/convert.sh` and diffs every transform tool byte-for-byte. **Result: 232 agents × 5 transform
+  tools = 1160/1160 byte-identical** (Cursor `.mdc`, Codex TOML, Gemini, opencode, qwen). The
+  `current`/Diff/Update state model now rests on proven ground.
+- **#2 Uninstall safety — RESOLVED.** `install/mod.rs` `remove_agent_files` does a **backup-first pass**
+  (`backup_if_differs` per destination) BEFORE any deletion, so a preservation failure can never strand
+  a half-deleted agent. Decision locked: **modified files back up to `backups/` first (recoverable ✕);
+  byte-identical/canonical files need NO backup (re-installable); if backup fails, the delete aborts and
+  the original is preserved.** Tests: `uninstall_modified_file_backs_up_before_delete`,
+  `uninstall_canonical_file_needs_no_backup`, `uninstall_backup_failure_preserves_original`,
+  `uninstall_copilot_removes_both_destinations`, `uninstall_missing_file_is_successful`,
+  `uninstall_removal_failure_is_reported`.
+- **Phase C cross-platform chrome — DONE.** Split Tauri config: base `tauri.conf.json` is now
+  cross-platform-safe (`decorations: true`, opaque, no macOS-only keys) so Windows/Linux get native
+  titlebars; new `tauri.macos.conf.json` override re-adds `macOSPrivateApi` + `transparent` +
+  `titleBarStyle: Overlay` + `hiddenTitle` + `trafficLightPosition` so macOS keeps the custom overlay
+  titlebar. Frontend `TitlebarControls`/`ToolsView`/`AgentsWorkspace`/`ResizeHandle` touched for the
+  degradation path.
+- **brew-browser → Agency Agents rename completed** in `lib.rs` (doc header, env filter
+  `agency_agents_app=info`, menu event ids `agency-agents/menu/*`, updater key paths). Dead brew
+  `Settings` fields purged from `commands/settings.rs` + `types.ts`. Docs overhauled (README,
+  CONTRIBUTING, SECURITY, BUILD, PHILOSOPHY, PLAN); stale `release-notes/0.3.0–0.5.0` removed; tool
+  READMEs trimmed; Android icons regenerated.
+- **New `tools/phase-c/` runner** (`phase-c.sh` + `validate-config.mjs`, npm `build:phase-c[:full]`):
+  runs cargo tests + the `--ignored` parity test against `AGENCY_AGENTS_PARITY_ROOT`, frontend build,
+  config validation, optional mac build + Parallels Win/Linux VM matrix.
+- **Catalog is now 232 agents** (the warned re-org landed; counts shifted from ~222 as predicted —
+  indexing + parity absorbed it cleanly).
+- **Green:** cargo test 258/0 (+ the 1 parity test 1/0), svelte-check 0 errors, vite build clean.
+  Then: memory bank updated, committed, pushed, PR opened.

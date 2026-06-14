@@ -3,9 +3,15 @@
 Read this first after a compaction. Then `activeContext.md`, `agentLog.md` (append-only history),
 `phases/phase-roadmap.md`, `contracts.md`, `systemPatterns.md`, `decisions.md`.
 
-## ⚠️ A RE-ORG IS COMING (Michael, 2026-06-08)
-Before building on catalog assumptions, RE-VERIFY them — the catalog repo and/or app layout is being
-reorganized. After it lands, re-check:
+## ✅ THE RE-ORG LANDED (verified 2026-06-14)
+The catalog re-org happened: the active clone now indexes **232 agents** (was ~222). The parity test
+runs against this live clone and passes 1160/1160, so category discovery + recursive indexing absorbed
+the change cleanly. The warning below is retained for the next re-org — re-run the parity/diagnostics
+after any future catalog reshuffle.
+
+## ⚠️ (retained) A RE-ORG MAY COME AGAIN
+Before building on catalog assumptions, RE-VERIFY them — the catalog repo and/or app layout may be
+reorganized. After any such change, re-check:
 - The active catalog source path (currently a **userClone** — see below) and whether it moved.
 - Category discovery: we parse `AGENT_DIRS` from `<root>/scripts/convert.sh`. If the re-org changes
   divisions / `convert.sh` / nesting, counts + categories shift.
@@ -20,8 +26,9 @@ registry. **State: the install-management loop is real and working.** Signed + n
 
 ## How to run / critical env facts
 - `npm run tauri dev` (repo root). **DEV PORT = 1430** (HMR 1431).
-- Verify green: `cd src-tauri && cargo test --lib` (**247/0**); `npm run build`; `npm run check`
-  (0 errors; the only warning is a benign tsconfig `node` note).
+- Verify green: `cd src-tauri && cargo test --lib` (**258/0**, +1 `--ignored` parity test); `npm run
+  build`; `npm run check` (0 errors; the only warning is a benign tsconfig `node` note). Full Phase C
+  gate: `npm run build:phase-c` (adds the parity test + config validation; `:full` adds the VM matrix).
 - **Active catalog source = a USER CLONE**, persisted in
   `~/Library/Application Support/com.zerologic.agency-agents-app/state/catalog.json`:
   `{"kind":"userClone","path":"/Users/michael/Software/AgentLand/agency-agents","manage":true}`.
@@ -53,23 +60,31 @@ registry. **State: the install-management loop is real and working.** Signed + n
   README-liquid-glass.md`. **Don't run `npm run tauri icon`** (clobbers the glass icns). Dev Dock hack
   REMOVED (lib.rs plain `.run()`, objc2 deps gone).
 
-**NEXT (Phase C, deferred): cross-platform chrome** — Windows/Linux titlebar + traffic-light
-degradation (verify `tauri.conf.json` + `TitlebarControls.svelte`); the rest of the app is already
-platform-clean (⌘/Ctrl via `util/platform.ts`, "this device" copy, Rust reveal/home paths).
+**✅ Phase C cross-platform chrome — DONE 2026-06-14.** Config split: base `tauri.conf.json` is
+cross-platform-safe (`decorations: true`, opaque, no macOS-only keys → Windows/Linux native titlebars);
+new `tauri.macos.conf.json` override re-adds `macOSPrivateApi` + `transparent` + `titleBarStyle: Overlay`
++ `hiddenTitle` + `trafficLightPosition` so macOS keeps the custom overlay titlebar.
+`TitlebarControls.svelte` handles the degradation path. The rest was already platform-clean
+(⌘/Ctrl via `util/platform.ts`, "this device" copy, Rust reveal/home paths).
 
-## 🔴 IMMEDIATE backlog (address first)
-1. **Renderer parity for transform tools — LOAD-BEARING, not yet verified.** Everything proven so far
-   is **Claude Code** (identity tool: file == raw `.md`, so byte-match is certain). But the whole new
-   model — byte-identical→`current`, Diff, Update — assumes our Rust `render/` output is BYTE-IDENTICAL
-   to `scripts/convert.sh` for transform tools (Cursor `.mdc`, Codex TOML, Gemini, opencode, qwen). If
-   it's even a newline off, every CLI-installed Cursor/Codex agent falsely reads `foreign`/`modified`.
-   **Action: diff our `render/` vs `convert.sh` across agents × the 5 transform tools; fix mismatches.**
-   This is the #4 "renderer-parity test" in the roadmap, now urgent because state correctness depends on it.
-2. **uninstall backup decision (open).** The quick pill-✕ (and bulk Delete) call `uninstall_agent`,
-   which deletes the file with NO backup — unlike Update/Restore (which back up to `backups/`). For a
-   `current`/byte-identical agent it's re-installable (fine); for `modified`/divergent it's gone. Michael
-   hasn't decided: back up on uninstall too (recoverable ✕) vs keep deletion final (matches the bulk
-   Delete "no undos" warning). Ask before assuming.
+## ✅ IMMEDIATE backlog — BOTH CLOSED 2026-06-14 (Phase C)
+1. **Renderer parity for transform tools — VERIFIED.** `render/mod.rs` now mirrors the upstream shell
+   converter byte-for-byte: `source_field` = `lib.sh#get_field` (literal field:value between `---`
+   fences, quotes preserved — not YAML), `source_body` = `body="$(get_body)"` awk + command-sub newline
+   semantics, `slugify` = `lib.sh#slugify`, `output_slug` = converter filename rules (identity tools keep
+   the source name, transform tools derive from frontmatter `name`), Qwen optional `tools` line literal.
+   The `--ignored` test `upstream_convert_sh_is_byte_identical_for_transform_tools` shells out to the
+   REAL `scripts/convert.sh` and diffs every transform tool: **232 agents × 5 tools = 1160/1160
+   byte-identical** (Cursor `.mdc`, Codex TOML, Gemini, opencode, qwen). State correctness is proven.
+   To re-run: `AGENCY_AGENTS_PARITY_ROOT=/Users/michael/Software/AgentLand/agency-agents cargo test
+   --manifest-path src-tauri/Cargo.toml --lib upstream_convert_sh_is_byte_identical_for_transform_tools
+   -- --ignored --nocapture` (or `npm run build:phase-c`).
+2. **uninstall backup decision — RESOLVED: recoverable ✕.** `remove_agent_files` runs a backup-first
+   pass (`backup_if_differs` per destination) BEFORE any delete, so a backup failure can never strand a
+   half-removed agent. Modified/divergent files back up to `backups/` first; byte-identical/canonical
+   files need NO backup (re-installable); a backup failure ABORTS the delete and preserves the original.
+   Fully tested (`uninstall_modified_file_backs_up_before_delete`, `uninstall_canonical_file_needs_no_backup`,
+   `uninstall_backup_failure_preserves_original`, …).
 
 ## Backlog (not immediate)
 - **Local-runtime system-prompt target (NEW, Michael 2026-06-08)**: a separate target CLASS for model

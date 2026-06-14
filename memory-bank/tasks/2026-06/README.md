@@ -28,6 +28,15 @@ Library + Tools views, Foreign-sweep + Adopt (validated against a real install.s
 update_kind. Then Phase 3: Loadouts (Agentfile export/import) + agency Dashboard rollup.
 See [260605_phase3-loadouts-dashboard.md](./260605_phase3-loadouts-dashboard.md).
 
+### 2026-06-14: Phase C — Renderer parity + uninstall safety + cross-platform chrome
+Closed both IMMEDIATE backlog items. Renderer parity VERIFIED — Rust `render/` is byte-identical to the
+upstream `scripts/convert.sh` (232 agents × 5 transform tools = 1160/1160). Uninstall safety RESOLVED
+(backup-first; modified recoverable, byte-identical none, backup-fail aborts). Cross-platform titlebar
+degradation via a `tauri.macos.conf.json` config split. New `tools/phase-c/` validation runner.
+cargo 258/0 (+parity 1/0), svelte-check 0, build clean.
+See [260614_phase-c-parity-safety.md](./260614_phase-c-parity-safety.md).
+
 ## Next
 - Phase 4 — Trending + GitHub.
-- Deferred: multi-file tool renderers (antigravity/openclaw/aider/windsurf).
+- Deferred: multi-file tool renderers (antigravity/openclaw/aider/windsurf); local-runtime system-prompt
+  target (Ollama/LM Studio).

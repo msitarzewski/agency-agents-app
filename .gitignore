@@ -42,6 +42,7 @@ src-tauri/gen/
 src-tauri/.tauri/
 
 # Tool-local state (always regenerable)
+.phase-c/
 tools/categorize/.venv/
 tools/categorize/state/
 tools/categorize/__pycache__/

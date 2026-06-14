@@ -9,7 +9,7 @@
 // 2.7 Streaming events (Phase 3 & 4)
 // =========================================================
 
-export type BrewStreamEvent =
+export type AppStreamEvent =
   | { kind: "started";  jobId: string; command: string; startedAt: string }
   | { kind: "stdout";   jobId: string; line: string; ts: string }
   | { kind: "stderr";   jobId: string; line: string; ts: string }
@@ -29,16 +29,14 @@ export type BrewStreamEvent =
 export type CatalogAutoRefresh = "off" | "weekly" | "daily";
 
 /**
- * Cask icon fetching mode. `all` matches the current Phase 8 behaviour
- * where every uninstalled cask with a homepage probes for a favicon.
- * `installed-only` skips the homepage cascade; `off` disables even
- * installed-app icon extraction.
+ * Legacy icon-fetching mode inherited from the source app. Kept in the
+ * settings schema for compatibility until the settings model is pruned.
  */
 export type CaskIconMode = "off" | "installed-only" | "all";
 
 /**
  * Persisted user settings (Phase 12d). Lives at
- * `~/Library/Application Support/brew-browser/settings.json` and is
+ * `~/Library/Application Support/com.zerologic.agency-agents-app/settings.json` and is
  * round-tripped via `settingsGet` / `settingsSet`.
  *
  * Bounds (enforced server-side, also re-checked client-side for snappier
@@ -67,26 +65,14 @@ export interface Settings {
       opts in via Settings → Network → Updates. Suppressed (no fetch)
       while Offline Mode is on, regardless of this flag. */
   updateAutoCheck: boolean;
-  /** v0.4.0 — when true, the Trending tab + PackageDetail fetch
-      historical install trends from `brew-browser.zerologic.com/trending-
-      history/*` to power per-row inline sparklines and per-package
-      charts. Off by default — distinct trust boundary from the always-on
-      formulae.brew.sh paths. Suppressed by Offline Mode regardless. */
+  /** Legacy enhanced-trending toggle inherited from the source app.
+      Retained for settings-file compatibility. */
   enhancedTrendingEnabled: boolean;
-  /** v0.5.0 — when true, the backend shells out to the official
-      `brew vulns --json` subcommand to surface CVEs against installed
-      formulae (OSV.dev via the GIT ecosystem). When `githubEnabled` is
-      also on, GHSA-prefixed results are enriched via api.github.com.
-      Off by default — distinct trust boundary (OSV is operated by
-      Google, separate from formulae.brew.sh). Suppressed by Offline
-      Mode regardless. */
+  /** Legacy vulnerability-scanning toggle inherited from the source app.
+      Agency Agents does not currently run a vulnerability scanner. */
   vulnerabilityScanningEnabled: boolean;
-  /** When true, the app refreshes AI categories + descriptions live from
-      `brew-browser.zerologic.com/enrichment/*` (a tiny version probe, the full
-      categories.json when newer, and per-token entries on demand), overlaying
-      the bundled baseline. Off by default — same first-party host as Enhanced
-      Trending, new `…/enrichment/*` path; only the viewed package name is sent.
-      Suppressed by Offline Mode regardless. */
+  /** Legacy live-enrichment toggle inherited from the source app. Agency
+      Agents currently reads metadata from the active AA catalog. */
   liveEnrichmentEnabled: boolean;
 }
 
@@ -105,17 +91,15 @@ export const SETTINGS_DEFAULTS: Settings = {
   // Phase 13 — AI-enriched rendering. ON by default so users get the
   // friendly names, summaries, and categories out of the box.
   aiFeaturesEnabled: true,
-  // Phase 15 — auto-check for new brew-browser releases. Off by
+  // Auto-check for new Agency Agents releases. Off by
   // default per the "zero outbound unless user consented" posture.
   updateAutoCheck: false,
-  // v0.4.0 — opt-in enhanced trending history. Off by default; new
-  // trust boundary (project infra vs. Homebrew first-party).
+  // Legacy retained field. Off by default.
   enhancedTrendingEnabled: false,
-  // v0.5.0 — opt-in vulnerability scanning via `brew vulns`. Off by
-  // default; new trust boundary (OSV.dev + GHSA).
+  // Legacy retained field. Off by default.
   vulnerabilityScanningEnabled: false,
   // Opt-in live refresh of categories + descriptions. Off by default; same
-  // first-party host as Enhanced Trending, new /enrichment/* path.
+  // legacy live enrichment path.
   liveEnrichmentEnabled: false,
 };
 
@@ -210,8 +194,8 @@ export interface CreatedIssue {
 // =========================================================
 
 /**
- * A newer brew-browser version surfaced by the manifest at
- * `brew-browser.zerologic.com/updater.json`. Held by the updater store
+ * A newer Agency Agents version surfaced by the manifest at
+ * `agency-agents-app.zerologic.com/updater.json`. Held by the updater store
  * once a check returns `available`. Matches the camelCase wire shape
  * the backend's `UpdateCheckOutcome::Available` flattens onto when
  * serde-tagged with `kind`.

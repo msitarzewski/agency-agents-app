@@ -28,6 +28,7 @@
     SIDEBAR_DEFAULT_WIDTH,
   } from "$lib/stores/ui.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { isMac, shortcut } from "$lib/util/platform";
   import type { SidebarSection, ThemePreference } from "$lib/types";
 
   const themeLabel: Record<ThemePreference, string> = {
@@ -130,6 +131,7 @@
 
 <div
   class="app"
+  class:macos={isMac}
   class:sidebar-collapsed={ui.sidebarCollapsed}
   style="--sidebar-width: {ui.sidebarWidth}px"
 >
@@ -166,7 +168,7 @@
       <button
         type="button"
         class="titlebar-btn nav"
-        title="Back (⌘[)"
+        title={`Back (${shortcut("[")})`}
         aria-label="Back"
         disabled={!ui.canBack}
         onclick={() => ui.back()}
@@ -176,7 +178,7 @@
       <button
         type="button"
         class="titlebar-btn nav"
-        title="Forward (⌘])"
+        title={`Forward (${shortcut("]")})`}
         aria-label="Forward"
         disabled={!ui.canForward}
         onclick={() => ui.forward()}
@@ -241,6 +243,10 @@
     --titlebar-title-left: calc(var(--sidebar-width, 200px) + 20px);
   }
   .app.sidebar-collapsed {
+    --titlebar-toggle-left: 12px;
+    --titlebar-title-left: 52px;
+  }
+  .app.macos.sidebar-collapsed {
     --titlebar-toggle-left: 84px;   /* just past the traffic lights */
     --titlebar-title-left: 124px;   /* just past the toggle */
   }

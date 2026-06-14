@@ -1,7 +1,23 @@
 # Active Context — Agency Agents
 
-**State**: BUILD. Unified IA + charts + nav + Tools console DONE. macOS 26 Tahoe Liquid Glass icon FIXED.
-**Last updated**: 2026-06-09 (later)
+**State**: DOCS. Phase C landed — renderer parity VERIFIED, uninstall safety RESOLVED, cross-platform
+chrome DONE. Both IMMEDIATE backlog items closed. Branch `codex/renderer-parity-safety-phase-c`
+committed + pushed + PR opened.
+**Last updated**: 2026-06-14
+
+## ✅ Phase C (2026-06-14) — both red items closed
+- **Renderer parity VERIFIED.** `render/mod.rs` mirrors the upstream shell converter byte-for-byte
+  (`source_field`/`source_body`/`slugify`/`output_slug`); new `--ignored` test diffs the real
+  `scripts/convert.sh` → **232 agents × 5 transform tools = 1160/1160 byte-identical**. The
+  `current`/Diff/Update model is now proven, not assumed.
+- **Uninstall safety RESOLVED.** `remove_agent_files` backs up modified files FIRST (separate pass),
+  byte-identical files need no backup, backup failure aborts the delete (original preserved). Tests cover
+  every path.
+- **Cross-platform chrome DONE.** Config split: base `tauri.conf.json` (decorations, opaque, no
+  macOS-only keys) + `tauri.macos.conf.json` override (overlay titlebar/traffic-light/transparency).
+- **Cleanup:** brew→Agency rename finished in `lib.rs`; dead `Settings` fields purged; docs overhauled;
+  stale release notes removed; new `tools/phase-c/` validation runner. **Catalog now = 232 agents**
+  (the re-org landed). Green: cargo 258/0 + parity 1/0, svelte-check 0, build clean.
 
 ## 🟣 Tahoe app icon (read first if touching icons)
 macOS 26 renders icons from a compiled **`Assets.car`** (Icon Composer Liquid Glass), NOT `.icns` — `.icns`
@@ -37,8 +53,8 @@ Dev Dock hack REMOVED (lib.rs plain `.run()`, objc2 deps dropped).
 - 🔵 NEXT: **Phase B** = 4 Dashboard charts (coverage matrix · health donut · category distribution ·
   per-tool coverage), dependency-free SVG/CSS, cells deep-link into the workspace. Then **Phase C** =
   Windows/Linux titlebar degradation + "this device" copy + home-path display.
-- 🔴 STILL OPEN: (1) **renderer parity** vs convert.sh for transform tools (load-bearing, unverified);
-  (2) **uninstall backs up first?** (quick ✕ / bulk Delete are hard deletes today).
+- ✅ CLOSED 2026-06-14: (1) **renderer parity** vs convert.sh — VERIFIED 1160/1160 byte-identical;
+  (2) **uninstall safety** — RESOLVED (backup-first for modified, none for byte-identical, abort-on-fail).
 
 ## (historical) Earlier this arc
 - **Adopt → Track**: destructive Adopt gone. `track_agent` records provenance, writes nothing; every

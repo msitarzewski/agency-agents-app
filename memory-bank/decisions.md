@@ -62,6 +62,25 @@ compile; that broke 14 brew-domain tests. **Decision**: restore brew's real `dat
 not-yet-replaced brew domain stays green (always-green principle); delete them when brew
 catalog/enrichment/categories modules are removed. Corpus uses its own `agency-categories.json`.
 
+### 2026-06-14: Renderer parity is a tested contract, not an assumption
+**Status**: Approved. **Context**: the `current`/Diff/Update state model assumes Rust `render/` output
+is byte-identical to the upstream `scripts/convert.sh` for transform tools; a single newline drift would
+make every CLI-installed Cursor/Codex/Gemini/opencode/qwen agent falsely read `foreign`/`modified`.
+**Decision**: encode the converter's exact shell semantics in `render/mod.rs` (`source_field` =
+`lib.sh#get_field` literal-field extraction with quotes preserved, `source_body` = awk +
+command-substitution newline handling, `slugify`, `output_slug` filename rules) and enforce parity with
+an `--ignored` test that shells out to the REAL converter and diffs every transform tool byte-for-byte.
+**Consequences**: parity is now proven (232 agents × 5 tools = 1160/1160 identical) and regressions are
+caught; the test must be re-run after any converter or catalog change (`npm run build:phase-c`).
+
+### 2026-06-14: Uninstall is recoverable (backup-first), byte-identical needs no backup
+**Status**: Approved. **Context**: quick ✕ / bulk Delete deleted files with no backup, unlike
+Update/Restore. **Decision**: `remove_agent_files` runs a backup-first pass — modified/divergent files
+back up to `backups/` BEFORE any deletion; byte-identical/canonical files need no backup (re-installable);
+if a backup fails, the delete ABORTS and the original is preserved (a preservation failure can never
+strand a half-removed agent). **Alternatives**: keep deletion final (rejected — data loss for divergent
+agents). **Consequences**: the ✕ is now reversible for the cases that matter, with full test coverage.
+
 ### OPEN: updater signing key + endpoint host
 The minisign pubkey in `tauri.conf.json`/`lib.rs` is still brew-browser's placeholder, and
 the endpoint `agency-agents-app.zerologic.com` is not yet provisioned. Regenerate a keypair

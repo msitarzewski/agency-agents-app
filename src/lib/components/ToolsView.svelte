@@ -347,7 +347,7 @@
   <button class="cd-scrim" aria-label="Cancel" onclick={() => (confirmRemove = false)}></button>
   <div class="cd-box" role="alertdialog" aria-modal="true" aria-label="Confirm remove all">
     <div class="cd-head"><AlertTriangle size={20} /><h2>Remove all from {sel.label}?</h2></div>
-    <p class="cd-body">This <strong>deletes {selRows.length} agent file{selRows.length === 1 ? "" : "s"} from disk</strong> — including any installed outside this app. <strong>There is no undo.</strong></p>
+    <p class="cd-body">This <strong>deletes {selRows.length} agent file{selRows.length === 1 ? "" : "s"} from disk</strong> — including any installed outside this app. Modified files are backed up before removal; catalog-identical files can be installed again.</p>
     <div class="cd-actions">
       <button class="cd-cancel" onclick={() => (confirmRemove = false)}>Cancel</button>
       <button class="cd-delete" disabled={busy} onclick={() => { confirmRemove = false; runToolBulk("uninstall", "Removed"); }}>

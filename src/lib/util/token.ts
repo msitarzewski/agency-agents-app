@@ -1,12 +1,9 @@
 /**
- * Token normalization for Homebrew package identifiers.
+ * Token normalization for slash-qualified catalog identifiers.
  *
- * Homebrew install-analytics (the Trending data source) report tap formulae
- * **fully-qualified** as `user/tap/name`, but the bundled catalog + enrichment
- * are keyed by the **bare** name (`name`). Lookups that receive a qualified
- * token must fall back to the bare name. Bare tokens pass through unchanged.
- *
- * Mirrors the native build's `AppModel.bareToken(_:)`.
+ * Some inherited helpers still receive path-like identifiers. Lookups that
+ * receive a qualified token can fall back to the final path component. Bare
+ * tokens pass through unchanged.
  */
 export function bareToken(token: string): string {
   const slash = token.lastIndexOf("/");

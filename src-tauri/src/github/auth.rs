@@ -87,7 +87,7 @@ pub const KEYCHAIN_ACCOUNT_USERNAME: &str = "github_username";
 /// GitHub App's client_id (see `docs/BUILD.md` §"GitHub OAuth App").
 ///
 /// The current value is the real `client_id` for the upstream
-/// `brew-browser` GitHub OAuth App under `msitarzewski`'s account.
+/// Agency Agents GitHub OAuth App under `msitarzewski`'s account.
 /// Maintained by the upstream maintainer; do not reuse from forks —
 /// rate-limit budget and any future revocation would tie back to
 /// upstream rather than the fork.
@@ -705,9 +705,9 @@ fn build_oauth_client() -> Result<reqwest::Client, AppError> {
     reqwest::Client::builder()
         .timeout(OAUTH_TIMEOUT)
         .user_agent(concat!(
-            "brew-browser/",
+            "agency-agents-app/",
             env!("CARGO_PKG_VERSION"),
-            " (+https://github.com/msitarzewski/brew-browser)"
+            " (+https://github.com/msitarzewski/agency-agents-app)"
         ))
         .build()
         .map_err(|e| AppError::Network {
@@ -1129,7 +1129,7 @@ mod tests {
     fn keychain_constants_are_stable() {
         // Renaming these silently orphans tokens in users' Keychains.
         // Any change here needs an explicit migration plan.
-        // Renamed com.zerologic.brew-browser → com.zerologic.agency-agents-app
+        // Renamed source-app service ID → com.zerologic.agency-agents-app
         // on the 2026-06-05 rebrand fork; matches tauri.conf.json identifier.
         assert_eq!(KEYCHAIN_SERVICE, "com.zerologic.agency-agents-app");
         assert_eq!(KEYCHAIN_ACCOUNT_TOKEN, "github_access_token");
