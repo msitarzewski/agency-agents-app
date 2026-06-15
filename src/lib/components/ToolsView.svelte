@@ -142,7 +142,10 @@
       selectedTool = [...tools].sort((a, b) => b.installedCount - a.installedCount)[0]?.tool ?? null;
     }
   });
-  const sel = $derived<ToolInfo | null>(tools.find((t) => t.tool === selectedTool) ?? null);
+  // Resolve against the VISIBLE (lens-filtered) list, so switching the lens to
+  // one that excludes the selected tool closes its detail panel rather than
+  // leaving a stale tool shown that isn't in the list.
+  const sel = $derived<ToolInfo | null>(visibleTools.find((t) => t.tool === selectedTool) ?? null);
   const selRows = $derived(
     selectedTool
       ? install.installed.filter((i) => i.tool === selectedTool).slice().sort((a, b) => a.name.localeCompare(b.name))
