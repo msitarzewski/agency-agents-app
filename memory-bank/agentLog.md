@@ -582,3 +582,22 @@ All three queued items landed; green (svelte-check 0). Built live with Michael's
 - **Final matrix run 20260615T190208Z: 21 passed / 0 failed / 1 skip** (skip = opt-in PHASE_C_STRICT_TAURI).
   arm64 PASS after Michael closed the running .exe that held the file lock on `C:\AgencyAgentsWinTarget`.
 - **Uncommitted**: CoverageDonuts.svelte (the donut hardening) — awaiting Michael's go to branch + PR (on main).
+
+## 2026-06-15 (later 6) — app reads catalog divisions.json directly (corpus, backend-only)
+Catalog PR #592 merged (divisions.json now canonical, with a check-divisions CI linter + becoming the CLI
+installer source). Verified the catalog clone's divisions.json (18 divisions) is byte-in-sync with the app's
+bundled `agency-categories.json` (no drift). Then wired the app to read it directly:
+- `Corpus` gained `division_meta: BTreeMap<String, CategoryMetaRow>`, resolved at build time in
+  `resolve_active` via new **`load_division_meta(catalog_root)`**: start from the bundled floor
+  (`bundled_division_meta()` ← `agency-categories.json`), then OVERLAY the catalog root's `divisions.json`
+  (PR #592, `{ "divisions": {...} }` via new `DivisionsFile`). `categories()` now reads the field
+  (`category_meta_from`) instead of the old per-call `category_meta(slug)` (removed).
+- **Resolution chain**: catalog divisions.json (overlay) → bundled agency-categories.json (floor) →
+  title_case/Folder/grey (per-slug last resort). **First-run + pre-#592 clones have no divisions.json → bundled
+  floor, identical to before (zero risk).** Overlay (not replace) means a divisions.json that omits a division
+  keeps the bundled row; a NEW catalog division presents correctly WITHOUT an app update — the payoff.
+- Re-resolved on every `resolve_active` (startup + the two refresh paths) → a freshly-pulled divisions.json is
+  picked up on corpus refresh, no restart. Frontend unchanged (already reads Category.color/icon).
+- Tests: +4 (missing→bundled, malformed→bundled, overlay override+net-new+retain-omitted, unknown-slug
+  fallback); updated the bundled-json test to use `category_meta_from`. cargo lib 262/0, no warnings. GOTCHA:
+  raw string with hex colors needs `r##"…"##` (a `"#` closes `r#"…"#`).
