@@ -533,3 +533,31 @@ Iterating live on the Dashboard "Cross-tool coverage" + division color. All gree
 4. Then: commit the color-scheme batch + push (onto PR #3), and the catalog PR #592 awaits merge.
 - **Uncommitted at checkpoint**: agency-categories.json, corpus/mod.rs, types.rs, AgencyDashboard.svelte,
   ToolsView.svelte, corpus.svelte.ts, ui.svelte.ts, types.ts, + NEW CoverageDonuts.svelte.
+
+## 2026-06-15 (later 4) — Catalog-by-division chart DONE + icon tinting (resume items 1–3 all closed)
+All three queued items landed; green (svelte-check 0). Built live with Michael's screenshot feedback each round.
+- **`CatalogByDivision.svelte`** (NEW) replaces the orange `<ul class="bars">` bar-list in AgencyDashboard.
+  ONE proportional bar: a `<button>` segment per division, width ∝ count, painted with `corpus.colorOf`,
+  thin inset separators, hover brighten. Header reads "{total} agents … 100%". Labels span FOUR lanes:
+  - top-inner = **majors** (pct ≥ MAJOR_PCT=6: Specialized/Marketing/Engineering/Game-Dev) centered over
+    their segment with a short colored stem;
+  - top-outer = next tier (TOP_TIER=4: GIS/Security/Design/Sales) fanned across the right side (fills the
+    space majors leave empty);
+  - bottom-inner + bottom-outer = the tail, split even/odd into two interleaved fan-rows.
+  - **Leaders are non-crossing Z-elbows** (Michael: "use elbows … so lines and labels never cross"): each is
+    a `<polyline>` vertical-off-segment → short horizontal at a **rank-staggered rail** (`5+rank*3` px off the
+    bar, so no two horizontals share a y) → vertical down the **label's own column**. Bottom rows use
+    **phase-shifted x-spans** ([2,88] vs [14,99]) so one row's verticals fall between the other's labels.
+    Axis-aligned segments stay axis-aligned under preserveAspectRatio=none → true 90° corners.
+  - **Linked hover** like CoverageDonuts: `hovered` slug set by segment/label mouseenter dims everything else
+    (segments .22, labels .32, leaders .12). Tunable knobs at top: MAJOR_PCT, TOP_TIER, the two span ranges.
+- **Division icons tinted** with `corpus.colorOf`: `Division ▾` dropdown items in AgentsWorkspace (`.cat-ic`
+  span; neutralizes to brand on the active row) + persona pill leading glyph in PersonaBody. Added
+  **`corpus.iconOf(slug)`** (mirrors labelOf/colorOf, falls back "HelpCircle").
+- **`categoryIcon.ts`**: imported `Map` + `Workflow` → GIS (was the "?" in the screenshot) now a map pin,
+  Integrations a workflow glyph; everything else unchanged.
+- GOTCHA repeat: `{@const DivIcon = …}` must be an immediate child of `{#if}` (moved it above `<header>`),
+  not nested inside the `<div class="pb-titles">`.
+- Files: NEW CatalogByDivision.svelte; AgencyDashboard.svelte (swap + drop dead cats/maxCat/resolveCategoryIcon
+  import + `.bars.scroll`/`.bar-ic` CSS); AgentsWorkspace.svelte; PersonaBody.svelte; corpus.svelte.ts (iconOf);
+  categoryIcon.ts. Next: merge PR #3 → main, then VM matrix Win/Linux build verify.

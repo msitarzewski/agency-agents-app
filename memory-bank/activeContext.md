@@ -34,12 +34,15 @@ deferred. Runbook: `docs/BUILD.md#Release Checklist`; decision in `decisions.md`
 - **UX**: adaptive Uninstall/Delete wording by ownership; OS-style click-outside menu dismiss; Tools detail
   closes when the lens hides the tool; CoverageMatrix shades by **coverage-%** (not raw size).
 - **Terminology**: user-facing **Category → Division** (catalog repo's term); internal `category` field kept.
-- **Dashboard viz (in flight)**: replaced the cross-tool matrix with **CoverageDonuts** (one donut per tool,
+- **Dashboard viz DONE**: replaced the cross-tool matrix with **CoverageDonuts** (one donut per tool,
   sliced by division, shared legend, linked hover); established a curated **division color scheme** as catalog
   metadata (PR github.com/msitarzewski/agency-agents/pull/592 = `divisions.json`) read via `corpus.colorOf`;
-  Dashboard "Coverage by tool" click now selects the tool (`ui.openTools`). **⏳ RESUME HERE**: build the
-  catalog-by-division segmented bar + tint the division icons + add `Map`/`Workflow` imports to
-  `categoryIcon.ts`. See `agentLog.md` 2026-06-15 (later 3) for the full pickup spec.
+  Dashboard "Coverage by tool" click now selects the tool (`ui.openTools`). **`CatalogByDivision.svelte`** (NEW)
+  replaces the orange bar-list: ONE proportional bar (segment per division, brand-colored), labels across FOUR
+  lanes (2 top, 2 bottom) tied to segments by **non-crossing Z-elbow leaders** (rank-staggered rails +
+  phase-shifted bottom columns), plus CoverageDonuts-style **linked hover** (dim others). Division **icons
+  tinted** with their color in the `Division ▾` dropdown + persona pill (added `corpus.iconOf`); `categoryIcon.ts`
+  gained `Map`+`Workflow` so gis/integrations stop falling back to "?". See `agentLog.md` 2026-06-15 (later 4).
 - **Green throughout**: svelte-check 0 errors, cargo 258/0 (macOS + Linux), config validation all-pass.
 
 ## ✅ Phase C (2026-06-14) — both red items closed
