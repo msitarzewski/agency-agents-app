@@ -13,7 +13,7 @@
  * authoritative; localStorage was only ever a 12b-era stopgap.
  */
 
-import { isBrewError, SETTINGS_DEFAULTS, type Settings } from "$lib/types";
+import { isAppError, SETTINGS_DEFAULTS, type Settings } from "$lib/types";
 import { settingsGet, settingsReset, settingsSet } from "$lib/api";
 
 class SettingsStore {
@@ -44,7 +44,7 @@ class SettingsStore {
       this.data = result;
       this.corruptOnDisk = false;
     } catch (e) {
-      if (isBrewError(e) && e.code === "internal") {
+      if (isAppError(e) && e.code === "internal") {
         // Backend signals "unreadable settings file" via Internal with
         // a message containing "unreadable" — surface the corrupt-on-disk
         // flag so the UI can show the Reset affordance. Falls back to
@@ -52,7 +52,7 @@ class SettingsStore {
         this.corruptOnDisk = true;
         this.data = { ...SETTINGS_DEFAULTS };
         this.error = e.message;
-      } else if (isBrewError(e)) {
+      } else if (isAppError(e)) {
         this.error = e.code;
       } else {
         this.error = String(e);
@@ -82,7 +82,7 @@ class SettingsStore {
     } catch (e) {
       // Revert optimistic update on failure.
       this.data = base;
-      if (isBrewError(e)) {
+      if (isAppError(e)) {
         this.error = e.code === "invalid_argument" ? e.message : e.code;
       } else {
         this.error = String(e);
@@ -102,7 +102,7 @@ class SettingsStore {
       this.data = fresh;
       this.corruptOnDisk = false;
     } catch (e) {
-      if (isBrewError(e)) {
+      if (isAppError(e)) {
         this.error = e.code;
       } else {
         this.error = String(e);

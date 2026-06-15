@@ -6,13 +6,13 @@
    * surface deep-links into the Agents workspace (with the matching filter) or
    * the Tools view. All charts are dependency-free (SVG + CSS).
    */
-  import { resolveCategoryIcon } from "$lib/util/categoryIcon";
   import { onMount } from "svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
   import { install, SUPPORTED_TOOLS } from "$lib/stores/install.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import HealthDonut from "./HealthDonut.svelte";
-  import CoverageMatrix from "./CoverageMatrix.svelte";
+  import CoverageDonuts from "./CoverageDonuts.svelte";
+  import CatalogByDivision from "./CatalogByDivision.svelte";
 
   // Pure reader — install state loaded globally in +layout.
   onMount(() => corpus.ensureLoaded());
@@ -32,11 +32,11 @@
     return c;
   });
   const healthSegments = $derived([
-    { label: "In sync",   value: byState.current,  color: "var(--color-success)", onClick: () => ui.openAgents("installed") },
-    { label: "Outdated",  value: byState.outdated,  color: "var(--color-warning)", onClick: () => ui.openAgents("attention") },
-    { label: "Modified",  value: byState.modified,  color: "color-mix(in srgb, var(--color-warning) 55%, var(--color-danger))", onClick: () => ui.openAgents("attention") },
-    { label: "Untracked", value: byState.foreign,   color: "var(--color-brand)",   onClick: () => ui.openAgents("untracked") },
-    { label: "Missing",   value: byState.removed,   color: "var(--color-danger)",  onClick: () => ui.openAgents("attention") },
+    { label: "In sync",   value: byState.current,  color: "var(--color-success)", onClick: () => ui.openAgents() },
+    { label: "Outdated",  value: byState.outdated,  color: "var(--color-warning)", onClick: () => ui.openAgents() },
+    { label: "Modified",  value: byState.modified,  color: "color-mix(in srgb, var(--color-warning) 55%, var(--color-danger))", onClick: () => ui.openAgents() },
+    { label: "Untracked", value: byState.foreign,   color: "var(--color-brand)",   onClick: () => ui.openAgents() },
+    { label: "Missing",   value: byState.removed,   color: "var(--color-danger)",  onClick: () => ui.openAgents() },
   ]);
 
   // ── Coverage by tool — only tools that actually hold agents (less noise) ──
@@ -49,30 +49,26 @@
     })).filter((t) => t.count > 0),
   );
   const maxTool = $derived(Math.max(1, ...perTool.map((t) => t.count)));
-
-  // ── Catalog by category (all, sorted by size) ──
-  const cats = $derived([...corpus.tiles].sort((a, b) => b.count - a.count));
-  const maxCat = $derived(Math.max(1, ...cats.map((c) => c.count)));
 </script>
 
 <section class="dash">
   <div class="stats">
-    <button class="stat" onclick={() => ui.openAgents("all")}>
+    <button class="stat" onclick={() => ui.openAgents()}>
       <span class="s-num">{available}</span>
       <span class="s-lbl">agents available</span>
     </button>
-    <button class="stat" onclick={() => ui.openAgents("installed")}>
+    <button class="stat" onclick={() => ui.openAgents()}>
       <span class="s-num">{managed}</span>
       <span class="s-lbl">installed by you</span>
     </button>
     {#if attention > 0}
-      <button class="stat warn" onclick={() => ui.openAgents("attention")}>
+      <button class="stat warn" onclick={() => ui.openAgents()}>
         <span class="s-num">{attention}</span>
         <span class="s-lbl">need attention</span>
       </button>
     {/if}
     {#if foreign > 0}
-      <button class="stat info" onclick={() => ui.openAgents("untracked")}>
+      <button class="stat info" onclick={() => ui.openAgents()}>
         <span class="s-num">{foreign}</span>
         <span class="s-lbl">found to track</span>
       </button>
@@ -97,7 +93,7 @@
         <ul class="bars">
           {#each perTool as t (t.id)}
             <li>
-              <button class="bar-btn" onclick={() => ui.setSection("tools")} title={t.detected ? "Detected on this device" : "Not detected on this device"}>
+              <button class="bar-btn" onclick={() => ui.openTools(t.id)} title={t.detected ? "Detected on this device" : "Not detected on this device"}>
                 <span class="tool-dot" class:off={!t.detected}></span>
                 <span class="bar-label">{t.label}</span>
                 <span class="bar-track"><span class="bar-fill" style="width:{(t.count / maxTool) * 100}%"></span></span>
@@ -113,24 +109,12 @@
 
   <div class="card">
     <h3 class="c-title">Cross-tool coverage</h3>
-    <CoverageMatrix />
+    <CoverageDonuts />
   </div>
 
   <div class="card">
-    <h3 class="c-title">Catalog by category</h3>
-    <ul class="bars scroll">
-      {#each cats as c (c.slug)}
-        {@const Icon = resolveCategoryIcon(c.icon)}
-        <li>
-          <button class="bar-btn" onclick={() => ui.openDivision(c.slug)}>
-            <span class="bar-ic"><Icon size={15} /></span>
-            <span class="bar-label">{c.label}</span>
-            <span class="bar-track"><span class="bar-fill" style="width:{(c.count / maxCat) * 100}%"></span></span>
-            <span class="bar-count">{c.count}</span>
-          </button>
-        </li>
-      {/each}
-    </ul>
+    <h3 class="c-title">Catalog by division</h3>
+    <CatalogByDivision />
   </div>
 </section>
 
@@ -154,16 +138,14 @@
   .c-title { font-size: var(--text-body-sm); font-weight: var(--fw-semibold); color: var(--color-text-secondary); margin-bottom: var(--space-3); text-transform: uppercase; letter-spacing: 0.04em; }
   .muted { color: var(--color-text-muted); font-size: var(--text-body-sm); }
 
-  /* ── Generic bar list (coverage-by-tool + category distribution) ── */
+  /* ── Generic bar list (coverage-by-tool) ── */
   .bars { display: flex; flex-direction: column; gap: 2px; }
-  .bars.scroll { max-height: 280px; overflow-y: auto; }
   .bar-btn {
     display: flex; align-items: center; gap: var(--space-2); width: 100%;
     padding: 6px var(--space-2); border-radius: var(--radius-sm);
     background: transparent; cursor: pointer; text-align: left;
   }
   .bar-btn:hover { background: var(--color-surface-sunken); }
-  .bar-ic { display: inline-flex; color: var(--color-text-secondary); flex: none; }
   .bar-label { width: 116px; font-size: var(--text-body-sm); color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: none; }
   .bar-track { flex: 1; height: 6px; background: var(--color-surface-sunken); border-radius: var(--radius-full); overflow: hidden; min-width: 24px; }
   .bar-fill { display: block; height: 100%; background: var(--color-brand); border-radius: var(--radius-full); }

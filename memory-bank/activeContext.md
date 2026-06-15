@@ -1,9 +1,49 @@
 # Active Context — Agency Agents
 
-**State**: DOCS. Phase C landed — renderer parity VERIFIED, uninstall safety RESOLVED, cross-platform
-chrome DONE. Both IMMEDIATE backlog items closed. Branch `codex/renderer-parity-safety-phase-c`
-committed + pushed + PR opened.
-**Last updated**: 2026-06-14
+**State**: BUILD (pre-release polish, on `release-planning`). Phase C merged to `main`. **Release plan
+LOCKED & documented, NOT cut yet** — v0.1.0, signed/notarized manual DMG, `SKIP_UPDATER=1`, auto-update
+deferred. Runbook: `docs/BUILD.md#Release Checklist`; decision in `decisions.md` (2026-06-14).
+**Last updated**: 2026-06-15
+
+## ✅ Pre-release polish (2026-06-15) — committed + pushed on `release-planning`
+- **brew vestige cleanup**: error-type rename (`BrewError*`→`AppError*`), removed dead `catalogAutoRefresh`
+  setting, removed the dead error codes (`brew_*`, `job_not_found`, `canceled`, `feature_disabled`,
+  `vulns_not_installed`), and **deleted the brew-era Python pipeline** (`tools/{catalog,categorize,enrich,
+  pipeline,trending-collector}` — they fetched Homebrew formulae, NOT used by AA; the catalog comes from
+  `corpus/mod.rs`).
+- **Activity Journal** (replaces the inherited, permanently-empty brew streaming "Activity"): pivoted
+  `activity.svelte.ts` to a `JournalEntry` store (localStorage), `install.svelte.ts` logs every
+  install/uninstall/update/track/bulk + default-target switch, `ActivityHistory.svelte` rewritten as a
+  day-grouped clearable journal. Deleted `ActivityDrawer.svelte` + `AppStreamEvent`/`ActivityJob` types.
+  Built via a Workflow (planner→builder→Code-Reviewer+UX-Architect team→fix loop); UX nits hand-polished.
+- **Tools pane lens**: defaults to **Installed** (detected/in-use) tools; toggle `Installed · Not installed
+  · All` (top row beside rescan, no count chips). `ToolsView.svelte`. Bar = **catalog coverage**
+  (green installed / gray rest), not sync-state.
+- **Agents workspace streamlined**: removed the filter lens (per-row install dots already show count);
+  Division dropdown moved onto the search row as the first element (neutral form styling); detail pane
+  hidden when no agent is selected (list goes full-width).
+- **Cold `cargo test` tauri-gate fix**: `.cargo/config.toml` feeds `TAURI_CONFIG` so bare cargo (tests/CI)
+  passes the `macos-private-api` allowlist gate (Tauri CLI overrides it for real builds). `macos-private-api`
+  enabled in `Cargo.toml`. Verified `tauri dev` still launches clean.
+- **Cross-platform creds FIXED + VM-validated**: GitHub token now persists to the OS-native vault per
+  platform (Keychain / Credential Manager / Secret Service) via per-target `keyring` features; also moved
+  `macos-private-api` to `[target.macos]` only (was wrongly in base deps → broke the Linux gate). Built +
+  tested on Ubuntu (258/0 + deb/rpm/appimage) and Windows x64 via `phase-c.sh` VM matrix.
+- **Dead-code/brew pass**: removed dead `agentsFilter` lens plumbing; scrubbed ALL brew comment mentions
+  (grep → none); zero cargo dead_code warnings.
+- **UX**: adaptive Uninstall/Delete wording by ownership; OS-style click-outside menu dismiss; Tools detail
+  closes when the lens hides the tool; CoverageMatrix shades by **coverage-%** (not raw size).
+- **Terminology**: user-facing **Category → Division** (catalog repo's term); internal `category` field kept.
+- **Dashboard viz DONE**: replaced the cross-tool matrix with **CoverageDonuts** (one donut per tool,
+  sliced by division, shared legend, linked hover); established a curated **division color scheme** as catalog
+  metadata (PR github.com/msitarzewski/agency-agents/pull/592 = `divisions.json`) read via `corpus.colorOf`;
+  Dashboard "Coverage by tool" click now selects the tool (`ui.openTools`). **`CatalogByDivision.svelte`** (NEW)
+  replaces the orange bar-list: ONE proportional bar (segment per division, brand-colored), labels across FOUR
+  lanes (2 top, 2 bottom) tied to segments by **non-crossing Z-elbow leaders** (rank-staggered rails +
+  phase-shifted bottom columns), plus CoverageDonuts-style **linked hover** (dim others). Division **icons
+  tinted** with their color in the `Division ▾` dropdown + persona pill (added `corpus.iconOf`); `categoryIcon.ts`
+  gained `Map`+`Workflow` so gis/integrations stop falling back to "?". See `agentLog.md` 2026-06-15 (later 4).
+- **Green throughout**: svelte-check 0 errors, cargo 258/0 (macOS + Linux), config validation all-pass.
 
 ## ✅ Phase C (2026-06-14) — both red items closed
 - **Renderer parity VERIFIED.** `render/mod.rs` mirrors the upstream shell converter byte-for-byte

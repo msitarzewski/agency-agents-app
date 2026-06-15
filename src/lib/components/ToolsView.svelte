@@ -24,6 +24,7 @@
   import { install } from "$lib/stores/install.svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
   import { toolAccent, toolMark } from "$lib/util/toolBadge";
   import type { InstalledAgent, InstallState, Tool, ToolInfo } from "$lib/types";
 
@@ -54,13 +55,44 @@
         const n = Number(raw);
         if (Number.isFinite(n)) listWidth = clampLW(n);
       }
+      const lens = localStorage.getItem(TLENS_KEY);
+      if (lens === "installed" || lens === "uninstalled" || lens === "all") toolLens = lens;
     } catch {
       /* ignore */
     }
   });
 
   const tools = $derived(install.tools);
-  const detectedCount = $derived(tools.filter((t) => t.detected).length);
+
+  // ── Tool lens: default to only installed/discovered tools, with a toggle to
+  //    reveal the not-installed (supported-but-absent) ones, mirroring the
+  //    Agents workspace filter lens. ──
+  type ToolLens = "installed" | "uninstalled" | "all";
+  const TLENS_KEY = "agency-agents:tools-lens";
+  let toolLens = $state<ToolLens>("installed");
+  function setToolLens(l: ToolLens): void {
+    toolLens = l;
+    try {
+      localStorage.setItem(TLENS_KEY, l);
+    } catch {
+      /* ignore */
+    }
+  }
+  /** A tool counts as "installed/discovered" if its config dir is present on
+      this machine, or we already have agents deployed in it. */
+  function toolPresent(t: ToolInfo): boolean {
+    return t.detected || health(t.tool).total > 0;
+  }
+  const TLENS: { id: ToolLens; label: string }[] = [
+    { id: "installed", label: "Installed" },
+    { id: "uninstalled", label: "Not installed" },
+    { id: "all", label: "All" },
+  ];
+  function lensMatch(l: ToolLens, t: ToolInfo): boolean {
+    if (l === "all") return true;
+    return l === "installed" ? toolPresent(t) : !toolPresent(t);
+  }
+  const visibleTools = $derived(tools.filter((t) => lensMatch(toolLens, t)));
 
   const STATE_COLOR: Record<InstallState, string> = {
     current: "var(--color-success)",
@@ -88,6 +120,14 @@
     const total = c.current + c.outdated + c.modified + c.foreign + c.removed;
     return { ...c, total };
   }
+  // Catalog coverage: how many distinct catalog agents are deployed (present on
+  // disk, i.e. not "removed") in a tool, vs the whole catalog. Drives the bar.
+  const catalogTotal = $derived(Math.max(corpus.agents.length, 1));
+  function installedCount(toolId: Tool): number {
+    const s = new Set<string>();
+    for (const r of rowsFor(toolId)) if (r.state !== "removed") s.add(r.slug);
+    return s.size;
+  }
 
   const emojiBySlug = $derived(new Map(corpus.agents.map((a) => [a.slug, a.emoji] as const)));
   function emoji(slug: string): string {
@@ -103,7 +143,18 @@
       selectedTool = [...tools].sort((a, b) => b.installedCount - a.installedCount)[0]?.tool ?? null;
     }
   });
-  const sel = $derived<ToolInfo | null>(tools.find((t) => t.tool === selectedTool) ?? null);
+  // A Dashboard "Coverage by tool" click sets ui.toolsSelected — honor it so the
+  // console opens on that tool (overriding the auto-pick).
+  $effect(() => {
+    if (ui.toolsSelected) {
+      selectedTool = ui.toolsSelected;
+      autoPicked = true;
+    }
+  });
+  // Resolve against the VISIBLE (lens-filtered) list, so switching the lens to
+  // one that excludes the selected tool closes its detail panel rather than
+  // leaving a stale tool shown that isn't in the list.
+  const sel = $derived<ToolInfo | null>(visibleTools.find((t) => t.tool === selectedTool) ?? null);
   const selRows = $derived(
     selectedTool
       ? install.installed.filter((i) => i.tool === selectedTool).slice().sort((a, b) => a.name.localeCompare(b.name))
@@ -186,30 +237,47 @@
   <!-- ── List pane ── -->
   <div class="list-pane" style="width:{listWidth}px">
     <header class="lp-head">
-      <span class="lp-sub">{tools.length} tools · {detectedCount} detected</span>
+      <div class="seg" role="tablist" aria-label="Filter tools">
+        {#each TLENS as f (f.id)}
+          <button
+            class="seg-btn"
+            class:on={toolLens === f.id}
+            role="tab"
+            aria-selected={toolLens === f.id}
+            onclick={() => setToolLens(f.id)}
+          >
+            {f.label}
+          </button>
+        {/each}
+      </div>
       <button class="ghost icon" disabled={busy} onclick={rescan} title="Re-detect tools, versions + installs" aria-label="Rescan">
         <RefreshIcon size={15} />
       </button>
     </header>
     <ul class="tlist">
-      {#each tools as t (t.tool)}
+      {#if visibleTools.length === 0}
+        <li class="tlist-empty">
+          {toolLens === "installed"
+            ? "No tools detected on this device yet."
+            : "Every supported tool is installed."}
+        </li>
+      {/if}
+      {#each visibleTools as t (t.tool)}
         {@const h = health(t.tool)}
         {@const ver = install.versionOf(t.tool)}
+        {@const inst = installedCount(t.tool)}
         <li>
-          <button class="trow" class:sel={selectedTool === t.tool} class:dim={!t.detected && h.total === 0} onclick={() => (selectedTool = t.tool)}>
+          <button class="trow" class:sel={selectedTool === t.tool} class:dim={!t.detected && h.total === 0} onclick={() => { selectedTool = t.tool; ui.toolsSelected = t.tool; }}>
             <span class="badge" style="--accent:{toolAccent(t.tool)}">{toolMark(t.label)}</span>
             <span class="trow-id">
               <span class="trow-top">
                 <span class="trow-name">{t.label}</span>
                 <span class="c-dot" class:on={t.detected} title={t.detected ? "Detected" : "Not detected"}></span>
               </span>
-              {#if h.total > 0}
-                <span class="hbar" title="{h.total} installed">
-                  {#each ORDER as s (s)}
-                    {#if h[s] > 0}<span class="hseg" style="flex:{h[s]};background:{STATE_COLOR[s]}"></span>{/if}
-                  {/each}
-                </span>
-              {/if}
+              <span class="hbar" title="{inst} of {catalogTotal} catalog agents installed">
+                <span class="hseg" style="flex:{inst};background:var(--color-success)"></span>
+                <span class="hseg" style="flex:{Math.max(catalogTotal - inst, 0)}"></span>
+              </span>
               <span class="trow-sub">
                 {h.total > 0 ? `${h.total} agent${h.total === 1 ? "" : "s"}` : "No agents"}{#if ver} · <span class="trow-ver" title={ver}>{ver}</span>{/if}
               </span>
@@ -363,11 +431,29 @@
   /* ── List pane ── */
   .list-pane { flex: none; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
   .lp-head {
-    flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
-    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+    flex: none; display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-3);
     border-bottom: 1px solid var(--color-border);
   }
-  .lp-sub { font-size: var(--text-body-sm); color: var(--color-text-secondary); }
+  /* ── Tool filter lens (mirrors the Agents workspace) ── */
+  .seg {
+    display: flex; align-items: center; gap: 2px; flex-wrap: wrap; min-width: 0;
+    padding: 2px; background: var(--color-surface-sunken);
+    border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  }
+  .seg-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 26px; padding: 0 10px; border-radius: var(--radius-sm);
+    background: transparent; color: var(--color-text-secondary);
+    font-size: var(--text-body-sm); cursor: pointer; white-space: nowrap;
+  }
+  .seg-btn:hover { color: var(--color-text-primary); }
+  .seg-btn.on { background: var(--color-surface-raised); color: var(--color-text-primary); box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.08)); }
+  .tlist-empty {
+    padding: var(--space-4) var(--space-3);
+    font-size: var(--text-body-sm); color: var(--color-text-muted); text-align: center;
+  }
   .ghost {
     display: inline-flex; align-items: center; gap: 6px;
     height: 30px; padding: 0 var(--space-3);

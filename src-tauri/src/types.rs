@@ -231,9 +231,9 @@ pub struct InstallRecord {
 
 // ---------- Reconciliation ----------
 
-/// The five reconciliation states (our `brew list`/`brew outdated`).
-/// See systemPatterns.md §4 for the disk ↔ ledger ↔ corpus test that
-/// classifies each on-disk agent file.
+/// The five reconciliation states (like a package manager's installed /
+/// outdated states). See systemPatterns.md §4 for the disk ↔ ledger ↔ corpus
+/// test that classifies each on-disk agent file.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub enum InstallState {
@@ -321,6 +321,8 @@ pub struct Category {
     pub slug: String,
     pub label: String,
     pub icon: String,
+    /// Brand color (hex) for the division, from the catalog metadata.
+    pub color: String,
     pub count: u32,
 }
 

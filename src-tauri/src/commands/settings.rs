@@ -60,12 +60,6 @@ pub struct Settings {
     /// = current behaviour preserved).
     pub paranoid_mode: bool,
 
-    /// How often to auto-refresh the bundled catalog. Default Off
-    /// (matches current manual-refresh-only behaviour). Auto-refresh
-    /// itself is wired in a later phase — this field is the persisted
-    /// preference even before that wiring lands.
-    pub catalog_auto_refresh: CatalogAutoRefresh,
-
     /// Show the "Catalog is N days old — refresh?" banner when the
     /// active catalog is at least this many days old. Default 14.
     /// Clamped to `[1, 365]` on every load and save.
@@ -149,7 +143,6 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             paranoid_mode: false,
-            catalog_auto_refresh: CatalogAutoRefresh::Off,
             catalog_stale_banner_days: 14,
             cask_icon_mode: CaskIconMode::All,
             trending_ttl_minutes: 60,
@@ -237,18 +230,6 @@ impl Settings {
         }
         true
     }
-}
-
-/// Catalog auto-refresh cadence. Wire-format is kebab-case to match the
-/// frontend's TypeScript union (`"off" | "weekly" | "daily"`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "kebab-case")]
-pub enum CatalogAutoRefresh {
-    /// Manual only — the current Phase 12a default.
-    #[default]
-    Off,
-    Weekly,
-    Daily,
 }
 
 /// Cask icon fetching mode. `All` preserves the current behaviour from
@@ -524,8 +505,7 @@ pub async fn settings_reset(state: State<'_, AppState>) -> Result<Settings, AppE
 
 /// Return the app's version string from the Tauri package info. Source of
 /// truth is `Cargo.toml` (`tauri.conf.json` mirrors it). Avoids reading
-/// `package.json` from the renderer. Relocated here from the retired
-/// `commands/brew_env.rs` during the brew-domain sweep.
+/// `package.json` from the renderer.
 #[tauri::command]
 pub fn app_version<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> String {
     app.package_info().version.to_string()
@@ -593,7 +573,6 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let s = Settings {
             paranoid_mode: true,
-            catalog_auto_refresh: CatalogAutoRefresh::Weekly,
             catalog_stale_banner_days: 21,
             cask_icon_mode: CaskIconMode::InstalledOnly,
             trending_ttl_minutes: 120,
@@ -654,7 +633,6 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let s = Settings {
             paranoid_mode: false,
-            catalog_auto_refresh: CatalogAutoRefresh::Off,
             catalog_stale_banner_days: 9999, // way above 365
             cask_icon_mode: CaskIconMode::All,
             trending_ttl_minutes: 1, // below the 5-minute floor
@@ -680,7 +658,6 @@ mod tests {
         // Hand-write a settings file with absurd values.
         let raw = br#"{
             "paranoidMode": false,
-            "catalogAutoRefresh": "daily",
             "catalogStaleBannerDays": 99999,
             "caskIconMode": "all",
             "trendingTtlMinutes": 2
@@ -714,9 +691,8 @@ mod tests {
         let path = settings_path(tmp.path());
         let raw = br#"{
             "paranoidMode": false,
-            "catalogAutoRefresh": "every-blue-moon",
             "catalogStaleBannerDays": 14,
-            "caskIconMode": "all",
+            "caskIconMode": "every-blue-moon",
             "trendingTtlMinutes": 60
         }"#;
         tokio::fs::write(&path, raw).await.unwrap();
@@ -747,7 +723,6 @@ mod tests {
         match state {
             SettingsLoadState::Loaded(s) => {
                 assert!(s.paranoid_mode);
-                assert_eq!(s.catalog_auto_refresh, CatalogAutoRefresh::Off);
                 assert_eq!(s.catalog_stale_banner_days, 14);
                 assert_eq!(s.cask_icon_mode, CaskIconMode::All);
                 assert_eq!(s.trending_ttl_minutes, 60);

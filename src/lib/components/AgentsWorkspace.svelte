@@ -39,9 +39,36 @@
     clampDetailPaneWidth,
   } from "$lib/stores/ui.svelte";
   import { resolveCategoryIcon } from "$lib/util/categoryIcon";
-  import type { Agent, AgentsFilter, InstalledAgent, InstallState, Tool } from "$lib/types";
+  import type { Agent, InstalledAgent, InstallState, Tool } from "$lib/types";
 
   onMount(() => corpus.ensureLoaded());
+
+  // ── OS-style dropdown dismissal: click anywhere outside (or Escape) closes the
+  //    open menu. Each trigger button is excluded so clicking it just toggles. ──
+  let catBtn = $state<HTMLElement>();
+  let catMenu = $state<HTMLElement>();
+  let bulkBtn = $state<HTMLElement>();
+  let bulkMenu = $state<HTMLElement>();
+  function onDocClick(e: MouseEvent) {
+    const t = e.target as Node | null;
+    if (!t) return;
+    if (catMenuOpen && !catBtn?.contains(t) && !catMenu?.contains(t)) catMenuOpen = false;
+    if (menuOpen && !bulkBtn?.contains(t) && !bulkMenu?.contains(t)) menuOpen = false;
+  }
+  function onKey(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      catMenuOpen = false;
+      menuOpen = false;
+    }
+  }
+  onMount(() => {
+    document.addEventListener("click", onDocClick);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("click", onDocClick);
+      window.removeEventListener("keydown", onKey);
+    };
+  });
 
   // ── Install rows grouped by agent slug (reactive over the reconcile) ──
   const installsBySlug = $derived.by(() => {
@@ -54,79 +81,19 @@
     return m;
   });
 
-  // ── Filter lenses (counts power the segmented control badges) ──
-  const FILTERS: { id: AgentsFilter; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "installed", label: "Installed" },
-    { id: "notInstalled", label: "Not installed" },
-    { id: "attention", label: "Needs attention" },
-    { id: "untracked", label: "Untracked" },
-  ];
 
-  function lensMatch(filter: AgentsFilter, rows: InstalledAgent[] | undefined): boolean {
-    if (filter === "all") return true;
-    // "Not installed" is the complement of installed — and it's the one lens
-    // that MATCHES agents with no rows, so it's checked before the empty guard.
-    if (filter === "notInstalled") return !rows || !rows.some((r) => r.state !== "removed");
-    if (!rows || rows.length === 0) return false;
-    if (filter === "installed") return rows.some((r) => r.state !== "removed");
-    if (filter === "attention")
-      return rows.some((r) => r.state === "outdated" || r.state === "modified" || r.state === "removed");
-    if (filter === "untracked") return rows.some((r) => r.state === "foreign");
-    return true;
-  }
-
-  // Counts respect the active division — so the lens badges narrow when a
-  // category is selected (All N / Installed N within that division, etc.).
-  const counts = $derived.by(() => {
-    const cat = ui.agentsCategory;
-    const pool = cat ? corpus.agents.filter((a) => a.category === cat) : corpus.agents;
-    let installed = 0,
-      attention = 0,
-      untracked = 0;
-    for (const a of pool) {
-      const rows = installsBySlug.get(a.slug);
-      if (!rows || rows.length === 0) continue;
-      if (rows.some((r) => r.state !== "removed")) installed++;
-      if (rows.some((r) => r.state === "outdated" || r.state === "modified" || r.state === "removed")) attention++;
-      if (rows.some((r) => r.state === "foreign")) untracked++;
-    }
-    return { all: pool.length, installed, notInstalled: pool.length - installed, attention, untracked };
-  });
-  function countFor(id: AgentsFilter): number {
-    return id === "all"
-      ? counts.all
-      : id === "installed"
-        ? counts.installed
-        : id === "notInstalled"
-          ? counts.notInstalled
-          : id === "attention"
-            ? counts.attention
-            : counts.untracked;
-  }
-  // Keep the lens row quiet: show "All" always, the active lens always (so it
-  // never disappears under you), and any other lens only when it has matches.
-  function showLens(id: AgentsFilter): boolean {
-    return id === "all" || ui.agentsFilter === id || countFor(id) > 0;
-  }
-
-  // ── List state ── (filter + category live in ui so back/forward + division
-  // deep-links drive them; search query stays local — not a navigation.)
+  // ── List state ── (category lives in ui so back/forward + division
+  // deep-links drive it; search query stays local — not a navigation.)
   let query = $state("");
   let catMenuOpen = $state(false);
 
-  const visible = $derived(
-    corpus.filtered(ui.agentsCategory, query).filter((a) => lensMatch(ui.agentsFilter, installsBySlug.get(a.slug))),
-  );
+  const visible = $derived(corpus.filtered(ui.agentsCategory, query));
 
-  function setFilter(f: AgentsFilter) {
-    ui.setAgentsFilter(f);
-  }
   function pickCategory(slug: string | null) {
     ui.setAgentsCategory(slug);
     catMenuOpen = false;
   }
-  const categoryLabel = $derived(ui.agentsCategory ? corpus.labelOf(ui.agentsCategory) : "All categories");
+  const categoryLabel = $derived(ui.agentsCategory ? corpus.labelOf(ui.agentsCategory) : "All divisions");
 
   // Compact per-row state dots (one per install row, colored by state).
   function dotTone(s: InstallState): string {
@@ -211,6 +178,10 @@
   const selInstalls = $derived([...selected].flatMap((slug) => installsBySlug.get(slug) ?? []));
   const canBulkUpdate = $derived(selInstalls.some((i) => i.state !== "current"));
   const canBulkTrack = $derived(selInstalls.some((i) => i.state === "foreign"));
+  // Foreign rows = files we don't manage ("not ours"). When the selection has any,
+  // the destructive action is a genuine delete; otherwise it's a reversible
+  // uninstall (catalog agents re-install; any edits are backed up first).
+  const selHasForeign = $derived(selInstalls.some((i) => i.state === "foreign"));
 
   async function runBulk(action: "update" | "track" | "uninstall", verb: string) {
     let picked = selInstalls;
@@ -238,6 +209,24 @@
   <div class="list-pane">
     <div class="lp-head">
       <div class="lp-search-row">
+        <div class="cat-wrap">
+          <button class="ghost cat-btn" bind:this={catBtn} onclick={() => (catMenuOpen = !catMenuOpen)}>
+            <span class="truncate">{categoryLabel}</span><ChevronDown size={13} />
+          </button>
+          {#if catMenuOpen}
+            <div class="cat-menu" role="menu" bind:this={catMenu}>
+              <button class="cat-opt" role="menuitem" class:on={!ui.agentsCategory} onclick={() => pickCategory(null)}>
+                <LayersIcon size={14} /><span class="truncate">All divisions</span><span class="cat-c">{corpus.agents.length}</span>
+              </button>
+              {#each corpus.tiles as c (c.slug)}
+                {@const Icon = resolveCategoryIcon(c.icon)}
+                <button class="cat-opt" role="menuitem" class:on={ui.agentsCategory === c.slug} onclick={() => pickCategory(c.slug)}>
+                  <span class="cat-ic" style="color:{corpus.colorOf(c.slug)}"><Icon size={14} /></span><span class="truncate">{c.label}</span><span class="cat-c">{c.count}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
         <Input bind:value={query} variant="search" placeholder="Search agents by name, role, or vibe…" ariaLabel="Search agents" />
         {#if visible.length > 0}
           {#if selectMode}
@@ -249,43 +238,6 @@
         <button class="ghost icon" title="Rescan tools + installs" aria-label="Rescan" onclick={() => install.reconcile()}>
           <RefreshIcon size={15} />
         </button>
-      </div>
-
-      <div class="lp-filters">
-        <div class="seg" role="tablist" aria-label="Filter agents">
-          {#each FILTERS as f (f.id)}
-            {#if showLens(f.id)}
-              <button
-                class="seg-btn"
-                class:on={ui.agentsFilter === f.id}
-                role="tab"
-                aria-selected={ui.agentsFilter === f.id}
-                onclick={() => setFilter(f.id)}
-              >
-                {f.label}<span class="seg-n">{countFor(f.id)}</span>
-              </button>
-            {/if}
-          {/each}
-        </div>
-
-        <div class="cat-wrap">
-          <button class="ghost cat-btn" class:active={!!ui.agentsCategory} onclick={() => (catMenuOpen = !catMenuOpen)}>
-            <span class="truncate">{categoryLabel}</span><ChevronDown size={13} />
-          </button>
-          {#if catMenuOpen}
-            <div class="cat-menu" role="menu">
-              <button class="cat-opt" role="menuitem" class:on={!ui.agentsCategory} onclick={() => pickCategory(null)}>
-                <LayersIcon size={14} /><span class="truncate">All categories</span><span class="cat-c">{corpus.agents.length}</span>
-              </button>
-              {#each corpus.tiles as c (c.slug)}
-                {@const Icon = resolveCategoryIcon(c.icon)}
-                <button class="cat-opt" role="menuitem" class:on={ui.agentsCategory === c.slug} onclick={() => pickCategory(c.slug)}>
-                  <Icon size={14} /><span class="truncate">{c.label}</span><span class="cat-c">{c.count}</span>
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
       </div>
 
       {#if selectMode}
@@ -301,19 +253,19 @@
           <span class="bulk-count">{selected.size} selected</span>
           {#if selected.size > 0}
             <div class="bulk-menu-wrap">
-              <button class="ghost" disabled={bulkBusy} onclick={() => (menuOpen = !menuOpen)}>
+              <button class="ghost" bind:this={bulkBtn} disabled={bulkBusy} onclick={() => (menuOpen = !menuOpen)}>
                 {bulkBusy ? "Working…" : "With selected"}<ChevronDown size={14} />
               </button>
               {#if menuOpen}
-                <div class="bulk-menu" role="menu">
+                <div class="bulk-menu" role="menu" bind:this={bulkMenu}>
                   <button class="bulk-opt" role="menuitem" disabled={!canBulkUpdate} title={canBulkUpdate ? "" : "All selected are in sync"} onclick={() => runBulk("update", "Updated")}>
                     <RefreshIcon size={14} /><span>Update — replace with catalog version</span>
                   </button>
                   <button class="bulk-opt" role="menuitem" disabled={!canBulkTrack} title={canBulkTrack ? "" : "Nothing untracked in the selection"} onclick={() => runBulk("track", "Tracked")}>
                     <PlusIcon size={14} /><span>Track — keep file, start managing</span>
                   </button>
-                  <button class="bulk-opt danger" role="menuitem" onclick={() => { menuOpen = false; confirmDelete = true; }}>
-                    <TrashIcon size={14} /><span>Delete — remove files from disk</span>
+                  <button class="bulk-opt" class:danger={selHasForeign} role="menuitem" onclick={() => { menuOpen = false; confirmDelete = true; }}>
+                    <TrashIcon size={14} /><span>{selHasForeign ? "Delete — remove files from disk" : "Uninstall — remove from disk (re-installable)"}</span>
                   </button>
                 </div>
               {/if}
@@ -332,8 +284,8 @@
         </EmptyState>
       {:else if visible.length === 0}
         <EmptyState
-          title={query.trim() ? `Nothing matches “${query.trim()}”.` : ui.agentsFilter === "all" ? "No agents in this category." : "Nothing here yet."}
-          body={ui.agentsFilter === "all" ? "Try a different search or category." : "Switch to All to browse the full catalog."}
+          title={query.trim() ? `Nothing matches “${query.trim()}”.` : "No agents in this division."}
+          body="Try a different search or division."
         >
           {#snippet icon()}<SearchIcon size={48} />{/snippet}
         </EmptyState>
@@ -367,23 +319,23 @@
     </div>
   </div>
 
-  <!-- ── Resize handle (grows the detail pane when dragged left) ── -->
-  <div class="ws-resize">
-    <ResizeHandle
-      width={ui.detailPaneWidth}
-      min={DETAIL_PANE_MIN_WIDTH}
-      max={900}
-      defaultWidth={DETAIL_PANE_DEFAULT_WIDTH}
-      direction="left"
-      label="Resize detail pane"
-      onChange={(w) => (ui.detailPaneWidth = clampDetailPaneWidth(w))}
-      onCommit={(w) => ui.setDetailPaneWidth(w)}
-    />
-  </div>
+  {#if panelAgent}
+    <!-- ── Resize handle (grows the detail pane when dragged left) ── -->
+    <div class="ws-resize">
+      <ResizeHandle
+        width={ui.detailPaneWidth}
+        min={DETAIL_PANE_MIN_WIDTH}
+        max={900}
+        defaultWidth={DETAIL_PANE_DEFAULT_WIDTH}
+        direction="left"
+        label="Resize detail pane"
+        onChange={(w) => (ui.detailPaneWidth = clampDetailPaneWidth(w))}
+        onCommit={(w) => ui.setDetailPaneWidth(w)}
+      />
+    </div>
 
-  <!-- ── Detail pane (persistent) ── -->
-  <aside class="detail-pane" style="width: {ui.detailPaneWidth}px" aria-label="Agent detail">
-    {#if panelAgent}
+    <!-- ── Detail pane (only when an agent is selected) ── -->
+    <aside class="detail-pane" style="width: {ui.detailPaneWidth}px" aria-label="Agent detail">
       <div class="dp-bar">
         <button class="dp-close" onclick={closeDetail} aria-label="Close detail" title="Close detail"><XIcon size={16} /></button>
       </div>
@@ -396,27 +348,11 @@
           {/snippet}
         </PersonaBody>
       </div>
-    {:else}
-      <div class="dp-empty">
-        <div class="dpe-card">
-          <span class="dpe-emoji" aria-hidden="true">🧭</span>
-          <h2>Pick an agent</h2>
-          <p>Select an agent to read its persona and deploy it across your tools.</p>
-          <div class="dpe-stats">
-            <button class="dpe-stat" onclick={() => setFilter("all")}><span>{counts.all}</span><small>available</small></button>
-            <button class="dpe-stat" onclick={() => setFilter("installed")}><span>{counts.installed}</span><small>installed</small></button>
-            {#if counts.attention > 0}
-              <button class="dpe-stat warn" onclick={() => setFilter("attention")}><span>{counts.attention}</span><small>need attention</small></button>
-            {/if}
-          </div>
-        </div>
-      </div>
-    {/if}
-  </aside>
+    </aside>
 
-  <!-- Narrow-window overlay scrim: only shown via CSS under the breakpoint when a
-       detail is open. Clicking it dismisses the overlaid detail pane. -->
-  <button class="ws-scrim" aria-label="Close detail" onclick={closeDetail}></button>
+    <!-- Narrow-window overlay scrim: clicking dismisses the overlaid detail pane. -->
+    <button class="ws-scrim" aria-label="Close detail" onclick={closeDetail}></button>
+  {/if}
 </section>
 
 {#if diffTarget}
@@ -432,17 +368,23 @@
 {#if confirmDelete}
   <button class="cd-scrim" aria-label="Cancel" onclick={() => (confirmDelete = false)}></button>
   <div class="cd-box" role="alertdialog" aria-modal="true" aria-label="Confirm delete">
-    <div class="cd-head"><AlertTriangle size={20} /><h2>Delete {selected.size} agent{selected.size === 1 ? "" : "s"}?</h2></div>
+    <div class="cd-head"><AlertTriangle size={20} /><h2>{selHasForeign ? "Delete" : "Uninstall"} {selected.size} agent{selected.size === 1 ? "" : "s"}?</h2></div>
     <p class="cd-body">
-      This <strong>permanently removes {selInstalls.length} file{selInstalls.length === 1 ? "" : "s"} from disk</strong>
-      (every tool these agents are installed in) — including any installed outside this app.
-      Modified files are backed up before removal; catalog-identical files can be installed again.
+      {#if selHasForeign}
+        This <strong>permanently removes {selInstalls.length} file{selInstalls.length === 1 ? "" : "s"} from disk</strong>
+        (every tool these agents are installed in) — <strong>including files installed outside this app</strong>.
+        Modified files are backed up before removal; catalog-identical files can be installed again.
+      {:else}
+        Removes {selInstalls.length} file{selInstalls.length === 1 ? "" : "s"} from disk (every tool these agents
+        are installed in). Catalog-identical agents can be <strong>installed again in a click</strong>; any edits
+        you made are backed up first.
+      {/if}
     </p>
     <p class="cd-note">Tip: to swap in the catalog version instead, use <strong>Update</strong> — it backs your copy up first.</p>
     <div class="cd-actions">
       <button class="cd-cancel" onclick={() => (confirmDelete = false)}>Cancel</button>
-      <button class="cd-delete" disabled={bulkBusy} onclick={() => { confirmDelete = false; runBulk("uninstall", "Deleted"); }}>
-        <TrashIcon size={14} /> Delete {selInstalls.length}
+      <button class="cd-delete" disabled={bulkBusy} onclick={() => { confirmDelete = false; runBulk("uninstall", selHasForeign ? "Deleted" : "Uninstalled"); }}>
+        <TrashIcon size={14} /> {selHasForeign ? "Delete" : "Uninstall"} {selInstalls.length}
       </button>
     </div>
   </div>
@@ -472,33 +414,10 @@
   .ghost:disabled { opacity: 0.6; cursor: default; }
   .ghost.icon { padding: 0; width: 32px; justify-content: center; }
 
-  .lp-filters { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-  .seg {
-    display: inline-flex; align-items: center; gap: 2px; flex-wrap: wrap;
-    padding: 2px; background: var(--color-surface-sunken);
-    border: 1px solid var(--color-border); border-radius: var(--radius-md);
-  }
-  .seg-btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    height: 26px; padding: 0 10px; border-radius: var(--radius-sm);
-    background: transparent; color: var(--color-text-secondary);
-    font-size: var(--text-body-sm); cursor: pointer; white-space: nowrap;
-  }
-  .seg-btn:hover { color: var(--color-text-primary); }
-  .seg-btn.on { background: var(--color-surface-raised); color: var(--color-text-primary); box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.08)); }
-  .seg-n {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 18px; height: 16px; padding: 0 5px; border-radius: 999px;
-    background: var(--color-surface); color: var(--color-text-muted);
-    font-size: 10px; font-weight: var(--fw-semibold);
-  }
-  .seg-btn.on .seg-n { background: var(--color-brand); color: var(--color-text-inverse); }
-
-  .cat-wrap { position: relative; margin-left: auto; }
+  .cat-wrap { position: relative; }
   .cat-btn { max-width: 180px; }
-  .cat-btn.active { color: var(--color-brand); border-color: var(--color-brand); }
   .cat-menu {
-    position: absolute; top: calc(100% + 4px); right: 0; z-index: 30;
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 30;
     min-width: 220px; max-height: 320px; overflow-y: auto; padding: 4px;
     background: var(--color-surface-raised); border: 1px solid var(--color-border);
     border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
@@ -513,6 +432,10 @@
   .cat-opt:hover { background: var(--color-surface-sunken); }
   .cat-opt.on { color: var(--color-brand); }
   .cat-opt .truncate { flex: 1; min-width: 0; }
+  /* Division icon tinted with the division's brand color; dim to neutral when
+     the row is the active selection so the brand-blue "on" state stays legible. */
+  .cat-ic { display: inline-flex; flex: none; }
+  .cat-opt.on .cat-ic { color: var(--color-brand) !important; }
   .cat-c { font-size: var(--text-caption); color: var(--color-text-muted); }
 
   .bulk-bar { display: flex; align-items: center; gap: var(--space-2); }
@@ -578,22 +501,6 @@
   }
   .dp-close:hover { background: var(--color-surface-sunken); color: var(--color-text-primary); }
   .dp-scroll { flex: 1; overflow-y: auto; min-height: 0; }
-
-  .dp-empty { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--space-5); }
-  .dpe-card { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-2); max-width: 280px; }
-  .dpe-emoji { font-size: 34px; }
-  .dpe-card h2 { font-size: var(--text-h3); font-weight: var(--fw-semibold); color: var(--color-text-primary); }
-  .dpe-card p { font-size: var(--text-body-sm); color: var(--color-text-muted); line-height: var(--lh-normal); }
-  .dpe-stats { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
-  .dpe-stat {
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    padding: var(--space-2) var(--space-3); border-radius: var(--radius-md);
-    border: 1px solid var(--color-border); background: transparent; cursor: pointer;
-  }
-  .dpe-stat:hover { border-color: var(--color-brand); }
-  .dpe-stat span { font-size: var(--text-h3); font-weight: var(--fw-bold); color: var(--color-text-primary); }
-  .dpe-stat small { font-size: 10px; color: var(--color-text-muted); }
-  .dpe-stat.warn span { color: var(--color-warning); }
 
   /* Narrow-window overlay scrim — hidden by default, shown only under the
      breakpoint when a detail is open (see media query). */

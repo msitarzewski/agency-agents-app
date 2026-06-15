@@ -31,8 +31,8 @@ import {
 import { safeOpenUrl } from "$lib/util/url";
 import { toast } from "./toast.svelte";
 import {
-  brewErrorMessage,
-  isBrewError,
+  appErrorMessage,
+  isAppError,
   type CreatedIssue,
   type DeviceFlowStart,
   type GithubStatus,
@@ -152,7 +152,7 @@ class GithubStore {
       // Status read shouldn't fail under normal conditions; if it
       // does we keep the previous value so the UI doesn't flap.
       // (Keychain unavailable is the realistic case.)
-      if (isBrewError(e) && e.code === "keychain_unavailable") {
+      if (isAppError(e) && e.code === "keychain_unavailable") {
         this.status = { signedIn: false, username: null, scopes: [] };
       }
     } finally {
@@ -192,7 +192,7 @@ class GithubStore {
       return outcome;
     } catch (e) {
       let outcome: RepoStatsOutcome;
-      if (isBrewError(e)) {
+      if (isAppError(e)) {
         if (e.code === "github_rate_limited") {
           outcome = { kind: "rateLimited", resetAt: e.resetAt };
         } else if (e.code === "paranoid_mode_blocked") {
@@ -226,7 +226,7 @@ class GithubStore {
     } catch (e) {
       this._setSignin("signIn-startError", {
         kind: "error",
-        message: isBrewError(e) ? brewErrorMessage(e) : String(e),
+        message: isAppError(e) ? appErrorMessage(e) : String(e),
       });
       return;
     }
@@ -266,7 +266,7 @@ class GithubStore {
       } catch (e) {
         this._setSignin("poll-error", {
           kind: "error",
-          message: isBrewError(e) ? brewErrorMessage(e) : String(e),
+          message: isAppError(e) ? appErrorMessage(e) : String(e),
         });
         return;
       }

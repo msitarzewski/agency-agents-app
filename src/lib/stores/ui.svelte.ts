@@ -3,14 +3,13 @@
  * Uses Svelte 5 runes inside a module-scope class instance.
  */
 
-import type { AgentsFilter, SettingsSection, SidebarSection, ThemePreference } from "$lib/types";
+import type { SettingsSection, SidebarSection, ThemePreference, Tool } from "$lib/types";
 
 /** A navigable app location — the unit of back/forward history. Captures the
     section plus the full Agents workspace view-state so a back/forward jump
     restores the filter, category, and the open agent. */
 interface NavLocation {
   section: SidebarSection;
-  agentsFilter: AgentsFilter;
   agentsCategory: string | null;
   agentsSelected: string | null;
 }
@@ -95,8 +94,8 @@ const SECTION_TITLES: Record<SidebarSection, string> = {
 
 class UiStore {
   /** First-launch landing. The Agents (personas) catalog is the home screen —
-      this is Agency Agents, so the agent catalog is the front door, not the
-      inherited brew Dashboard. Clicking the sidebar brand returns here. */
+      the agent catalog is the front door, not the Dashboard. Clicking the
+      sidebar brand returns here. */
   section: SidebarSection = $state("personas");
 
   /** The active section's display name — shown in the window title bar
@@ -113,10 +112,6 @@ class UiStore {
   /** About modal — native menu "About Agency Agents" + sidebar footer link. */
   aboutOpen: boolean = $state(false);
   theme: ThemePreference = $state("system");
-  /** Active filter lens for the unified Agents workspace. Set by the sidebar
-      Agents entry (resets to "all") and by Dashboard / chart deep-links (e.g.
-      "attention") so navigating in lands on the right slice of the list. */
-  agentsFilter: AgentsFilter = $state("all");
   /** Active category ("division") filter for the Agents workspace; null = all.
       Lifted into ui so division pills can deep-link to it and so back/forward
       can restore it. */
@@ -124,6 +119,9 @@ class UiStore {
   /** Slug of the agent open in the workspace detail pane; null = none. In ui so
       back/forward can restore the open agent. */
   agentsSelected: string | null = $state(null);
+  /** Tool selected in the Tools console; null = let it auto-pick. Set by the
+      Dashboard "Coverage by tool" rows so a click lands on that tool's console. */
+  toolsSelected: Tool | null = $state(null);
 
   /** Back/forward history of app locations + the cursor into it. */
   navStack: NavLocation[] = $state([]);
@@ -177,12 +175,17 @@ class UiStore {
     this.commitNav();
   }
 
-  /** Jump to the unified Agents workspace with a state-filter (and optional
-      category) preselected; resets the open agent. Used by the sidebar, the
-      Dashboard stat cards, and the command palette. */
-  openAgents(filter: AgentsFilter = "all", category: string | null = null) {
+  /** Open the Tools console with `tool` preselected (null = let it auto-pick). */
+  openTools(tool: Tool | null = null) {
+    this.toolsSelected = tool;
+    this.setSection("tools");
+  }
+
+  /** Jump to the unified Agents workspace (optionally within a category);
+      resets the open agent. Used by the sidebar, the Dashboard stat cards, and
+      the command palette. */
+  openAgents(category: string | null = null) {
     this.applyingNav = true;
-    this.agentsFilter = filter;
     this.agentsCategory = category;
     this.agentsSelected = null;
     this.section = "personas";
@@ -191,21 +194,19 @@ class UiStore {
     this.commitNav();
   }
 
-  /** Open a "division" (category) in the Agents workspace: set the category
-      filter, reset the state lens to All, and KEEP any open agent (so clicking
-      an agent's own division shows its siblings beside it). Wired to every
-      division pill so a division click anywhere lands on its agents. */
+  /** Open a "division" (category) in the Agents workspace, KEEPING any open
+      agent (so clicking an agent's own division shows its siblings beside it).
+      Wired to every division pill so a division click anywhere lands on its
+      agents. */
   openDivision(category: string) {
     this.applyingNav = true;
     this.agentsCategory = category;
-    this.agentsFilter = "all";
     this.section = "personas";
     this.selectedPackage = null;
     this.applyingNav = false;
     this.commitNav();
   }
 
-  setAgentsFilter(f: AgentsFilter) { this.agentsFilter = f; this.commitNav(); }
   setAgentsCategory(c: string | null) { this.agentsCategory = c; this.commitNav(); }
   selectAgent(slug: string | null) { this.agentsSelected = slug; this.commitNav(); }
 
@@ -229,7 +230,6 @@ class UiStore {
   private snapshotNav(): NavLocation {
     return {
       section: this.section,
-      agentsFilter: this.agentsFilter,
       agentsCategory: this.agentsCategory,
       agentsSelected: this.agentsSelected,
     };
@@ -243,7 +243,6 @@ class UiStore {
     if (
       cur &&
       cur.section === loc.section &&
-      cur.agentsFilter === loc.agentsFilter &&
       cur.agentsCategory === loc.agentsCategory &&
       cur.agentsSelected === loc.agentsSelected
     ) {
@@ -257,7 +256,6 @@ class UiStore {
   private applyNav(loc: NavLocation) {
     this.applyingNav = true;
     this.section = loc.section;
-    this.agentsFilter = loc.agentsFilter;
     this.agentsCategory = loc.agentsCategory;
     this.agentsSelected = loc.agentsSelected;
     this.selectedPackage = null;

@@ -2,18 +2,14 @@
  * "Report to Agency Agents" — surfaces a pre-filled GitHub new-issue URL
  * from any error context the user encounters in the app.
  *
- * Two entry points:
+ * Entry point:
  *
  *   - `reportableToastError(title, error)` — for catch blocks. Shows a
  *     `toast.error` with the friendly message in the body AND a
  *     "Report to Agency Agents" action button below it. One-call upgrade
- *     of the old `toast.error(title, isBrewError(e) ? e.code : String(e))`
+ *     of the old `toast.error(title, isAppError(e) ? e.code : String(e))`
  *     anti-pattern (which threw away the friendly message and gave the
  *     user no recourse beyond the raw discriminator string).
- *
- *   - `openReportIssueFromJob(job, summary)` — for the Activity drawer's
- *     failed-job footer. Reads command + exitCode + accumulated stderr
- *     lines from the streamed job log.
  *
  * The opened URL routes through `safeOpenUrl`, so the http(s)-only +
  * Tauri-opener sandbox apply identically to GitHub as to any other
@@ -23,10 +19,9 @@
 import { appVersion } from "$lib/api";
 import { toast } from "$lib/stores/toast.svelte";
 import {
-  brewErrorMessage,
-  isBrewError,
-  type ActivityJob,
-  type BrewErrorPayload,
+  appErrorMessage,
+  isAppError,
+  type AppErrorPayload,
 } from "$lib/types";
 import { safeOpenUrl } from "$lib/util/url";
 
@@ -51,7 +46,7 @@ interface ReportContext {
    *  upstream pattern. Surfaces in the body so the maintainer knows the
    *  user already saw the friendly version. */
   friendlyMessage?: string;
-  /** Raw BrewError discriminator (e.g. "brew_exit_non_zero"). Helps
+  /** Raw AppError discriminator (e.g. "internal"). Helps
    *  triage when the user types unrelated free-form text. */
   errorCode?: string;
 }
@@ -108,68 +103,35 @@ export async function openReportIssue(ctx: ReportContext): Promise<void> {
   await safeOpenUrl(`${REPO_NEW_ISSUE_URL}?${params.toString()}`);
 }
 
-/** Extract a ReportContext from a typed BrewError. */
-export function reportContextFromBrewError(
-  e: BrewErrorPayload,
+/** Extract a ReportContext from a typed AppError. */
+export function reportContextFromError(
+  e: AppErrorPayload,
   summary: string,
 ): ReportContext {
-  if (e.code === "brew_exit_non_zero") {
-    return {
-      summary,
-      command: e.command,
-      exitCode: e.exitCode,
-      stderrExcerpt: e.stderrExcerpt,
-      friendlyMessage: e.friendlyMessage,
-      errorCode: e.code,
-    };
-  }
-  // Non-shell errors: capture the friendly message so the report carries
-  // human-readable context, and pin the discriminator for triage.
+  // Capture the friendly message so the report carries human-readable
+  // context, and pin the discriminator for triage.
   return {
     summary,
-    friendlyMessage: brewErrorMessage(e),
+    friendlyMessage: appErrorMessage(e),
     errorCode: e.code,
-  };
-}
-
-/** Extract a ReportContext from an in-app Activity job (typically a
- *  failed `brew` invocation). The drawer's footer offers this path so
- *  the user can report a failure without re-navigating to whatever
- *  toast spawned it. */
-export function reportContextFromActivityJob(
-  job: ActivityJob,
-  summary: string,
-): ReportContext {
-  const stderr = job.lines
-    .filter((l) => l.stream === "stderr")
-    .map((l) => l.text)
-    .join("\n");
-  return {
-    summary,
-    command: job.command,
-    exitCode: job.exitCode,
-    stderrExcerpt: stderr.length > 0 ? stderr : undefined,
   };
 }
 
 /**
  * Drop-in replacement for the old anti-pattern:
- *   toast.error(title, isBrewError(e) ? e.code : String(e))
+ *   toast.error(title, isAppError(e) ? e.code : String(e))
  *
  * Renders the friendly message in the toast body AND attaches a
  * "Report to Agency Agents" action button that opens the pre-filled
  * GitHub new-issue URL via `safeOpenUrl`.
  *
- * The friendly message comes from `brewErrorMessage(e)` — which on
- * `brew_exit_non_zero` errors uses the backend's `friendlyMessage`
- * field (populated by `brew::error_patterns::friendlify` when the
- * stderr matches a known upstream-brew-bug pattern, e.g. the shiva
- * `brew bundle` topo-sort crash).
+ * The friendly message comes from `appErrorMessage(e)`, which maps each
+ * `AppError` discriminator to human-readable text.
  */
 export function reportableToastError(title: string, e: unknown): void {
-  if (isBrewError(e)) {
-    const ctx = reportContextFromBrewError(e, title);
-    toast.error(title, brewErrorMessage(e), {
+  if (isAppError(e)) {
+    const ctx = reportContextFromError(e, title);
+    toast.error(title, appErrorMessage(e), {
       label: "Report to Agency Agents",
       onClick: () => {
         void openReportIssue(ctx);
@@ -187,12 +149,4 @@ export function reportableToastError(title: string, e: unknown): void {
       });
     },
   });
-}
-
-/** Convenience wrapper for the Activity drawer footer button. */
-export function openReportIssueFromJob(
-  job: ActivityJob,
-  summary: string,
-): Promise<void> {
-  return openReportIssue(reportContextFromActivityJob(job, summary));
 }

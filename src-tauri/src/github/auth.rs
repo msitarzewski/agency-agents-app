@@ -53,14 +53,11 @@ use crate::error::AppError;
 /// bundle the app actually ships under — otherwise the user could sign
 /// in and the next launch wouldn't find the token.
 ///
-/// Renamed from `"dev.openbrew.browser"` → `"com.zerologic.brew-browser"`
-/// in v0.3.1. The old identifier was the Tauri scaffolder default that
-/// stuck around for too long. Users with v0.2.1+ tokens stored under
-/// the old service ID will see them orphaned (macOS Keychain ACLs are
-/// keyed by binary signature + service ID — different service = no
-/// migration possible without re-prompting anyway). On their next
-/// GitHub action the Re-authorize toast flow guides them through a
-/// one-click re-sign-in.
+/// A change to this value orphans tokens already in users' Keychains
+/// (macOS Keychain ACLs are keyed by binary signature + service ID —
+/// different service = no migration possible without re-prompting). If it
+/// ever must change, the Re-authorize toast flow guides users through a
+/// one-click re-sign-in on their next GitHub action.
 ///
 /// The match is enforced by `tests::service_id_matches_tauri_conf`.
 pub const KEYCHAIN_SERVICE: &str = "com.zerologic.agency-agents-app";

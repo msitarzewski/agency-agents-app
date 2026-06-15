@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
    * Loadouts — save your current install set to a portable "Agentfile" and
-   * restore it on another machine (the brew-bundle analog). Export reads the
-   * ledger; import installs every entry.
+   * restore it on another machine (a lockfile-style snapshot of installed
+   * agents). Export reads the ledger; import installs every entry.
    */
   import EmptyState from "./EmptyState.svelte";
   import Pill from "./Pill.svelte";

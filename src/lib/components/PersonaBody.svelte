@@ -13,6 +13,7 @@
   import Pill from "./Pill.svelte";
   import LoadingState from "./LoadingState.svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
+  import { resolveCategoryIcon } from "$lib/util/categoryIcon";
   import { renderMarkdown } from "$lib/util/markdown";
   import type { Agent } from "$lib/types";
 
@@ -37,6 +38,7 @@
 </script>
 
 {#if agent}
+  {@const DivIcon = resolveCategoryIcon(corpus.iconOf(agent.category))}
   <header class="pb-head">
     <span class="pb-emoji" aria-hidden="true">{agent.emoji ?? "🧩"}</span>
     <div class="pb-titles">
@@ -44,10 +46,14 @@
       <span class="pb-cat">
         {#if onCategory}
           <button class="pb-cat-btn" onclick={() => onCategory(agent.category)} title={`See all ${corpus.labelOf(agent.category)} agents`}>
-            <Pill tone="brand">{corpus.labelOf(agent.category)}</Pill>
+            <Pill tone="brand">
+              <span class="pb-cat-ic" style="color:{corpus.colorOf(agent.category)}"><DivIcon size={12} /></span>{corpus.labelOf(agent.category)}
+            </Pill>
           </button>
         {:else}
-          <Pill tone="brand">{corpus.labelOf(agent.category)}</Pill>
+          <Pill tone="brand">
+            <span class="pb-cat-ic" style="color:{corpus.colorOf(agent.category)}"><DivIcon size={12} /></span>{corpus.labelOf(agent.category)}
+          </Pill>
         {/if}
       </span>
     </div>
@@ -97,6 +103,8 @@
     color: var(--color-text-primary);
   }
   .pb-cat { display: inline-flex; }
+  /* Division icon tinted with its brand color, as the pill's leading glyph. */
+  .pb-cat-ic { display: inline-flex; align-items: center; margin-right: 4px; }
   .pb-cat-btn { background: transparent; border: 0; padding: 0; cursor: pointer; display: inline-flex; border-radius: var(--radius-full); }
   .pb-cat-btn:hover { filter: brightness(1.12); }
   .pb-cat-btn:focus-visible { outline: 2px solid var(--color-focus, var(--color-brand)); outline-offset: 2px; }

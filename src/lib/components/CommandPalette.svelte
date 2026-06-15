@@ -21,9 +21,7 @@
 
   const commands: PaletteItem[] = [
     { kind: "command", id: "dashboard", label: "Open Dashboard", shortcut: shortcut("0"), section: "Nav", run: () => ui.setSection("dashboard") },
-    { kind: "command", id: "personas",  label: "Open Agents",    shortcut: shortcut("1"), section: "Nav", run: () => ui.openAgents("all") },
-    { kind: "command", id: "installed", label: "Open Agents — Installed",      section: "Nav", run: () => ui.openAgents("installed") },
-    { kind: "command", id: "attention", label: "Open Agents — Needs attention", section: "Nav", run: () => ui.openAgents("attention") },
+    { kind: "command", id: "personas",  label: "Open Agents",    shortcut: shortcut("1"), section: "Nav", run: () => ui.openAgents() },
     { kind: "command", id: "tools",     label: "Open Tools",     shortcut: shortcut("2"), section: "Nav", run: () => ui.setSection("tools") },
     { kind: "command", id: "loadouts",  label: "Open Loadouts",  shortcut: shortcut("3"), section: "Nav", run: () => ui.setSection("loadouts") },
     { kind: "command", id: "activity",  label: "Open Activity",  shortcut: shortcut("4"), section: "Nav", run: () => ui.setSection("activity") },

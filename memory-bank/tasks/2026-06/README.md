@@ -36,6 +36,14 @@ degradation via a `tauri.macos.conf.json` config split. New `tools/phase-c/` val
 cargo 258/0 (+parity 1/0), svelte-check 0, build clean.
 See [260614_phase-c-parity-safety.md](./260614_phase-c-parity-safety.md).
 
+### 2026-06-15: Pre-release polish (release plan + brew vestiges + Activity Journal + Tools lens)
+Documented the v0.1.0 release runbook (`docs/BUILD.md`), then cleaned brew vestiges (error-type rename,
+dead `catalogAutoRefresh`, dead error codes, deleted the brew-era Python pipeline), repurposed the empty
+inherited "Activity" surface into a **usage journal** (workflow-built + team-reviewed), added a Tools-pane
+**Installed/Not-installed/All** lens, and fixed the cold-build `cargo test` tauri feature-gate
+(`.cargo/config.toml`). Green: svelte-check 0, cargo 258/0. Pushed on `release-planning` (not cut).
+See [260615_pre-release-polish.md](./260615_pre-release-polish.md).
+
 ## Next
 - Phase 4 — Trending + GitHub.
 - Deferred: multi-file tool renderers (antigravity/openclaw/aider/windsurf); local-runtime system-prompt

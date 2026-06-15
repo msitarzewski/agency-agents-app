@@ -3,8 +3,11 @@
    * CoverageMatrix — the cross-tool install registry as a heatmap. Rows are the
    * agent categories you've deployed; columns are every supported tool; each
    * cell is how many agents in that category are installed in that tool, shaded
-   * by intensity. Empty columns are the point — they show where you're NOT
-   * deployed (e.g. "everything's in Claude Code, nothing in Cursor").
+   * by COVERAGE — `installed ÷ that division's catalog size`, so every cell is
+   * its own 0–100% scale (a fully-deployed small division reads as strong as a
+   * fully-deployed big one, instead of intensity tracking raw category size).
+   * Empty columns are the point — they show where you're NOT deployed (e.g.
+   * "everything's in Claude Code, nothing in Cursor").
    *
    * Dependency-free (CSS grid + color-mix). Clicking a populated cell jumps to
    * the Agents workspace filtered to your installed set.
@@ -25,36 +28,48 @@
 
   const slugCat = $derived(new Map(corpus.agents.map((a) => [a.slug, a.category])));
 
+  // Catalog size per category — the coverage denominator (how many agents in
+  // this division exist to deploy, regardless of how many you've installed).
+  const catalogTotal = $derived.by(() => {
+    const m = new Map<string, number>();
+    for (const a of corpus.agents) m.set(a.category, (m.get(a.category) ?? 0) + 1);
+    return m;
+  });
+
   const data = $derived.by(() => {
     const toolIds = SUPPORTED_TOOLS.map((t) => t.id);
-    const byCat = new Map<string, { cat: string; counts: Record<string, number>; total: number }>();
+    const byCat = new Map<string, { cat: string; counts: Record<string, number> }>();
     for (const r of install.installed) {
       const cat = slugCat.get(r.slug) ?? "uncategorized";
       let row = byCat.get(cat);
       if (!row) {
-        row = { cat, counts: Object.fromEntries(toolIds.map((t) => [t, 0])), total: 0 };
+        row = { cat, counts: Object.fromEntries(toolIds.map((t) => [t, 0])) };
         byCat.set(cat, row);
       }
       row.counts[r.tool] = (row.counts[r.tool] ?? 0) + 1;
-      row.total++;
     }
-    const rows = [...byCat.values()].sort((a, b) => b.total - a.total);
-    const max = Math.max(1, ...rows.flatMap((r) => toolIds.map((t) => r.counts[t] ?? 0)));
+    const rows = [...byCat.values()]
+      .map((r) => ({ ...r, catTotal: catalogTotal.get(r.cat) ?? 0 }))
+      .sort((a, b) => b.catTotal - a.catTotal);
     const toolTotals = Object.fromEntries(
       toolIds.map((t) => [t, rows.reduce((s, r) => s + (r.counts[t] ?? 0), 0)]),
     ) as Record<string, number>;
     // Only show tool columns that actually hold agents — empty columns are noise.
     const tools = SUPPORTED_TOOLS.filter((t) => (toolTotals[t.id] ?? 0) > 0);
-    return { rows, max, toolTotals, tools };
+    return { rows, toolTotals, tools };
   });
 
-  function cellStyle(count: number, max: number): string {
-    if (count <= 0) return "";
-    const pct = 18 + Math.round((count / max) * 52); // 18%..70%
+  /** Fraction of a division's catalog agents deployed in a tool (0..1). */
+  function coverage(count: number, catTotal: number): number {
+    return catTotal > 0 ? Math.min(count / catTotal, 1) : 0;
+  }
+  function cellStyle(frac: number): string {
+    if (frac <= 0) return "";
+    const pct = 20 + Math.round(frac * 55); // 20%..75% brand, by coverage
     return `background: color-mix(in srgb, var(--color-brand) ${pct}%, transparent);`;
   }
-  function strong(count: number, max: number): boolean {
-    return count > 0 && count / max > 0.5;
+  function strong(frac: number): boolean {
+    return frac > 0.5;
   }
 </script>
 
@@ -66,7 +81,7 @@
   <div class="cm" style="--cols:{data.tools.length}">
     <!-- header -->
     <div class="cm-row cm-head">
-      <div class="cm-cat cm-corner">Category</div>
+      <div class="cm-cat cm-corner">Division</div>
       {#each data.tools as t (t.id)}
         <div class="cm-th" title={`${t.label} · ${data.toolTotals[t.id] ?? 0} installed`}>
           <span class="cm-th-l">{SHORT[t.id] ?? t.label}</span>
@@ -79,16 +94,17 @@
       <div class="cm-row">
         <button class="cm-cat" title={`See all ${corpus.labelOf(r.cat)} agents`} onclick={() => ui.openDivision(r.cat)}>
           <span class="truncate">{corpus.labelOf(r.cat)}</span>
-          <span class="cm-cat-n">{r.total}</span>
+          <span class="cm-cat-n">{r.catTotal}</span>
         </button>
         {#each data.tools as t (t.id)}
           {@const n = r.counts[t.id] ?? 0}
+          {@const frac = coverage(n, r.catTotal)}
           <button
             class="cm-cell"
-            class:strong={strong(n, data.max)}
+            class:strong={strong(frac)}
             class:empty={n === 0}
-            style={cellStyle(n, data.max)}
-            title={`${corpus.labelOf(r.cat)} × ${t.label}: ${n}`}
+            style={cellStyle(frac)}
+            title={`${corpus.labelOf(r.cat)} × ${t.label}: ${n} of ${r.catTotal} (${Math.round(frac * 100)}%)`}
             disabled={n === 0}
             onclick={() => ui.openDivision(r.cat)}
           >{n > 0 ? n : ""}</button>

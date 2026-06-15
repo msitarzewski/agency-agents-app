@@ -142,7 +142,7 @@ pub fn run() {
             update_relaunch,
             // Phase 1 — corpus subsystem (contracts.md §C). These live in
             // the `corpus` module rather than `commands::*`; register them
-            // fully-qualified alongside the inherited brew commands.
+            // fully-qualified alongside the other commands.
             corpus::corpus_status,
             corpus::corpus_refresh,
             corpus::corpus_list,

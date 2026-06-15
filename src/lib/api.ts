@@ -2,14 +2,13 @@
  * Typed `invoke()` wrappers for the agency backend command surface.
  *
  * Convention: each function resolves with the typed result, or *throws* a
- * `BrewErrorPayload`-shaped object on backend error. Callers should use
- * `try/catch` and `isBrewError(e)` to narrow.
+ * `AppErrorPayload`-shaped object on backend error. Callers should use
+ * `try/catch` and `isAppError(e)` to narrow.
  *
- * The brew-domain wrappers (catalog/search/install/brewfile/trending/
- * enrichment/services/vulns/cask-icon) were removed in the brew-domain
- * sweep. What remains is the cross-cutting infrastructure the agency
- * shell relies on: app version, settings persistence, GitHub
- * integration, and the in-app updater.
+ * Covers the cross-cutting infrastructure the agency shell relies on:
+ * app version, settings persistence, GitHub integration, and the in-app
+ * updater. (Agent catalog/install commands live in their own modules —
+ * `corpus` / `install`.)
  */
 
 import { invoke } from "@tauri-apps/api/core";
@@ -44,7 +43,7 @@ export function appVersion(): Promise<string> {
 /**
  * Read the currently-loaded settings.
  *
- * Throws a `BrewErrorPayload` with `code === "internal"` when the
+ * Throws a `AppErrorPayload` with `code === "internal"` when the
  * settings file on disk is unparseable — in that case the backend is
  * already failing closed (`require_network` denies all outbound calls
  * until the user resets). The Settings UI should catch the throw and
@@ -82,7 +81,7 @@ export function settingsReset(): Promise<Settings> {
  * enabled GitHub stats, the URL doesn't parse as a github repo, or the
  * repo 404s.
  *
- * Throws `BrewErrorPayload` with `code === "paranoid_mode_blocked"`
+ * Throws `AppErrorPayload` with `code === "paranoid_mode_blocked"`
  * when paranoid mode is on, or `"github_rate_limited"` on the anonymous
  * 60/hr per-IP cap.
  */
@@ -183,7 +182,7 @@ export function githubCreateIssue(
  * Check the manifest for a newer release. Backend handles the version
  * comparison, the skip-list consultation, and the URL allowlist.
  *
- * Throws `BrewErrorPayload` with `code === "paranoid_mode_blocked"`
+ * Throws `AppErrorPayload` with `code === "paranoid_mode_blocked"`
  * (feature: "update_check") when Offline Mode is on.
  */
 export function updateCheckNow(): Promise<UpdateCheckOutcome> {

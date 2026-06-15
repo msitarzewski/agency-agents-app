@@ -11,6 +11,8 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 
+import { activity } from "$lib/stores/activity.svelte";
+import { corpus } from "$lib/stores/corpus.svelte";
 import type { AgentDiff, InstalledAgent, InstallRecord, InstallState, Tool, ToolInfo, ToolVersion } from "$lib/types";
 
 /** The tools Phase 2 can install to, with display + scope. Mirrors the Rust
@@ -79,14 +81,23 @@ class InstallStore {
 
   /** Toggle a tool's checked state and persist the selection. */
   toggleSelected(tool: Tool): void {
-    this.selectedTools = this.isSelected(tool)
-      ? this.selectedTools.filter((t) => t !== tool)
-      : [...this.selectedTools, tool];
+    const nowSelected = !this.isSelected(tool);
+    this.selectedTools = nowSelected
+      ? [...this.selectedTools, tool]
+      : this.selectedTools.filter((t) => t !== tool);
     try {
       localStorage.setItem(INSTALL_SELECTION_KEY, JSON.stringify(this.selectedTools));
     } catch {
       /* ignore */
     }
+    // Journal the default-target switch (purely local; no backend call).
+    activity.log({
+      action: "switch",
+      tool,
+      scope: this.scopeOf(tool),
+      outcome: "ok",
+      detail: nowSelected ? "added as default target" : "removed as default target",
+    });
   }
 
   /**
@@ -175,13 +186,46 @@ class InstallStore {
     return row?.state ?? null;
   }
 
+  /** Resolve an agent's friendly name from the loaded corpus, if available.
+      Returns undefined when the corpus list hasn't loaded the slug — the
+      journal then falls back to the slug alone. */
+  private agentName(slug: string): string | undefined {
+    return corpus.agents.find((a) => a.slug === slug)?.name;
+  }
+
+  /** Deployment scope for a tool (user-global vs project-scoped). */
+  private scopeOf(tool: Tool): "user" | "project" {
+    return SUPPORTED_TOOLS.find((t) => t.id === tool)?.scope ?? "user";
+  }
+
   async install(slug: string, tool: Tool, projectPath: string | null = null): Promise<InstallRecord> {
     this.busy = `${slug}:${tool}`;
     try {
       const rec = await invoke<InstallRecord>("install_agent", { slug, tool, projectPath });
       await this.reconcile();
       void this.loadTools();
+      activity.log({
+        action: "install",
+        agentSlug: slug,
+        agentName: this.agentName(slug),
+        tool,
+        scope: this.scopeOf(tool),
+        projectPath: projectPath ?? undefined,
+        outcome: "ok",
+      });
       return rec;
+    } catch (e) {
+      activity.log({
+        action: "install",
+        agentSlug: slug,
+        agentName: this.agentName(slug),
+        tool,
+        scope: this.scopeOf(tool),
+        projectPath: projectPath ?? undefined,
+        outcome: "error",
+        detail: e instanceof Error ? e.message : String(e),
+      });
+      throw e;
     } finally {
       this.busy = null;
     }
@@ -193,6 +237,27 @@ class InstallStore {
       await invoke("uninstall_agent", { slug, tool, projectPath });
       await this.reconcile();
       void this.loadTools();
+      activity.log({
+        action: "uninstall",
+        agentSlug: slug,
+        agentName: this.agentName(slug),
+        tool,
+        scope: this.scopeOf(tool),
+        projectPath: projectPath ?? undefined,
+        outcome: "ok",
+      });
+    } catch (e) {
+      activity.log({
+        action: "uninstall",
+        agentSlug: slug,
+        agentName: this.agentName(slug),
+        tool,
+        scope: this.scopeOf(tool),
+        projectPath: projectPath ?? undefined,
+        outcome: "error",
+        detail: e instanceof Error ? e.message : String(e),
+      });
+      throw e;
     } finally {
       this.busy = null;
     }
@@ -204,6 +269,27 @@ class InstallStore {
     try {
       await invoke("update_agent", { slug, tool, projectPath });
       await this.reconcile();
+      activity.log({
+        action: "update",
+        agentSlug: slug,
+        agentName: this.agentName(slug),
+        tool,
+        scope: this.scopeOf(tool),
+        projectPath: projectPath ?? undefined,
+        outcome: "ok",
+      });
+    } catch (e) {
+      activity.log({
+        action: "update",
+        agentSlug: slug,
+        agentName: this.agentName(slug),
+        tool,
+        scope: this.scopeOf(tool),
+        projectPath: projectPath ?? undefined,
+        outcome: "error",
+        detail: e instanceof Error ? e.message : String(e),
+      });
+      throw e;
     } finally {
       this.busy = null;
     }
@@ -220,6 +306,27 @@ class InstallStore {
     try {
       await invoke("track_agent", { slug, tool, projectPath });
       await this.reconcile();
+      activity.log({
+        action: "track",
+        agentSlug: slug,
+        agentName: this.agentName(slug),
+        tool,
+        scope: this.scopeOf(tool),
+        projectPath: projectPath ?? undefined,
+        outcome: "ok",
+      });
+    } catch (e) {
+      activity.log({
+        action: "track",
+        agentSlug: slug,
+        agentName: this.agentName(slug),
+        tool,
+        scope: this.scopeOf(tool),
+        projectPath: projectPath ?? undefined,
+        outcome: "error",
+        detail: e instanceof Error ? e.message : String(e),
+      });
+      throw e;
     } finally {
       this.busy = null;
     }
@@ -254,6 +361,17 @@ class InstallStore {
     }
     await this.reconcile();
     void this.loadTools();
+    // ONE summarizing journal entry for the whole batch (not one per item). An
+    // "update" sweep is a Sync; track/uninstall sweeps are generic Bulk ops.
+    // `detail` is a self-contained verb phrase so the row reads naturally; no
+    // single `tool` since a batch can span tools.
+    const plural = (n: number) => `${n} agent${n === 1 ? "" : "s"}`;
+    const verb = action === "update" ? "Updated" : action === "track" ? "Tracked" : "Removed";
+    activity.log({
+      action: action === "update" ? "sync" : "bulk",
+      outcome: fail > 0 ? "error" : "ok",
+      detail: fail > 0 ? `${verb} ${plural(ok)}, ${fail} failed` : `${verb} ${plural(ok)}`,
+    });
     return { ok, fail };
   }
 

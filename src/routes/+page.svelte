@@ -8,7 +8,6 @@
   import AgentsWorkspace from "$lib/components/AgentsWorkspace.svelte";
   import ToolsView from "$lib/components/ToolsView.svelte";
   import ActivityHistory from "$lib/components/ActivityHistory.svelte";
-  import ActivityDrawer from "$lib/components/ActivityDrawer.svelte";
   import CommandPalette from "$lib/components/CommandPalette.svelte";
   import Settings from "$lib/components/Settings.svelte";
   import AboutModal from "$lib/components/AboutModal.svelte";
@@ -222,7 +221,6 @@
         </div>
     </main>
   </div>
-  <ActivityDrawer />
   <CommandPalette />
   <Settings />
   <AboutModal />

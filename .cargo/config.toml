@@ -1,0 +1,22 @@
+# Make plain `cargo test` / `cargo build` / `cargo check` work without the Tauri CLI.
+#
+# Why this is needed:
+#   The cross-platform `src-tauri/tauri.conf.json` intentionally omits the
+#   macOS-only `macOSPrivateApi` key — it lives in `src-tauri/tauri.macos.conf.json`,
+#   which is merged ONLY by the Tauri CLI (`tauri dev` / `tauri build`). A plain
+#   cargo invocation reads just the base config, so `tauri-build`'s feature-allowlist
+#   gate rejects the `macos-private-api` Cargo feature and the build fails on a fresh
+#   checkout / CI (the failure is hidden locally only while a warm build-script cache
+#   from a prior `tauri dev` survives).
+#
+#   Providing `TAURI_CONFIG` is exactly how the Tauri CLI feeds the resolved config
+#   to `tauri-build`; doing so here lets non-CLI cargo match the macOS build.
+#
+# Why this is safe for real releases:
+#   `cargo`'s `[env]` does NOT override a variable already present in the process
+#   environment (no `force = true`). The Tauri CLI — used by `scripts/release.sh`
+#   and `tauri dev` — sets its own fully-merged `TAURI_CONFIG`, which therefore wins.
+#   This fallback only applies to bare cargo runs (tests, `cargo check`, CI), where
+#   the private-API window features are never exercised.
+[env]
+TAURI_CONFIG = "{\"app\":{\"macOSPrivateApi\":false}}"

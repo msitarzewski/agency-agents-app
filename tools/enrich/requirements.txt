@@ -1,6 +1,0 @@
-# brew-browser enrich tool
-# Anthropic-only (Haiku 4.5). The Tier B prompt is heavily Anthropic-tuned;
-# other providers are not supported for v1.
-
-python-dotenv>=1.0,<2
-anthropic>=0.40,<1

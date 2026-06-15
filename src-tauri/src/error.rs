@@ -10,7 +10,7 @@ use thiserror::Error;
 /// Errors returned by every Tauri command.
 ///
 /// Serializes with `#[serde(tag = "code")]` so the JSON shape on the
-/// frontend matches `BrewErrorPayload` in `src/lib/types.ts`.
+/// frontend matches `AppErrorPayload` in `src/lib/types.ts`.
 #[derive(Debug, Error, Serialize, Clone)]
 #[serde(tag = "code", rename_all = "snake_case")]
 pub enum AppError {

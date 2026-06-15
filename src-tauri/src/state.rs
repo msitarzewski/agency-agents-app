@@ -1,6 +1,6 @@
 //! Tauri-managed application state.
 //!
-//! After the brew-domain sweep this holds only the agency subsystems:
+//! Holds the agency subsystems:
 //! the corpus cache, persisted settings (the source of truth for the
 //! network/feature gates), the updater mirror, and the resolved
 //! app-data directory that the corpus / install / github / updater
@@ -146,7 +146,7 @@ mod tests {
 
     /// Build a minimal AppState whose only meaningful field is `settings`.
     /// All other fields use whatever `AppState::build` resolves — for the
-    /// gate-only tests below the brew-path lookup, catalog load, etc., are
+    /// gate-only tests below the app-data path lookup, catalog load, etc., are
     /// irrelevant. Settings slot is overwritten *after* construction so we
     /// don't depend on whatever happens to be on disk for the test user.
     async fn build_state_with(slot: SettingsLoadState) -> AppState {

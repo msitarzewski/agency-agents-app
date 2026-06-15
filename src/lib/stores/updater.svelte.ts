@@ -21,12 +21,12 @@
  *     because the indicator must hide in Offline Mode anyway, and the
  *     Settings card shows its own "Disabled by Offline Mode" tooltip
  *     on the button.
- *   - any other `BrewError` → stored on `error` for the Settings card
+ *   - any other `AppError` → stored on `error` for the Settings card
  *     to surface inline with a "Try again" button.
  */
 
 import { updateCheckNow, updateInstall, updateRelaunch, updateSkip } from "$lib/api";
-import { isBrewError, brewErrorMessage, type UpdateInfo } from "$lib/types";
+import { isAppError, appErrorMessage, type UpdateInfo } from "$lib/types";
 
 class UpdaterStore {
   /** Epoch millis of the most recent check (success OR error). `null`
@@ -92,13 +92,13 @@ class UpdaterStore {
       }
     } catch (e) {
       this.lastChecked = Date.now();
-      if (isBrewError(e) && e.code === "paranoid_mode_blocked") {
+      if (isAppError(e) && e.code === "paranoid_mode_blocked") {
         // Hide the indicator; don't surface a confusing error in
         // the Settings card (the button's own tooltip explains why).
         this.available = null;
         this.error = null;
-      } else if (isBrewError(e)) {
-        this.error = brewErrorMessage(e);
+      } else if (isAppError(e)) {
+        this.error = appErrorMessage(e);
       } else {
         this.error = String(e);
       }
@@ -129,8 +129,8 @@ class UpdaterStore {
       await updateInstall(version);
       this.installComplete = true;
     } catch (e) {
-      if (isBrewError(e)) {
-        this.error = brewErrorMessage(e);
+      if (isAppError(e)) {
+        this.error = appErrorMessage(e);
       } else {
         this.error = String(e);
       }
@@ -160,8 +160,8 @@ class UpdaterStore {
       // Best-effort: don't restore the indicator on failure (the user
       // explicitly asked to dismiss; better to keep their click than
       // surface a confusing "we couldn't dismiss" toast).
-      if (isBrewError(e)) {
-        this.error = brewErrorMessage(e);
+      if (isAppError(e)) {
+        this.error = appErrorMessage(e);
       } else {
         this.error = String(e);
       }
@@ -182,8 +182,8 @@ class UpdaterStore {
       // The process may have already started restarting and the IPC
       // socket closed mid-call. Treat any error here as benign — if
       // the restart actually failed, the user will notice immediately.
-      if (isBrewError(e)) {
-        this.error = brewErrorMessage(e);
+      if (isAppError(e)) {
+        this.error = appErrorMessage(e);
       } else {
         this.error = String(e);
       }

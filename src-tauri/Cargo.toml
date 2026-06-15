@@ -77,12 +77,6 @@ tar = "0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-# OS-native secret storage. Phase 12e (GitHub Device Flow) stores the
-# OAuth access token in the macOS Keychain under
-# `com.zerologic.brew-browser` / `github_access_token`. The crate fans out to
-# Keychain on macOS, Credential Manager on Windows, Secret Service on
-# Linux — we only use the macOS path.
-keyring = { version = "3", features = ["apple-native"] }
 # URL-encoded form bodies for the GitHub Device Flow endpoints.
 # `serde_urlencoded` is already pulled in transitively by `reqwest`
 # but `url` (parsing) is not. Keep this dep tight.
@@ -98,6 +92,21 @@ window-vibrancy = "0.6"
 # (one SecItemCopyMatching for all GitHub items → one auth prompt instead of
 # three). Pinned to "2" to unify with the version keyring already compiles.
 security-framework = "2"
+
+# OS-native secret storage for the GitHub OAuth token (Device Flow). Every
+# platform uses its native vault through the same `keyring::Entry` API:
+#   macOS   → Keychain           (apple-native)
+#   Windows → Credential Manager (windows-native)
+#   Linux   → Secret Service     (gnome-keyring / KWallet over D-Bus)
+keyring = { version = "3", features = ["apple-native"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Pure-Rust zbus + RustCrypto session encryption, so no system libdbus is
+# needed to build. A running Secret Service provider is required at runtime.
+keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
 
 [dev-dependencies]
 # Reserved for future integration tests that need a sandbox dir

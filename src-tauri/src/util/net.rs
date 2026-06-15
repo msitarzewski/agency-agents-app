@@ -1,10 +1,8 @@
 //! Network host SSRF guard — the public-host / public-IP allowlist.
 //!
-//! Relocated here from the retired `commands/cask_icon_homepage.rs`
-//! during the brew-domain sweep. The only remaining consumer is
-//! `github::url`, whose GitHub-URL validator reuses `is_public_host`
-//! so the SSRF defense the rest of the app relies on stays in one
-//! canonical, test-pinned place. Used before any outbound fetch to
+//! Consumed by `github::url`, whose GitHub-URL validator reuses
+//! `is_public_host` so the SSRF defense the rest of the app relies on
+//! stays in one canonical, test-pinned place. Used before any outbound fetch to
 //! refuse loopback / RFC1918 / link-local / CGNAT / metadata-service
 //! hosts.
 
@@ -194,7 +192,7 @@ mod tests {
     #[test]
     fn is_public_host_accepts_public_hosts() {
         assert!(is_public_host("example.com"));
-        assert!(is_public_host("formulae.brew.sh"));
+        assert!(is_public_host("api.github.com"));
         assert!(is_public_host("8.8.8.8"));
         assert!(is_public_host("1.1.1.1"));
         assert!(is_public_host("github.com"));

@@ -1,20 +1,17 @@
 /**
  * Lucide icon-name → Svelte component binding for the category icons.
  *
- * The icon CHOICE is data-driven: it lives once in
- * `tools/categorize/categorize.py` (the `CATEGORIES` taxonomy) and is emitted
- * to `src-tauri/data/categories.json` as `icon` (this Lucide name, for the web
- * UI) and `iconSF` (an SF Symbol name, consumed directly by the native macOS
- * UI). Neither UI re-decides icons in code.
+ * The icon CHOICE is data-driven: each category's label + Lucide icon name live
+ * in `src-tauri/data/agency-categories.json` (read by `corpus/mod.rs::category_meta`).
+ * This UI does not re-decide icons in code.
  *
  * This map is NOT a second source of truth — it's purely the bundler binding
  * from the data-provided Lucide name to its tree-shakeable Svelte component.
  * Lucide-svelte has no render-by-name without bundling all ~1600 icons, so the
- * 19 components we use must be statically imported here. (Native needs no such
- * map: SF Symbols render from a plain string, so it reads `iconSF` directly.)
+ * components we use must be statically imported here.
  *
- * Adding a category in `categorize.py`? Pick its Lucide + SF names there; then
- * add the one matching Lucide import below. Unknown names fall back to
+ * Adding a category? Set its Lucide `icon` name in `agency-categories.json`,
+ * then add the one matching Lucide import below. Unknown names fall back to
  * `HelpCircle` so a missing import never crashes — but it WILL look out of
  * place, so keep this in sync with the taxonomy.
  */
@@ -48,8 +45,10 @@ import ClipboardList from "@lucide/svelte/icons/clipboard-list";
 import DollarSign from "@lucide/svelte/icons/dollar-sign";
 import FlaskConical from "@lucide/svelte/icons/flask-conical";
 import LifeBuoy from "@lucide/svelte/icons/life-buoy";
+import Map from "@lucide/svelte/icons/map";
 import Megaphone from "@lucide/svelte/icons/megaphone";
 import Network from "@lucide/svelte/icons/network";
+import Workflow from "@lucide/svelte/icons/workflow";
 import ShieldCheck from "@lucide/svelte/icons/shield-check";
 import Sparkles from "@lucide/svelte/icons/sparkles";
 import Target from "@lucide/svelte/icons/target";
@@ -82,9 +81,11 @@ const ICONS: Record<string, Component> = {
   DollarSign,
   FlaskConical,
   LifeBuoy,
+  Map,
   Megaphone,
   Network,
   ShieldCheck,
+  Workflow,
   Sparkles,
   Target,
   TrendingUp,

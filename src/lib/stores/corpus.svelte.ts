@@ -1,6 +1,6 @@
 /**
- * Corpus store — the Agency Agents equivalent of brew-browser's `catalog` +
- * `categories` stores. Lazy-loads the agent corpus and its category taxonomy
+ * Corpus store — the in-memory view of the agent catalog and its category
+ * taxonomy. Lazy-loads the agent corpus and its category taxonomy
  * via the `corpus_list` / `corpus_get` / `corpus_categories` Tauri commands and
  * exposes `$derived` helpers for the Discover tile grid, search, and the
  * per-agent slide-over.
@@ -130,6 +130,18 @@ class CorpusStore {
   /** Pretty label for a category slug. Falls back to the slug. */
   labelOf(slug: string): string {
     return this.categories.find((c) => c.slug === slug)?.label ?? slug;
+  }
+
+  /** Brand color (hex) for a division slug, from the catalog metadata. Falls
+      back to a neutral grey for an unknown slug. */
+  colorOf(slug: string): string {
+    return this.categories.find((c) => c.slug === slug)?.color ?? "#94A3B8";
+  }
+
+  /** Lucide icon NAME for a division slug, from the catalog metadata. Falls
+      back to "HelpCircle" (resolveCategoryIcon's own fallback) for unknowns. */
+  iconOf(slug: string): string {
+    return this.categories.find((c) => c.slug === slug)?.icon ?? "HelpCircle";
   }
 
   /**

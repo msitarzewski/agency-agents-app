@@ -133,6 +133,49 @@ The updater public key is embedded in the app config/source. The matching privat
 ~/.config/agency-agents-app/updater.key
 ```
 
+## Release Checklist
+
+The ordered runbook for cutting a release. The mechanics referenced here are detailed in the sections above.
+
+### Decisions for v0.1.0 (first release)
+
+- **Version:** `0.1.0` — already set in `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`. No bump needed.
+- **Distribution:** signed + notarized `.dmg`, manual download.
+- **Auto-update: deferred.** The updater public key ships, but the endpoint (`agency-agents-app.zerologic.com/updater.json`) is not yet provisioned. Build with `SKIP_UPDATER=1` so no updater artifact/manifest is expected. A later release turns auto-update on once the endpoint serves a manifest.
+- **Out of scope (known limitations, noted in the release notes):** auto-update, multi-file renderers (antigravity / openclaw / aider / windsurf), Windows/Linux runtime verification, and the local-runtime (Ollama / LM Studio) target.
+
+### Steps
+
+1. **Pre-flight — confirm green on a clean `main`:**
+
+   ```sh
+   (cd src-tauri && cargo test --lib)                 # expect 258/0
+   AGENCY_AGENTS_PARITY_ROOT=<clone> cargo test --manifest-path src-tauri/Cargo.toml --lib \
+     upstream_convert_sh_is_byte_identical_for_transform_tools -- --ignored   # expect 1160/1160
+   npm run check                                      # 0 errors
+   npm run build                                      # clean
+   ```
+
+   Or the bundled batch: `npm run build:phase-c`.
+
+2. **Finalize release notes** — `git mv docs/release-notes/unreleased.md docs/release-notes/0.1.0.md`, retitle to `Agency Agents v0.1.0 - <date>`, drop the staging-file line, then recreate an empty `unreleased.md` stub for the next cycle.
+
+3. **Build** — `SKIP_UPDATER=1 ./scripts/release.sh` (see *Release Build On macOS*). Produces the signed, notarized, stapled `.app` + signed `.dmg`.
+
+4. **Verify artifacts** — run the `codesign` / `spctl` / `stapler` checks (see *Verify macOS Artifacts*).
+
+5. **Smoke test** — mount the `.dmg`, launch, confirm Gatekeeper acceptance, the first-run catalog picker, and the Tahoe glass icon.
+
+6. **Publish** — `git tag v0.1.0 && git push origin v0.1.0`, then `gh release create v0.1.0 <dmg> --notes-file docs/release-notes/0.1.0.md`.
+
+7. **Post-release** — log the cut in `memory-bank/agentLog.md`; open the next milestone for the deferred items (updater endpoint, Phase 5 quality gate).
+
+### Enabling auto-update (a later release)
+
+1. Provision `agency-agents-app.zerologic.com/updater.json` to serve the manifest.
+2. Confirm the updater private key is available (Keychain, or `~/.config/agency-agents-app/updater.key`).
+3. Build **without** `SKIP_UPDATER`, then run `tools/release/publish-manifest.sh <version>` and host the gzipped `.app` tarball + manifest at the endpoint.
+
 ## macOS Icon Notes
 
 macOS 26 Tahoe uses the compiled `Assets.car` path for Liquid Glass icons. Do not blindly run `npm run tauri icon`; it can clobber the curated icon outputs.

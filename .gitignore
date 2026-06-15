@@ -43,10 +43,6 @@ src-tauri/.tauri/
 
 # Tool-local state (always regenerable)
 .phase-c/
-tools/categorize/.venv/
-tools/categorize/state/
-tools/categorize/__pycache__/
-tools/categorize/*.log
 
 # Cargo deny temp downloads
 src-tauri/.cargo/registry/

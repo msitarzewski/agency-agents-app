@@ -81,8 +81,44 @@ if a backup fails, the delete ABORTS and the original is preserved (a preservati
 strand a half-removed agent). **Alternatives**: keep deletion final (rejected — data loss for divergent
 agents). **Consequences**: the ✕ is now reversible for the cases that matter, with full test coverage.
 
-### OPEN: updater signing key + endpoint host
-The minisign pubkey in `tauri.conf.json`/`lib.rs` is still brew-browser's placeholder, and
-the endpoint `agency-agents-app.zerologic.com` is not yet provisioned. Regenerate a keypair
-per `docs/BUILD.md` and provision the host before cutting a release. Until then, updater is
-inert (fine for dev).
+### 2026-06-14: First release = v0.1.0, manual DMG, auto-update deferred
+**Status**: Approved (plan only — NOT cutting yet). **Context**: all three manifests already read
+`0.1.0`; signing + notarization are proven; the updater pubkey is real but the endpoint
+(`agency-agents-app.zerologic.com/updater.json`) is not provisioned. **Decision**: ship v0.1.0 as a
+signed + notarized `.dmg` for manual download, built with `SKIP_UPDATER=1`; defer auto-update to a later
+release once the endpoint serves a manifest. **Out of scope** (documented as known limitations):
+auto-update, multi-file renderers, Windows/Linux runtime verification, local-runtime target.
+**Runbook**: `docs/BUILD.md#Release Checklist`. **Consequences**: fastest path to a real first release;
+0.1.0 users update manually, but the shipped pubkey lets a later 0.1.x flip auto-update on. **Note**:
+we are NOT cutting now — knocking out final pre-release issues first.
+
+### 2026-06-15: Repurpose the inherited "Activity" surface into a usage journal
+**Status**: Approved. **Context**: AA inherited brew-browser's "Activity" view (Sidebar ⌘4 + components +
+223-line store) for streaming long-running `brew` jobs — but AA installs are instant native file writes, no
+backend emits `AppStreamEvent`, so the section was fully built yet permanently EMPTY. **Decision**: keep the
+surface but repurpose it as a frontend **journal** of discrete agent actions (install/uninstall/update/track/
+bulk + default-target switch), logged from `install.svelte.ts`, persisted in localStorage, clearable. Delete
+the dead streaming machinery (`AppStreamEvent`, `ActivityJob`, `ActivityDrawer`, the dead error codes).
+**Alternatives**: remove Activity entirely (rejected — AA has plausible future long-running ops: catalog
+clone/pull, updater download, bulk reconcile, which could stream into it later); wire real streaming now
+(rejected — bigger scope). **Consequences**: turns dead weight into a useful history; localStorage is fine
+(it's a UX journal, not a system of record — the ledger remains the source of truth). Future option: a
+backend `activity.json` if it must survive webview-data clears.
+
+### 2026-06-15: `.cargo/config.toml` to pass the tauri feature-gate on bare cargo
+**Status**: Approved. **Context**: the cross-platform config split (PR #1) keeps `macOSPrivateApi` only in
+`tauri.macos.conf.json`, merged by the Tauri CLI — but bare `cargo test`/`build`/CI read only base
+`tauri.conf.json`, so `tauri-build` rejects the `macos-private-api` Cargo feature (fails on fresh checkout;
+hidden locally by a warm build-script cache). **Decision**: a repo-root `.cargo/config.toml` sets
+`TAURI_CONFIG='{"app":{"macOSPrivateApi":false}}'` for bare cargo invocations. **Alternatives**: put
+`macOSPrivateApi` back in base config (rejected — adding it did NOT satisfy the gate empirically; the gate is
+bypassed only when `TAURI_CONFIG` is set, and only with the `false` value). **Consequences**: bare cargo is
+green from cold; the Tauri CLI sets its own process-env `TAURI_CONFIG` (precedence over `[env]`), so real
+`tauri dev`/`build` use the merged config (`macOSPrivateApi: true`) — verified `tauri dev` launches clean.
+
+### OPEN: updater endpoint host (+ confirm private key)
+The minisign **pubkey** in `tauri.conf.json` is now a real key (no longer the brew placeholder). What
+remains before auto-update works: provision `agency-agents-app.zerologic.com/updater.json` to serve a
+manifest, and confirm the matching **private key** is available (Keychain `agency-agents-updater-key`,
+or `~/.config/agency-agents-app/updater.key`). Until then, build with `SKIP_UPDATER=1` (updater inert —
+fine for v0.1.0's manual DMG).

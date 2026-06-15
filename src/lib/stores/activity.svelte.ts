@@ -1,47 +1,63 @@
 /**
- * Activity store — tracks running + completed streaming jobs.
- * Drives the bottom Activity drawer + sidebar "Activity" section.
+ * Activity store — a JOURNAL of discrete agent actions (install, remove,
+ * update, track, tool default-target switch, sync, bulk ops).
  *
- * Persistence: completed jobs (succeeded/failed/canceled) are mirrored to
- * localStorage so the Activity view survives app restarts. Running jobs are
- * NOT persisted — when the app dies the underlying backend operation dies
- * with it; there is no way to reattach to an in-flight install across launches.
- * On restore, any persisted "running" job is reclassified as "canceled" so the
- * historical record reflects reality.
+ * Drives the "Activity" view. This is NOT a live stream: each entry is a
+ * single, already-resolved record appended after a backend action returns.
+ * Entries are clearable.
+ *
+ * Persistence: the journal is mirrored to localStorage so the Activity view
+ * survives app restarts. The cap keeps the mirror bounded; older entries drop
+ * off the tail. On any persist failure we console-warn (NOT a silent swallow)
+ * so a regression — quota exhaustion, serialization failure, a webview-side
+ * storage policy quirk — is visible during dev/testing instead of presenting
+ * as "the activity log silently empties."
  */
 
-import type { ActivityJob, ActivityLine, AppStreamEvent } from "$lib/types";
+import type { Tool } from "$lib/types";
 
-const STORAGE_KEY = "agency-agents:activity:v1";
-/** Cap how many jobs we persist. Older drop off the tail.
- *  Raised from 50 in earlier builds — most users never hit it, and
- *  a fatter history is more useful than the storage saving. */
-const MAX_PERSISTED_JOBS = 200;
-/** Cap log lines per job to keep localStorage write cost bounded. */
-const MAX_LINES_PER_JOB = 500;
-/** How long to wait after a state change before writing to localStorage. */
+/** Bumped v1 -> v2: the persisted shape changed from streaming jobs to journal
+ *  entries. The old v1 store was never populated (no backend emitted stream
+ *  events), so there's nothing to migrate. */
+const STORAGE_KEY = "agency-agents:activity:v2";
+/** Cap how many entries we persist. Older drop off the tail. */
+const MAX_ENTRIES = 500;
+/** How long to wait after a change before writing to localStorage. */
 const PERSIST_DEBOUNCE_MS = 400;
 
+/** A discrete, already-resolved agent action recorded in the journal. */
+export interface JournalEntry {
+  /** Stable id (crypto.randomUUID). */
+  id: string;
+  /** ISO timestamp the action resolved. */
+  ts: string;
+  action: "install" | "uninstall" | "update" | "track" | "switch" | "sync" | "bulk";
+  agentSlug?: string;
+  agentName?: string;
+  tool?: Tool;
+  scope?: "user" | "project";
+  projectPath?: string;
+  outcome: "ok" | "error";
+  /** Free-form detail — error message, bulk summary ("3 agents"), etc. */
+  detail?: string;
+}
+
 interface PersistedShape {
-  v: 1;
-  jobs: ActivityJob[];
+  v: 2;
+  entries: JournalEntry[];
 }
 
 class ActivityStore {
-  jobs: ActivityJob[] = $state([]);
-  /** id of the job whose tab is selected in the drawer */
-  activeJobId: string | null = $state(null);
-
-  running = $derived(this.jobs.filter((j) => j.status === "running"));
-  runningCount = $derived(this.running.length);
+  /** The journal, newest-first. */
+  entries: JournalEntry[] = $state([]);
 
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private hydrated = false;
 
   /**
-   * Restore persisted jobs from localStorage. Safe to call multiple times — only
-   * the first call hydrates. Should be invoked once during app bootstrap (e.g.
-   * from `+layout.svelte`).
+   * Restore persisted entries from localStorage. Safe to call multiple times —
+   * only the first call hydrates. Should be invoked once during app bootstrap
+   * (e.g. from `+layout.svelte`).
    */
   hydrate(): void {
     if (this.hydrated || typeof window === "undefined") return;
@@ -53,18 +69,12 @@ class ActivityStore {
         return;
       }
       const parsed = JSON.parse(raw) as PersistedShape;
-      if (!parsed || parsed.v !== 1 || !Array.isArray(parsed.jobs)) {
+      if (!parsed || parsed.v !== 2 || !Array.isArray(parsed.entries)) {
         console.warn("[activity] hydrate: persisted entry has unexpected shape; ignoring");
         return;
       }
-      // Any "running" job in persisted state died with the previous process —
-      // mark it canceled so the UI doesn't show a phantom spinner.
-      const restored: ActivityJob[] = parsed.jobs.map((j) =>
-        j.status === "running" ? { ...j, status: "canceled" } : j,
-      );
-      this.jobs = restored;
-      this.activeJobId = restored[0]?.jobId ?? null;
-      console.info(`[activity] hydrate: restored ${restored.length} job(s) from localStorage`);
+      this.entries = parsed.entries;
+      console.info(`[activity] hydrate: restored ${parsed.entries.length} entry(ies) from localStorage`);
     } catch (e) {
       console.warn(
         `[activity] hydrate failed (corrupt entry): ${
@@ -76,8 +86,8 @@ class ActivityStore {
   }
 
   /**
-   * Schedule a debounced write to localStorage. Coalesces rapid line bursts
-   * into a single write at most every
+   * Schedule a debounced write to localStorage. Coalesces rapid bursts (e.g. a
+   * bulk loop that logs once per item) into a single write at most every
    * PERSIST_DEBOUNCE_MS milliseconds.
    */
   private schedulePersist(): void {
@@ -90,133 +100,43 @@ class ActivityStore {
   }
 
   /**
-   * Write current jobs to localStorage immediately. Truncates lines per job and
-   * caps job count to keep storage bounded.
-   *
-   * On failure, logs a warning to the console (NOT a silent swallow) so a
-   * persistence regression — quota exhaustion, serialization failure, a
-   * webview-side storage policy quirk — is visible during dev/testing
-   * instead of presenting as "the activity log silently empties."
+   * Write current entries to localStorage immediately. Caps entry count to keep
+   * storage bounded. On failure, logs a warning to the console.
    */
   private persistNow(): void {
     if (typeof window === "undefined") return;
     try {
-      const trimmed: ActivityJob[] = this.jobs
-        .slice(0, MAX_PERSISTED_JOBS)
-        .map((j) => {
-          if (j.lines.length <= MAX_LINES_PER_JOB) return j;
-          // Keep the last N lines — install errors usually surface at the end.
-          const lines: ActivityLine[] = j.lines.slice(-MAX_LINES_PER_JOB);
-          return { ...j, lines };
-        });
-      const payload: PersistedShape = { v: 1, jobs: trimmed };
+      const trimmed = this.entries.slice(0, MAX_ENTRIES);
+      const payload: PersistedShape = { v: 2, entries: trimmed };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (e) {
       console.warn(
-        `[activity] persistNow failed (jobs=${this.jobs.length}): ${
+        `[activity] persistNow failed (entries=${this.entries.length}): ${
           e instanceof Error ? e.message : String(e)
         }`,
       );
     }
   }
 
-  startJob(label: string, jobId: string, command: string) {
-    const job: ActivityJob = {
-      jobId,
-      label,
-      command,
-      startedAt: new Date().toISOString(),
-      status: "running",
-      lines: [],
+  /**
+   * Record a resolved action. Generates id + ts, prepends (newest-first), and
+   * persists. Callers pass everything but `id`/`ts`.
+   */
+  log(entry: Omit<JournalEntry, "id" | "ts">): void {
+    const full: JournalEntry = {
+      ...entry,
+      id: crypto.randomUUID(),
+      ts: new Date().toISOString(),
     };
-    this.jobs = [job, ...this.jobs];
-    this.activeJobId = jobId;
-    // Persist IMMEDIATELY so even a hard kill within the 400ms
-    // debounce window leaves the job in the history. Streaming
-    // line bursts still ride the debounced path below.
+    this.entries = [full, ...this.entries].slice(0, MAX_ENTRIES);
+    // Debounced so a bulk loop's per-item logs coalesce into one write.
+    this.schedulePersist();
+  }
+
+  /** Wipe the journal including the localStorage mirror. */
+  clear(): void {
+    this.entries = [];
     this.persistNow();
-  }
-
-  handleEvent(evt: AppStreamEvent) {
-    const idx = this.jobs.findIndex((j) => j.jobId === evt.jobId);
-    if (idx === -1) {
-      // event for an unknown job — could happen on race conditions; ignore quietly.
-      return;
-    }
-    const j = this.jobs[idx];
-    switch (evt.kind) {
-      case "started":
-        // already recorded at startJob; refresh command if useful
-        j.command = evt.command;
-        break;
-      case "stdout":
-        j.lines = [...j.lines, { stream: "stdout", text: evt.line, ts: evt.ts }];
-        break;
-      case "stderr":
-        j.lines = [...j.lines, { stream: "stderr", text: evt.line, ts: evt.ts }];
-        break;
-      case "progress":
-        // soft-record progress as a line for now (UI can read percent later)
-        j.lines = [...j.lines, { stream: "stdout", text: `[progress] ${evt.message}`, ts: new Date().toISOString() }];
-        break;
-      case "exit":
-        j.status = evt.success ? "succeeded" : "failed";
-        j.exitCode = evt.exitCode;
-        j.durationMs = evt.durationMs;
-        break;
-      case "canceled":
-        j.status = "canceled";
-        break;
-      case "error":
-        j.status = "failed";
-        j.lines = [...j.lines, { stream: "stderr", text: `[error] ${evt.error.code}`, ts: new Date().toISOString() }];
-        break;
-    }
-    // re-publish (Svelte 5 deep-mutation works, but reassign to be explicit)
-    this.jobs = [...this.jobs];
-    // Terminal events flush immediately; mid-stream updates are debounced.
-    if (evt.kind === "exit" || evt.kind === "canceled" || evt.kind === "error") {
-      this.persistNow();
-    } else {
-      this.schedulePersist();
-    }
-  }
-
-  setActive(jobId: string) { this.activeJobId = jobId; }
-
-  removeJob(jobId: string) {
-    this.jobs = this.jobs.filter((j) => j.jobId !== jobId);
-    if (this.activeJobId === jobId) {
-      this.activeJobId = this.jobs[0]?.jobId ?? null;
-    }
-    this.persistNow();
-  }
-
-  clearCompleted() {
-    this.jobs = this.jobs.filter((j) => j.status === "running");
-    this.persistNow();
-  }
-
-  /** Wipe all history including the localStorage mirror. */
-  clearAll() {
-    this.jobs = [];
-    this.activeJobId = null;
-    this.persistNow();
-  }
-
-  /** Mark a running job canceled locally. The brew-era backend
-   *  `cancel_job` IPC was retired with the brew domain; agency install
-   *  jobs are not yet backend-cancellable, so this updates the local
-   *  record only. Re-wire to a backend cancel when streaming agency
-   *  jobs land. */
-  cancel(jobId: string) {
-    const idx = this.jobs.findIndex((j) => j.jobId === jobId);
-    if (idx === -1) return;
-    if (this.jobs[idx].status === "running") {
-      this.jobs[idx].status = "canceled";
-      this.jobs = [...this.jobs];
-      this.persistNow();
-    }
   }
 }
 

@@ -397,3 +397,167 @@ was working-tree only). Resolved the two IMMEDIATE backlog items and the deferre
   indexing + parity absorbed it cleanly).
 - **Green:** cargo test 258/0 (+ the 1 parity test 1/0), svelte-check 0 errors, vite build clean.
   Then: memory bank updated, committed, pushed, PR opened.
+
+## 2026-06-15 — Pre-release polish: brew vestiges, Activity Journal, Tools lens, cargo-test gate
+On `release-planning` (off merged main). Documented the v0.1.0 release plan in `docs/BUILD.md#Release
+Checklist` + a `decisions.md` ADR (manual signed DMG, SKIP_UPDATER, auto-update deferred) — NOT cutting yet.
+Then knocked out pre-release issues, all green (svelte 0, cargo 258/0), committed + pushed:
+- **brew vestige cleanup**: renamed `BrewErrorPayload`/`isBrewError`/`brewErrorMessage` → `AppError*`;
+  removed the dead `catalogAutoRefresh` setting (struct/enum/tests + types.ts); removed dead error codes
+  (`brew_not_found`/`brew_exit_non_zero`/`brewfile_not_found`/`job_not_found`/`canceled`/`feature_disabled`/
+  `vulns_not_installed` — backend `AppError` emits none). **Deleted the brew-era Python pipeline**
+  `tools/{catalog,categorize,enrich,pipeline,trending-collector}` — TRIAGE LESSON: I first wrongly flagged
+  these as "live catalog pipeline"; they actually fetch Homebrew formulae (`fetch.py` → formulae.brew.sh)
+  and are NOT used by AA (catalog = `corpus/mod.rs` reading the agency repo). `categoryIcon.ts` only
+  referenced `categorize.py` in a comment (repointed to `agency-categories.json`).
+- **Activity Journal**: the inherited "Activity" was a fully-built but PERMANENTLY-EMPTY brew streaming log
+  (Sidebar ⌘4 + `ActivityHistory` + 223-line store + `ActivityDrawer`) — no AA backend ever emits
+  `AppStreamEvent` (`startJob`/`handleEvent` called from nowhere). Michael: "Use it!" as a journal. Pivoted
+  `activity.svelte.ts` → `JournalEntry` store (reused the localStorage persist/hydrate/cap machinery, v1→v2);
+  `install.svelte.ts` logs install/uninstall/update/track/bulk + default-target switch; `ActivityHistory`
+  rewritten (day-grouped rows, action icons, relative time, ok/error dots, Clear). Deleted `ActivityDrawer`,
+  `AppStreamEvent`/`ActivityJob`/`ActivityLine`, `reportContextFromActivityJob`, the sidebar running badge.
+  **Built via Workflow** (Frontend-Developer planner→builder, then a Code-Reviewer + UX-Architect verify
+  team + fix loop): clean in 1 iteration, but the UX-Architect caught 3 real `major` issues my loop's
+  blocker-only gate let through — Clear button hidden <1000px, "Switched added as default target →…"
+  broken English, "Bulk 3 agents" non-verb. Hand-fixed all three. LESSON: gate the loop on `major`+, not
+  just `blocker`.
+- **Tools pane lens**: default to **Installed** (detected OR has agents); `Installed · Not installed · All`
+  segmented toggle on the top row next to rescan (no count chips, per Michael's sketch). `ToolsView.svelte`.
+- **Cold `cargo test` tauri-gate fix**: bare cargo (tests/CI, no Tauri CLI) reads only base `tauri.conf.json`
+  which omits `macOSPrivateApi` (it's in `tauri.macos.conf.json`, merged only by the CLI) → `tauri-build`
+  rejects the `macos-private-api` Cargo feature. Hidden locally by a warm build-script cache; fails on fresh
+  checkout/CI. FIX: `.cargo/config.toml` sets `TAURI_CONFIG='{"app":{"macOSPrivateApi":false}}'` (the value
+  that passes; `:true` does NOT). The Tauri CLI sets its own process-env `TAURI_CONFIG` (wins), so real
+  `tauri dev`/`build` are unaffected — VERIFIED `tauri dev` launches clean. `macos-private-api` in `Cargo.toml`.
+- **Showed it live**: `npm run tauri dev` (warm ~4.6s). Can't self-screenshot — Michael drove. GOTCHA stays.
+
+### 2026-06-15 (later) — live UI polish in the running app (HMR feedback loop)
+With `tauri dev` running, iterated on the Tools + Agents panes via screenshots; all svelte 0-error:
+- **Tools pane**: bar reworked from a sync-state breakdown to a **catalog-coverage** bar — green =
+  distinct catalog agents installed in the tool, gray track = the rest; shown on every row
+  (`installedCount(tool)` / `catalogTotal`). (Dot = tool detected; bar = coverage — two different axes.)
+- **Agents workspace**: REMOVED the All/Installed/… filter lens (the per-row install dots already show
+  install count = number of tools deployed, so the lens was redundant; All==Installed looked pointless).
+  List now filters by search + category only; `ui.agentsFilter` plumbing is now dead in the ui store
+  (Dashboard/palette deep-links that set a filter are now no-ops — flagged, not yet cleaned).
+- **Search row**: moved the Division (category) dropdown onto the search line as the FIRST element
+  (pick target → then search), restyled to the neutral `.ghost` form look (dropped the brand/orange
+  `.active`), menu now left-aligned.
+- **Detail pane hidden when empty**: the resize handle + `<aside class="detail-pane">` only render when an
+  agent is selected (`{#if panelAgent}`); the list goes full-width otherwise. Dropped the "Pick an agent"
+  empty state + its `counts` derived + `.dpe-*` CSS.
+
+### 2026-06-15 (later 2) — cross-platform creds, dead-code/brew pass, coverage-% matrix, Category→Division
+- **Cross-platform GitHub credential storage FIXED + validated on VMs.** The token was stored macOS-only:
+  `keyring` was built with `apple-native` only ("we only use the macOS path") so Windows/Linux had no
+  native vault. Restructured `Cargo.toml` to per-target keyring backends — macOS `apple-native` (Keychain),
+  Windows `windows-native` (Credential Manager), Linux `sync-secret-service`+`crypto-rust` (Secret Service
+  via pure-Rust zbus, no system libdbus to build). ALSO found+fixed a latent error in my earlier `build:`
+  commit — it wrongly added `macos-private-api` to the BASE `[dependencies]` tauri, which failed
+  `validate-config.mjs` ("base excludes macos-private-api") and broke the **Linux** `cargo test` gate (the
+  feature was on but config said false). It belongs in `[target.macos]` only (already there). **Validated via
+  `phase-c.sh` VM matrix** (Scratch=Ubuntu + Windows 11, both running): Ubuntu cargo **258/0** + deb/rpm/
+  appimage bundles; Windows x64 `.exe` + PE headers + artifacts; keyring backends compile on all three.
+  (Windows arm64 build was a transient VM file-lock `Access denied` on a stale `.exe`, not code.) macOS
+  stays 258/0. **GOTCHA for next session**: macos-private-api lives ONLY in `[target.macos]`; the cold
+  cargo gate is handled by `.cargo/config.toml`. Linux Secret Service needs a running daemon at RUNTIME
+  (headless VM has none) — build/compile is validated, true runtime auth needs a desktop session.
+- **Dead code + brew pass**: removed the dead filter-lens plumbing (`ui.agentsFilter`, `AgentsFilter` type,
+  `setAgentsFilter`, nav-history field) + repointed Dashboard/palette callers (dropped the dead
+  "Open Agents — Installed/Needs attention" palette entries). A fork scrubbed ALL residual brew comment
+  mentions (`grep -rin brew src/ src-tauri/src/` → none) + the `net.rs` test fixture; `cargo build --tests`
+  → zero dead_code/unused warnings. **Consequence flagged**: the Dashboard drift cards (Outdated/Modified/
+  Untracked/Missing) now just open Agents — no per-state drill-down anymore (lens is gone).
+- **Adaptive uninstall/delete wording** (`AgentsWorkspace`): bulk destructive action relabels by ownership —
+  "Uninstall — remove from disk (re-installable)" + neutral styling when all selected are ours; the loud red
+  "Delete — remove files from disk" only when the selection includes `foreign` (not-ours) files.
+- **OS-style menu dismiss** (`AgentsWorkspace`): category + bulk menus close on click-outside / Escape,
+  excluding the trigger button so it still toggles (matches `TitlebarControls`' pattern).
+- **Tools detail closes on lens change** (`ToolsView`): `sel` now resolves against `visibleTools`, so
+  switching the lens away from the selected tool closes its detail panel.
+- **CoverageMatrix → coverage-%**: cells shade by `installed ÷ division's catalog size` (0–100% per cell),
+  not absolute count vs the global max — a fully-deployed small division reads as strong as a big one. Row
+  number is now the division's catalog size (the denominator); tooltip `X of Y (Z%)`. (Alt on the table:
+  Idea 2 = row-normalized distribution, one-line denominator swap.)
+- **Terminology: user-facing "Category" → "Division"** (the catalog repo's term). Changed the visible labels
+  only (CoverageMatrix header, "All divisions", empty-state copy, "Catalog by division"); the internal
+  `category` field/identifiers (`agentsCategory`, `openDivision`, `agent.category`, `agency-categories.json`)
+  stay — that's the catalog's frontmatter key.
+- Green throughout: svelte-check 0, cargo 258/0 (macOS + Linux), config validation all-pass.
+
+## 2026-06-15 (later 3) — Dashboard viz overhaul: donuts, division color scheme, cross-platform creds
+Iterating live on the Dashboard "Cross-tool coverage" + division color. All green (svelte 0, cargo 258/0).
+- **CoverageMatrix → coverage-% first** (committed in PR #3): cells shade by `installed ÷ division catalog
+  size` (0–100% per cell), not raw count vs global max.
+- **Then replaced the matrix with `CoverageDonuts.svelte`** (NEW, uncommitted): one donut per tool, sliced by
+  division (segment = agents of that division in that tool), the tool's badge (`toolBadge` mark+accent) in the
+  hole, a shared division legend, LINKED HOVER (hover a slice or legend row → highlights that division across
+  all donuts, dims the rest). Dependency-free SVG arcs (HealthDonut technique). Swapped into AgencyDashboard
+  (CoverageMatrix.svelte kept in tree, unused, for A/B). DONUT SIZING GOTCHA: must set `.cd-chart { flex: none }`
+  (and `.cd-cell`) like HealthDonut's `.hd-chart`, else the flex row resizes donuts unevenly by label length;
+  STROKE=16 R=50 viewBox 120 size 132 is the canonical donut spec.
+- **DIVISION COLOR SCHEME (the big one).** Divisions had NO color (just label+icon). Established a curated
+  18-color palette (approved by Michael) and made it CATALOG METADATA:
+  - **Catalog PR**: `divisions.json` in the agency-agents repo (branch `add-division-metadata`) — slug →
+    {label, icon, color} for all 18 dirs. PR: github.com/msitarzewski/agency-agents/pull/592. Fixes "GIS"
+    (was title-cased "Gis") + covers gis/integrations which had no metadata.
+  - **App reads it**: `src-tauri/data/agency-categories.json` mirrors it (color + the 2 missing divisions);
+    threaded through Rust (`CategoryMetaRow.color`, `category_meta` → 3-tuple, `Category.color`, default
+    `#94A3B8`) and TS (`Category.color`); exposed as **`corpus.colorOf(slug)`**. Charts read THAT (the
+    earlier hardcoded `util/divisionColor.ts` was a stepping stone — now DELETED). `category_meta` test asserts
+    `#3B82F6` for engineering.
+  - Palette (slug→hex): specialized #6366F1, marketing #F97316, engineering #3B82F6, game-development #A855F7,
+    gis #14B8A6, security #EF4444, product #D946EF, sales #10B981, design #EC4899, testing #F59E0B,
+    paid-media #EAB308, project-management #0EA5E9, support #84CC16, spatial-computing #06B6D4, academic
+    #8B5CF6, finance #22C55E, integrations #64748B, strategy #F43F5E.
+- **Dashboard "Coverage by tool" click now selects the tool**: added `ui.toolsSelected: Tool | null` +
+  `ui.openTools(tool)`; ToolsView honors it via an `$effect` (overrides its auto-pick) and keeps it synced on
+  row-click; the dashboard bars call `ui.openTools(t.id)`.
+
+### ⏳ RESUME HERE (queued, NOT done — Michael approved the plan, paused at 90% context)
+1. **Build the catalog-by-division segmented bar** (Michael's mockup: a single full-width proportion bar,
+   segments = divisions colored via `corpus.colorOf`, with leader-line callouts above/below — top row = larger
+   divisions near their segment centers, bottom row = smaller divisions EVENLY spaced with angled dotted
+   leaders to their clustered-right segments; header "Total agents {N} / 100%", footer caption). Plan: new
+   `CatalogByDivision.svelte`, replace the current "Catalog by division" bar-list in `AgencyDashboard.svelte`
+   (the `<ul class="bars scroll">` block ~line 119-133). Data = `corpus.tiles` sorted by count desc; use an
+   SVG overlay (viewBox "0 0 100 H" preserveAspectRatio=none + vector-effect non-scaling-stroke) for leaders,
+   absolutely-positioned HTML label blocks at even x%, segments as `<button>` (openDivision, keyboard-ok).
+2. **Tint the division ICONS with the division color** — the `Division ▾` dropdown menu items in
+   `AgentsWorkspace.svelte` (the `resolveCategoryIcon` usage) and the persona division pill in
+   `PersonaBody.svelte`. Use `corpus.colorOf(slug)` for the icon color.
+3. categoryIcon.ts: gis→"Map", integrations→"Workflow" Lucide names are in the metadata now but NOT imported
+   in `categoryIcon.ts` (it statically imports ~19 icons) → add `Map` + `Workflow` imports + map entries, else
+   they fall back to HelpCircle.
+4. Then: commit the color-scheme batch + push (onto PR #3), and the catalog PR #592 awaits merge.
+- **Uncommitted at checkpoint**: agency-categories.json, corpus/mod.rs, types.rs, AgencyDashboard.svelte,
+  ToolsView.svelte, corpus.svelte.ts, ui.svelte.ts, types.ts, + NEW CoverageDonuts.svelte.
+
+## 2026-06-15 (later 4) — Catalog-by-division chart DONE + icon tinting (resume items 1–3 all closed)
+All three queued items landed; green (svelte-check 0). Built live with Michael's screenshot feedback each round.
+- **`CatalogByDivision.svelte`** (NEW) replaces the orange `<ul class="bars">` bar-list in AgencyDashboard.
+  ONE proportional bar: a `<button>` segment per division, width ∝ count, painted with `corpus.colorOf`,
+  thin inset separators, hover brighten. Header reads "{total} agents … 100%". Labels span FOUR lanes:
+  - top-inner = **majors** (pct ≥ MAJOR_PCT=6: Specialized/Marketing/Engineering/Game-Dev) centered over
+    their segment with a short colored stem;
+  - top-outer = next tier (TOP_TIER=4: GIS/Security/Design/Sales) fanned across the right side (fills the
+    space majors leave empty);
+  - bottom-inner + bottom-outer = the tail, split even/odd into two interleaved fan-rows.
+  - **Leaders are non-crossing Z-elbows** (Michael: "use elbows … so lines and labels never cross"): each is
+    a `<polyline>` vertical-off-segment → short horizontal at a **rank-staggered rail** (`5+rank*3` px off the
+    bar, so no two horizontals share a y) → vertical down the **label's own column**. Bottom rows use
+    **phase-shifted x-spans** ([2,88] vs [14,99]) so one row's verticals fall between the other's labels.
+    Axis-aligned segments stay axis-aligned under preserveAspectRatio=none → true 90° corners.
+  - **Linked hover** like CoverageDonuts: `hovered` slug set by segment/label mouseenter dims everything else
+    (segments .22, labels .32, leaders .12). Tunable knobs at top: MAJOR_PCT, TOP_TIER, the two span ranges.
+- **Division icons tinted** with `corpus.colorOf`: `Division ▾` dropdown items in AgentsWorkspace (`.cat-ic`
+  span; neutralizes to brand on the active row) + persona pill leading glyph in PersonaBody. Added
+  **`corpus.iconOf(slug)`** (mirrors labelOf/colorOf, falls back "HelpCircle").
+- **`categoryIcon.ts`**: imported `Map` + `Workflow` → GIS (was the "?" in the screenshot) now a map pin,
+  Integrations a workflow glyph; everything else unchanged.
+- GOTCHA repeat: `{@const DivIcon = …}` must be an immediate child of `{#if}` (moved it above `<header>`),
+  not nested inside the `<div class="pb-titles">`.
+- Files: NEW CatalogByDivision.svelte; AgencyDashboard.svelte (swap + drop dead cats/maxCat/resolveCategoryIcon
+  import + `.bars.scroll`/`.bar-ic` CSS); AgentsWorkspace.svelte; PersonaBody.svelte; corpus.svelte.ts (iconOf);
+  categoryIcon.ts. Next: merge PR #3 → main, then VM matrix Win/Linux build verify.
