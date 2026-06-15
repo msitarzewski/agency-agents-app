@@ -561,3 +561,24 @@ All three queued items landed; green (svelte-check 0). Built live with Michael's
 - Files: NEW CatalogByDivision.svelte; AgencyDashboard.svelte (swap + drop dead cats/maxCat/resolveCategoryIcon
   import + `.bars.scroll`/`.bar-ic` CSS); AgentsWorkspace.svelte; PersonaBody.svelte; corpus.svelte.ts (iconOf);
   categoryIcon.ts. Next: merge PR #3 → main, then VM matrix Win/Linux build verify.
+
+## 2026-06-15 (later 5) — PR #3 MERGED to main; giant-donut fix; full VM matrix GREEN (21/0/1)
+- **PR #3 merged** (`release-planning → main`, merge commit 633ff3ff). Catalog-by-division + icon work shipped.
+- **Giant CoverageDonut bug** (Michael: "that ain't right" — one donut ballooned to full card width). ROOT
+  CAUSE: the donut `<svg>` had only `viewBox` + relied on `.cd-chart { width:132px }`; when that scoped style
+  doesn't apply (stale/raced webview CSS, e.g. a dead `tauri dev`'s last frame), a viewBox-only svg grows to
+  full width and its 1:1 ratio balloons into one giant circle. Verified source + dev-served CSS were BOTH
+  correct → it was a stale webview. FIX (hardened, not just a reload): pinned the svg with explicit
+  `width="132" height="132"` attributes + `.cd-chart svg { width:132px;height:132px }` (was 100%) so it has a
+  hard px floor and can never balloon again. `CoverageDonuts.svelte`, svelte-check 0. (HealthDonut shares the
+  technique but renders fine; left as-is per minimal-change.)
+- **⚠️ FOOTGUN (bit us again): `tauri dev`/`tauri build` on macOS auto-rewrites `src-tauri/Cargo.toml`** — it
+  ADDS `macos-private-api` to the BASE `[dependencies] tauri` to match the config (it doesn't understand our
+  base-excludes / `[target.macos]`-includes split). That breaks `validate-config.mjs` ("base excludes
+  macos-private-api") AND the macOS-release + Linux cargo gates ("tauri features don't match the allowlist").
+  The 2nd matrix run failed 3 steps purely because I'd launched `tauri dev` to show the donut. RULE: before any
+  cross-platform gate, **stop `tauri dev` and `git checkout -- src-tauri/Cargo.toml`** (revert the base-feature
+  injection; line ~17 must NOT list macos-private-api, only line ~89 `[target.macos]` does). See [[tauri-dev-rewrites-cargo-toml-base-features]].
+- **Final matrix run 20260615T190208Z: 21 passed / 0 failed / 1 skip** (skip = opt-in PHASE_C_STRICT_TAURI).
+  arm64 PASS after Michael closed the running .exe that held the file lock on `C:\AgencyAgentsWinTarget`.
+- **Uncommitted**: CoverageDonuts.svelte (the donut hardening) — awaiting Michael's go to branch + PR (on main).

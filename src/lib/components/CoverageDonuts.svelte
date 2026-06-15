@@ -92,7 +92,7 @@
         {@const hot = hovered ? countIn(d.tool, hovered) : 0}
         <div class="cd-cell">
           <div class="cd-chart">
-            <svg viewBox="0 0 120 120" role="img" aria-label={`${d.label}: ${d.total} agents across ${d.segs.length} divisions`}>
+            <svg width="132" height="132" viewBox="0 0 120 120" role="img" aria-label={`${d.label}: ${d.total} agents across ${d.segs.length} divisions`}>
               <g transform="rotate(-90 60 60)">
                 <circle cx="60" cy="60" r={R} fill="none" style="stroke: var(--color-surface-sunken)" stroke-width={STROKE} />
                 {#each arcs as a (a.slug)}
@@ -163,7 +163,12 @@
   /* flex: none — like HealthDonut's .hd-chart — so the flex row never resizes the
      donut; every donut stays a fixed 132×132 regardless of label length. */
   .cd-chart { position: relative; width: 132px; height: 132px; flex: none; }
-  .cd-chart svg { width: 100%; height: 100%; display: block; }
+  /* Pin the svg to a fixed px size (not 100%) so the donut can never expand to
+     the card width if .cd-chart's scoped style fails to apply / races on load —
+     a viewBox-only svg otherwise grows to full width and its 1:1 ratio balloons
+     it into one giant circle. The width/height attributes are the last-resort
+     floor; this rule keeps it crisp when the styles are present. */
+  .cd-chart svg { width: 132px; height: 132px; display: block; }
 
   .seg { cursor: pointer; transition: opacity var(--motion-duration-fast) var(--motion-ease-out); }
   .seg.dim { opacity: 0.18; }
