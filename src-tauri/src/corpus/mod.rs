@@ -201,6 +201,13 @@ pub struct Corpus {
     /// (from [`discover_categories`]). Drives the Discover grid so the tiles
     /// match the active catalog's actual divisions.
     category_order: Vec<String>,
+    /// Division presentation metadata (label / icon / color) keyed by slug,
+    /// resolved at build time: the catalog root's `divisions.json` overlaid on
+    /// the bundled `agency-categories.json` floor (see [`load_division_meta`]).
+    /// Carrying it on the corpus means `categories()` never touches disk and a
+    /// catalog that ships a new division presents correctly without an app
+    /// update.
+    division_meta: BTreeMap<String, CategoryMetaRow>,
     meta: CorpusMeta,
 }
 
@@ -254,9 +261,10 @@ impl Corpus {
     }
 
     /// Per-category counts in tooling order (from [`discover_categories`]).
-    /// Label + icon come from the bundled `categories.json` (Lucide PascalCase
-    /// names) via [`category_meta`]. Categories with zero agents are still
-    /// returned so the Discover grid renders the full division set.
+    /// Label + icon + color come from [`Corpus::division_meta`] — the catalog's
+    /// `divisions.json` overlaid on the bundled floor. Categories with zero
+    /// agents are still returned so the Discover grid renders the full division
+    /// set.
     pub fn categories(&self) -> Vec<Category> {
         let mut counts: BTreeMap<&str, u32> = BTreeMap::new();
         for entry in self.index.values() {
@@ -265,7 +273,7 @@ impl Corpus {
         self.category_order
             .iter()
             .map(|slug| {
-                let (label, icon, color) = category_meta(slug);
+                let (label, icon, color) = category_meta_from(&self.division_meta, slug);
                 Category {
                     slug: slug.clone(),
                     label,
@@ -295,12 +303,20 @@ struct CategoriesFile {
     categories: BTreeMap<String, CategoryMetaRow>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct CategoryMetaRow {
     label: String,
     icon: String,
     #[serde(default = "default_division_color")]
     color: String,
+}
+
+/// The catalog's `divisions.json` shape (PR #592): the canonical, first-class
+/// source for division presentation metadata, shared with the CLI installer +
+/// linters. Same row shape as the bundled file, under a `divisions` key.
+#[derive(Debug, Deserialize)]
+struct DivisionsFile {
+    divisions: BTreeMap<String, CategoryMetaRow>,
 }
 
 /// Neutral fallback color for a division without one in the metadata.
@@ -309,21 +325,60 @@ fn default_division_color() -> String {
 }
 
 const CATEGORIES_JSON: &str = include_str!("../../data/agency-categories.json");
+const DIVISIONS_FILENAME: &str = "divisions.json";
 
-/// Resolve `(label, icon, color)` for a category slug from the bundled
-/// `categories.json`. Falls back to a title-cased slug + a neutral `Folder`
-/// icon + a neutral color if the slug is somehow absent (keeps Discover
-/// rendering rather than dropping a tile).
-fn category_meta(slug: &str) -> (String, String, String) {
-    // Parse once per call is fine — this runs only on `corpus_categories`
-    // (a cold path) and the JSON is tiny. Memoizing would mean threading
-    // another cache field; not worth it for an 18-row map.
-    if let Ok(file) = serde_json::from_str::<CategoriesFile>(CATEGORIES_JSON) {
-        if let Some(row) = file.categories.get(slug) {
-            return (row.label.clone(), row.icon.clone(), row.color.clone());
-        }
+/// The bundled `agency-categories.json` parsed into a slug → row map. This is
+/// the floor the app always ships — used directly on first run / for an old
+/// clone, and as the base that `divisions.json` overlays onto.
+fn bundled_division_meta() -> BTreeMap<String, CategoryMetaRow> {
+    serde_json::from_str::<CategoriesFile>(CATEGORIES_JSON)
+        .map(|f| f.categories)
+        .unwrap_or_default()
+}
+
+/// Resolve division metadata for the active catalog: start from the bundled
+/// floor, then overlay the catalog root's `divisions.json` (PR #592 — the
+/// canonical source shared with the CLI installer + linters) when present and
+/// parseable. First-run (Bundled) users and pre-#592 clones simply have no
+/// `divisions.json`, so they keep the bundled metadata — no drift, no failure.
+/// Overlaying (rather than replacing) means a `divisions.json` that omits a
+/// division still falls back to the bundled row for it.
+fn load_division_meta(catalog_root: &Path) -> BTreeMap<String, CategoryMetaRow> {
+    let mut meta = bundled_division_meta();
+    let path = catalog_root.join(DIVISIONS_FILENAME);
+    match std::fs::read_to_string(&path) {
+        Ok(raw) => match serde_json::from_str::<DivisionsFile>(&raw) {
+            Ok(file) => {
+                for (slug, row) in file.divisions {
+                    meta.insert(slug, row);
+                }
+                tracing::debug!("corpus: division metadata sourced from {}", path.display());
+            }
+            Err(e) => tracing::warn!(
+                "corpus: {} present but unparseable ({e}); using bundled division metadata",
+                path.display()
+            ),
+        },
+        // Absent is the common, expected case (first run / old clone) — not a warning.
+        Err(_) => tracing::debug!(
+            "corpus: no {DIVISIONS_FILENAME} at catalog root; using bundled division metadata"
+        ),
     }
-    (title_case(slug), "Folder".to_string(), default_division_color())
+    meta
+}
+
+/// Resolve `(label, icon, color)` for a category slug from a resolved division
+/// metadata map. Falls back to a title-cased slug + a neutral `Folder` icon +
+/// a neutral color if the slug is somehow absent (keeps Discover rendering
+/// rather than dropping a tile).
+fn category_meta_from(
+    meta: &BTreeMap<String, CategoryMetaRow>,
+    slug: &str,
+) -> (String, String, String) {
+    match meta.get(slug) {
+        Some(row) => (row.label.clone(), row.icon.clone(), row.color.clone()),
+        None => (title_case(slug), "Folder".to_string(), default_division_color()),
+    }
 }
 
 /// `"game-development"` → `"Game Development"`. Deterministic fallback for
@@ -449,13 +504,18 @@ pub async fn resolve_active(app_data_dir: &Path, baseline_dir: &Path) -> Corpus 
         None => BASELINE_VERSION.to_string(),
     };
 
-    let corpus = match build_from_dir(&dir, &version, &categories).await {
+    let mut corpus = match build_from_dir(&dir, &version, &categories).await {
         Ok(c) => c,
         Err(e) => {
             tracing::error!("corpus: index build failed ({e}); serving empty corpus");
             empty_corpus(&version, &categories)
         }
     };
+
+    // Prefer the catalog's own divisions.json (PR #592) for division label /
+    // icon / color, falling back to the bundled metadata for first-run users
+    // and pre-#592 clones that don't carry it yet.
+    corpus.division_meta = load_division_meta(&dir);
 
     // Persist index + meta (best effort — read commands work from the
     // in-memory copy regardless; the on-disk index exists for the
@@ -564,6 +624,8 @@ async fn build_from_dir(dir: &Path, version: &str, categories: &[String]) -> Res
         agents,
         index,
         category_order: categories.to_vec(),
+        // Bundled floor; resolve_active overlays the catalog's divisions.json.
+        division_meta: bundled_division_meta(),
         meta: CorpusMeta {
             version: version.to_string(),
             commit: None,
@@ -582,6 +644,7 @@ fn empty_corpus(version: &str, categories: &[String]) -> Corpus {
         agents: Vec::new(),
         index: BTreeMap::new(),
         category_order: categories.to_vec(),
+        division_meta: bundled_division_meta(),
         meta: CorpusMeta {
             version: version.to_string(),
             commit: None,
@@ -1665,10 +1728,60 @@ mod tests {
 
     #[test]
     fn category_meta_resolves_from_bundled_json() {
-        let (label, icon, color) = category_meta("engineering");
+        let bundled = bundled_division_meta();
+        let (label, icon, color) = category_meta_from(&bundled, "engineering");
         assert_eq!(label, "Engineering");
         assert_eq!(icon, "Code");
         assert_eq!(color, "#3B82F6");
+    }
+
+    #[test]
+    fn category_meta_falls_back_for_unknown_slug() {
+        let bundled = bundled_division_meta();
+        let (label, icon, color) = category_meta_from(&bundled, "made-up-division");
+        assert_eq!(label, "Made Up Division");
+        assert_eq!(icon, "Folder");
+        assert_eq!(color, default_division_color());
+    }
+
+    #[test]
+    fn load_division_meta_missing_file_uses_bundled() {
+        // First-run / pre-#592 clone: no divisions.json at the root → bundled.
+        let root = tempfile::tempdir().unwrap();
+        let meta = load_division_meta(root.path());
+        assert_eq!(meta.get("engineering").unwrap().color, "#3B82F6");
+    }
+
+    #[test]
+    fn load_division_meta_overlays_catalog_divisions_json() {
+        // A catalog divisions.json overrides a known division AND introduces a
+        // brand-new one the bundled floor has never heard of (the whole point:
+        // a new catalog division presents correctly without an app update).
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(
+            root.path().join(DIVISIONS_FILENAME),
+            r##"{ "divisions": {
+                "engineering": { "label": "Engineering", "icon": "Cpu", "color": "#000000" },
+                "robotics":    { "label": "Robotics",    "icon": "Bot", "color": "#FF00FF" }
+            } }"##,
+        )
+        .unwrap();
+        let meta = load_division_meta(root.path());
+        // Overridden from the catalog.
+        let eng = meta.get("engineering").unwrap();
+        assert_eq!((eng.icon.as_str(), eng.color.as_str()), ("Cpu", "#000000"));
+        // Net-new division, present only in the catalog.
+        assert_eq!(meta.get("robotics").unwrap().color, "#FF00FF");
+        // A bundled division the catalog file omitted is retained (overlay, not replace).
+        assert_eq!(meta.get("marketing").unwrap().label, "Marketing");
+    }
+
+    #[test]
+    fn load_division_meta_malformed_file_uses_bundled() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join(DIVISIONS_FILENAME), "{ not valid json ").unwrap();
+        let meta = load_division_meta(root.path());
+        assert_eq!(meta.get("engineering").unwrap().color, "#3B82F6");
     }
 
     /// Parse the REAL bundled baseline corpus (not a synthetic tempdir) so a
