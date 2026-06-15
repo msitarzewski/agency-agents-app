@@ -132,6 +132,12 @@ class CorpusStore {
     return this.categories.find((c) => c.slug === slug)?.label ?? slug;
   }
 
+  /** Brand color (hex) for a division slug, from the catalog metadata. Falls
+      back to a neutral grey for an unknown slug. */
+  colorOf(slug: string): string {
+    return this.categories.find((c) => c.slug === slug)?.color ?? "#94A3B8";
+  }
+
   /**
    * Filter the agent list by an optional category slug and a free-text query
    * (matched case-insensitively against name + description + vibe). Returns a

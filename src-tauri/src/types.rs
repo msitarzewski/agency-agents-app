@@ -321,6 +321,8 @@ pub struct Category {
     pub slug: String,
     pub label: String,
     pub icon: String,
+    /// Brand color (hex) for the division, from the catalog metadata.
+    pub color: String,
     pub count: u32,
 }
 

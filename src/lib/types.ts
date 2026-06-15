@@ -514,6 +514,8 @@ export interface Category {
   slug: string;
   label: string;
   icon: string;
+  /** Brand color (hex) for the division, from the catalog metadata. */
+  color: string;
   count: number;
 }
 

@@ -265,11 +265,12 @@ impl Corpus {
         self.category_order
             .iter()
             .map(|slug| {
-                let (label, icon) = category_meta(slug);
+                let (label, icon, color) = category_meta(slug);
                 Category {
                     slug: slug.clone(),
                     label,
                     icon,
+                    color,
                     count: counts.get(slug.as_str()).copied().unwrap_or(0),
                 }
             })
@@ -298,24 +299,31 @@ struct CategoriesFile {
 struct CategoryMetaRow {
     label: String,
     icon: String,
+    #[serde(default = "default_division_color")]
+    color: String,
+}
+
+/// Neutral fallback color for a division without one in the metadata.
+fn default_division_color() -> String {
+    "#94A3B8".to_string()
 }
 
 const CATEGORIES_JSON: &str = include_str!("../../data/agency-categories.json");
 
-/// Resolve `(label, icon)` for a category slug from the bundled
-/// `categories.json`. Falls back to a title-cased slug + a neutral
-/// `Folder` icon if the slug is somehow absent (keeps Discover rendering
-/// rather than dropping a tile).
-fn category_meta(slug: &str) -> (String, String) {
+/// Resolve `(label, icon, color)` for a category slug from the bundled
+/// `categories.json`. Falls back to a title-cased slug + a neutral `Folder`
+/// icon + a neutral color if the slug is somehow absent (keeps Discover
+/// rendering rather than dropping a tile).
+fn category_meta(slug: &str) -> (String, String, String) {
     // Parse once per call is fine — this runs only on `corpus_categories`
     // (a cold path) and the JSON is tiny. Memoizing would mean threading
     // another cache field; not worth it for an 18-row map.
     if let Ok(file) = serde_json::from_str::<CategoriesFile>(CATEGORIES_JSON) {
         if let Some(row) = file.categories.get(slug) {
-            return (row.label.clone(), row.icon.clone());
+            return (row.label.clone(), row.icon.clone(), row.color.clone());
         }
     }
-    (title_case(slug), "Folder".to_string())
+    (title_case(slug), "Folder".to_string(), default_division_color())
 }
 
 /// `"game-development"` → `"Game Development"`. Deterministic fallback for
@@ -1657,9 +1665,10 @@ mod tests {
 
     #[test]
     fn category_meta_resolves_from_bundled_json() {
-        let (label, icon) = category_meta("engineering");
+        let (label, icon, color) = category_meta("engineering");
         assert_eq!(label, "Engineering");
         assert_eq!(icon, "Code");
+        assert_eq!(color, "#3B82F6");
     }
 
     /// Parse the REAL bundled baseline corpus (not a synthetic tempdir) so a
