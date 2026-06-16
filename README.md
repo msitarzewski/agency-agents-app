@@ -68,7 +68,18 @@ The upstream AA repo also contains integrations for Antigravity, Aider, Windsurf
 
 ## Install
 
-Release packaging is still pre-1.0.
+Grab the build for your platform from the [latest release](https://github.com/msitarzewski/agency-agents-app/releases/latest):
+
+- **macOS** (Apple Silicon & Intel) — signed + notarized `.dmg`, macOS 13+.
+- **Linux** (x86_64) — `.deb`, `.rpm`, or the portable `.AppImage`.
+- **Windows** (x64 & ARM64) — `.exe` installer (not code-signed yet; SmartScreen → *More info → Run anyway*).
+
+Or on macOS via Homebrew:
+
+```sh
+brew tap msitarzewski/agency-agents
+brew install --cask agency-agents
+```
 
 For local review, use the development app:
 
