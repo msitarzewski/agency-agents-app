@@ -52,7 +52,12 @@
     "macOS": {
       "signingIdentity": "Developer ID Application: Michael Sitarzewski (7JQGQ7CRH8)",
       "hardenedRuntime": true,
-      "minimumSystemVersion": "13.0"
+      "minimumSystemVersion": "13.0",
+      "dmg": {
+        "windowSize": { "width": 540, "height": 380 },
+        "appPosition": { "x": 140, "y": 190 },
+        "applicationFolderPosition": { "x": 400, "y": 190 }
+      }
     }
   }
 }
