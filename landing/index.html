@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0a0d0f" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7f6f3" media="(prefers-color-scheme: light)">
+
+  <!-- Canonical & language -->
+  <link rel="canonical" href="https://agencyagents.app/">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+
+  <!-- Primary meta -->
+  <title>Agency Agents — a native installer for AI agents (Tauri + Svelte)</title>
+  <meta name="description" content="Browse, install, and track AI agent personas across Claude Code, Codex, Cursor, Gemini CLI, Qwen, opencode, and Copilot. Full source. MIT licensed. Local-first, no telemetry, no accounts.">
+  <meta name="author" content="Michael Sitarzewski">
+  <meta name="keywords" content="AI agents, agent personas, Claude Code, Codex, Cursor, Gemini CLI, Qwen, opencode, GitHub Copilot, Tauri, Svelte, Rust, native, MIT, open source, desktop app">
+
+  <!-- Favicons & app icons -->
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-title" content="Agency Agents">
+  <meta name="application-name" content="Agency Agents">
+  <meta name="msapplication-TileColor" content="#0a0d0f">
+
+  <!-- PWA manifest -->
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Agency Agents">
+  <meta property="og:url" content="https://agencyagents.app/">
+  <meta property="og:title" content="Agency Agents — a native installer for AI agents">
+  <meta property="og:description" content="Browse, install, and track AI agent personas across the AI coding tools you actually use. Full source. MIT licensed. No telemetry, no accounts.">
+  <meta property="og:image" content="https://agencyagents.app/social-card.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The Agency Agents Dashboard — install health, cross-tool coverage donuts, and the catalog-by-division bar.">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@msitarzewski">
+  <meta name="twitter:creator" content="@msitarzewski">
+  <meta name="twitter:url" content="https://agencyagents.app/">
+  <meta name="twitter:title" content="Agency Agents — a native installer for AI agents">
+  <meta name="twitter:description" content="Browse, install, and track AI agent personas across the AI coding tools you actually use. Full source. MIT licensed. No telemetry, no accounts.">
+  <meta name="twitter:image" content="https://agencyagents.app/social-card.png">
+  <meta name="twitter:image:alt" content="The Agency Agents Dashboard — install health, cross-tool coverage donuts, and the catalog-by-division bar.">
+
+  <!-- JSON-LD structured data (Google rich results) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Agency Agents",
+    "description": "A native installer for AI agents. Browse, install, and track agent personas across Claude Code, Codex, Cursor, Gemini CLI, Qwen, opencode, and Copilot. Full source. MIT licensed. No telemetry, no accounts.",
+    "applicationCategory": "DeveloperApplication",
+    "applicationSubCategory": "AI Agent Manager",
+    "operatingSystem": "macOS 13+, Windows, Linux",
+    "url": "https://agencyagents.app/",
+    "downloadUrl": "https://github.com/msitarzewski/agency-agents-app/releases/latest",
+    "softwareVersion": "0.1.0",
+    "license": "https://opensource.org/licenses/MIT",
+    "author": {
+      "@type": "Person",
+      "name": "Michael Sitarzewski",
+      "url": "https://github.com/msitarzewski"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "image": "https://agencyagents.app/social-card.png"
+  }
+  </script>
+
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <img src="/agency-agents.png" alt="Agency Agents icon" class="hero-icon" width="160" height="160">
+      <h1>Agency Agents</h1>
+      <p class="tagline">A native installer for AI agents.</p>
+      <p class="sub">Browse the agent catalog by division and role. Inspect a persona before you install it. Deploy deterministic renders into <strong>Claude Code, Codex, Cursor, Gemini CLI, Qwen, opencode, and Copilot</strong> — then track what the app wrote, detect drift, update, or back it out. A small, fast <strong>Tauri 2</strong> app (Rust + Svelte 5). The local install database your AI tools don't share.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/msitarzewski/agency-agents-app/releases/latest">Download</a>
+        <a class="btn btn-secondary" href="https://github.com/msitarzewski/agency-agents-app">Source on GitHub</a>
+      </div>
+      <p class="small-note">macOS 13+ · Windows · Linux · Apple Silicon &amp; Intel · MIT · no telemetry, no accounts</p>
+    </div>
+  </header>
+
+  <main>
+
+    <section class="section section-shots">
+      <figure class="hero-shot">
+        <picture>
+          <source srcset="/screenshots/dashboard-dark.png" media="(prefers-color-scheme: dark)">
+          <img src="/screenshots/dashboard-light.png" alt="Agency Agents — Dashboard: 232 agents available, 239 installed, install-health donut, coverage by tool, per-tool cross-tool coverage donuts, and the catalog-by-division bar." loading="lazy">
+        </picture>
+        <figcaption>The Dashboard — install health, cross-tool coverage, and the catalog by division.</figcaption>
+      </figure>
+    </section>
+
+    <section class="section">
+      <h2>What it does</h2>
+      <div class="features">
+
+        <div class="feature">
+          <h3>Agents workspace</h3>
+          <p>A searchable three-pane catalog of agent personas, filtered by division, with a detail panel that shows the source persona before you install — and per-agent deployment controls for every supported tool.</p>
+        </div>
+
+        <div class="feature">
+          <h3>Install tracking</h3>
+          <p>Every app-managed install is recorded in a local ledger with source hash, rendered hash, tool, destination, scope, and project path. AI tools don't share a package database — so the app keeps the one they're missing.</p>
+        </div>
+
+        <div class="feature">
+          <h3>Reconciliation &amp; drift</h3>
+          <p>Re-renders the canonical source and compares bytes to classify every installed file as current, outdated, modified, removed, or foreign — so you always know what changed outside the app.</p>
+        </div>
+
+        <div class="feature">
+          <h3>Tools panel</h3>
+          <p>Detected tools, installed counts, versions where available, default targets, per-project installs, and bulk operations — the control surface for where your agents actually live.</p>
+        </div>
+
+        <div class="feature">
+          <h3>Dashboard</h3>
+          <p>Coverage, install health, and a proportional catalog-by-division view, plus per-tool coverage donuts — every chart deep-links back into the workspace.</p>
+        </div>
+
+        <div class="feature">
+          <h3>Loadouts</h3>
+          <p>Save and restore groups of agents as portable Agentfiles. Stand up a fresh machine, or share a curated set, in one move.</p>
+        </div>
+
+        <div class="feature">
+          <h3>Deterministic renderers</h3>
+          <p>Per-tool converters with byte-for-byte parity against the upstream <code>agency-agents</code> converter — Claude Code, Codex, Gemini CLI, Copilot, Qwen, Cursor, and opencode. What the app writes is exactly what the catalog defines.</p>
+        </div>
+
+        <div class="feature">
+          <h3>Safe by construction</h3>
+          <p>Every write backs up the prior bytes first; uninstalling a modified file backs it up before deletion. Optional GitHub OAuth (Device Flow) stores tokens in the platform keychain — never returned to the frontend.</p>
+        </div>
+
+        <div class="feature">
+          <h3>Offline-first catalog</h3>
+          <p>Ships with a bundled corpus baseline and can point at a local or managed clone of <code>agency-agents</code>. Native macOS chrome; opaque native windows on Windows and Linux.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="section section-bordered">
+      <h2>Installs into the tools you already use</h2>
+      <div class="badges">
+        <div class="badge"><code>Claude Code</code></div>
+        <div class="badge"><code>Codex</code></div>
+        <div class="badge"><code>Gemini CLI</code></div>
+        <div class="badge"><code>GitHub Copilot</code></div>
+        <div class="badge"><code>Qwen Code</code></div>
+        <div class="badge"><code>Cursor</code></div>
+        <div class="badge"><code>opencode</code></div>
+      </div>
+      <p class="small-note">Renderer-backed targets with deterministic byte parity to the upstream converter. More integrations (Antigravity, Aider, Windsurf, OpenClaw, Kimi) need additional app work before they're exposed as first-class installs.</p>
+    </section>
+
+    <section class="section section-bordered">
+      <h2>Open by default</h2>
+      <ul class="posture">
+        <li><strong>MIT licensed.</strong> Use it however you want.</li>
+        <li><strong>Full source.</strong> Tauri 2 (Rust) backend + Svelte 5 frontend. Read every line.</li>
+        <li><strong>Local-first.</strong> The install ledger and catalog live on your machine.</li>
+        <li><strong>No telemetry.</strong> No analytics, no crash reporting, no third-party pixels.</li>
+        <li><strong>No accounts.</strong> No sign-in required, no cloud sync. GitHub OAuth is strictly opt-in and only for GitHub-backed features.</li>
+        <li><strong>Not an agent runtime.</strong> The app installs personas into other tools; it does not execute them, and it's not a replacement for the <code>agency-agents</code> catalog — that remains the source.</li>
+      </ul>
+    </section>
+
+    <section class="section section-bordered">
+      <h2>Get it</h2>
+      <p><strong>Direct download (recommended):</strong> grab the build for your platform from the <a href="https://github.com/msitarzewski/agency-agents-app/releases/latest">latest release</a>.</p>
+      <p><strong>Which download?</strong></p>
+      <ul class="posture">
+        <li><strong>Apple Silicon (M-series), macOS 13+.</strong> <code>Agency Agents_&lt;version&gt;_aarch64.dmg</code> — signed &amp; notarized.</li>
+        <li><strong>Intel Mac, macOS 13+.</strong> <code>Agency Agents_&lt;version&gt;_x64.dmg</code> — signed &amp; notarized.</li>
+        <li><strong>Windows (x64 / ARM64).</strong> the <code>.exe</code> installer. Not code-signed yet — on first launch SmartScreen shows "Windows protected your PC"; click <strong>More info → Run anyway</strong>.</li>
+        <li><strong>Linux.</strong> <code>.deb</code> (Debian/Ubuntu), <code>.rpm</code> (Fedora/RHEL/openSUSE), or the portable <code>.AppImage</code>.</li>
+      </ul>
+      <p>Or build it yourself from source:</p>
+      <pre><code>git clone https://github.com/msitarzewski/agency-agents-app
+cd agency-agents-app
+npm install
+npm run tauri build      # bundles for your platform in src-tauri/target/release/bundle/</code></pre>
+      <p class="small-note">Prereqs: <a href="https://rustup.rs">Rust</a>, Node 22+, and your platform's Tauri 2 build dependencies.</p>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <p>
+        <a href="https://github.com/msitarzewski/agency-agents-app">Source</a> ·
+        <a href="https://github.com/msitarzewski/agency-agents-app/blob/main/LICENSE">MIT License</a> ·
+        <a href="https://github.com/msitarzewski/agency-agents-app/blob/main/SECURITY.md">Security</a> ·
+        <a href="https://github.com/msitarzewski/agency-agents-app/blob/main/CONTRIBUTING.md">Contributing</a> ·
+        <a href="https://github.com/sponsors/msitarzewski">♥ Sponsor</a>
+      </p>
+      <p class="copy">A native control surface for the <a href="https://github.com/msitarzewski/agency-agents">agency-agents</a> catalog, which does all the actual curation.</p>
+      <p class="copy">Built with ♥ by <a href="https://github.com/msitarzewski/agency-agents">Agency Agents</a> and <a href="https://claude.com/claude-code">Claude</a>, by the creator of Agency Agents.</p>
+      <p class="copy">© 2026 Michael Sitarzewski.</p>
+    </div>
+  </footer>
+
+</body>
+</html>

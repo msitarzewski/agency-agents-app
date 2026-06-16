@@ -1,6 +1,6 @@
 # Agency Agents
 
-> A native desktop app store for AI agents.
+> A native installer for AI agents.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Built with Tauri 2](https://img.shields.io/badge/Built%20with-Tauri%202-orange)](https://tauri.app)
@@ -10,6 +10,11 @@
 Agency Agents is a small, native app for browsing, installing, and tracking the agent personas from [`msitarzewski/agency-agents`](https://github.com/msitarzewski/agency-agents) across the AI coding tools you actually use.
 
 It is full source, MIT-licensed, local-first, and does not run telemetry.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="landing/screenshots/dashboard-dark.png">
+  <img alt="Agency Agents — Dashboard: install health, cross-tool coverage, and the catalog by division" src="landing/screenshots/dashboard-light.png">
+</picture>
 
 ## Why This Exists
 

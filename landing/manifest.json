@@ -1,0 +1,18 @@
+{
+  "name": "Agency Agents",
+  "short_name": "Agency Agents",
+  "description": "A native installer for AI agents. Browse, install, and track agent personas across the AI coding tools you use.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0d0f",
+  "theme_color": "#0a0d0f",
+  "categories": ["productivity", "developer", "utilities"],
+  "lang": "en-US",
+  "dir": "ltr",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
