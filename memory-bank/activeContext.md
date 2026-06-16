@@ -1,12 +1,28 @@
 # Active Context — Agency Agents
 
-**State**: BUILD (pre-release polish). Release-planning + 3 PRs (catalog-by-division+icons #3, donut-size #4,
-read-catalog-divisions.json #5) all MERGED to `main`. Catalog `divisions.json` is now canonical (#592) with
-`integrations` purged from the source scan (#593). **Release plan LOCKED & documented, NOT cut yet** — v0.1.0,
-signed/notarized manual DMG, `SKIP_UPDATER=1`, auto-update deferred. Runbook: `docs/BUILD.md#Release Checklist`;
-decision in `decisions.md` (2026-06-14). **Near release-ready** — see `agentLog.md` 2026-06-15 (later 7) for the
-two remaining hygiene items (bundled `agency-categories.json` ↔ `divisions.json` sync; reconsider `strategy`).
-**Last updated**: 2026-06-15
+**State**: 🚀 **v0.1.0 SHIPPED (2026-06-16)** — public release at
+[releases/tag/v0.1.0](https://github.com/msitarzewski/agency-agents-app/releases/tag/v0.1.0): 7 artifacts
+(macOS aarch64+x64 signed/notarized DMGs, Linux deb/rpm/AppImage, Windows x64/arm64). **Repo is now PUBLIC.**
+Site: [agencyagents.app](https://agencyagents.app). Homebrew: `brew tap msitarzewski/agency-agents && brew install --cask agency-agents`.
+Cross-platform CI in `.github/workflows/` (linux-build, windows-build) fires on `v*` tags. macOS DMGs build
+locally via `scripts/release.sh` (mind the beta-toolchain `MACOSX_DEPLOYMENT_TARGET` gotcha — `docs/BUILD.md`).
+Now on **v0.1.1 dev**. Full launch log: `agentLog.md` 2026-06-16.
+
+**Workflow (from 2026-06-16):** ALL changes go through a **branch → PR → merge to `main`**. No direct commits to main.
+
+## 🔵 NEXT FEATURE (v0.1.1 #1) — Divisions landing + bulk install/remove by division
+Change the **Agents panel landing** to a **list of divisions** (not individual agents) with the same **select**
+(multi-select / "Select" mode) behavior the agent list already has, so users can act on **whole divisions**:
+- Landing = the division list (each row = a division, count, color/icon). Multi-select rows.
+- **"Install Selected"** → opens a **modal listing the available tools**; the user picks tool(s), and the app
+  installs **every agent in the selected division(s)** into those tools.
+- **Remove / Delete** → the same flow: select divisions → modal → remove/uninstall all those agents from the
+  chosen tool(s) (respect the adaptive Uninstall-vs-Delete ownership wording + backup-on-delete safety).
+- Reuse the existing select-mode bulk UI in `AgentsWorkspace.svelte`, the per-tool install plumbing in
+  `install.svelte.ts` / `install/mod.rs`, division metadata via `corpus.colorOf/iconOf/labelOf`, and the
+  Switch/tool-target components. Drilling into a division should still reach the per-agent list.
+
+**Last updated**: 2026-06-16
 
 ## ✅ Pre-release polish (2026-06-15) — committed + pushed on `release-planning`
 - **brew vestige cleanup**: error-type rename (`BrewError*`→`AppError*`), removed dead `catalogAutoRefresh`
