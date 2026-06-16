@@ -1,0 +1,96 @@
+# Linux build — produces Agency Agents' .deb / .rpm / .AppImage bundles on a
+# native x86_64 runner (no emulation, so the AppImage bundler works cleanly).
+#
+# Tauri 2 builds all three Linux bundle targets via `npm run tauri build`
+# (which runs the SvelteKit frontend build first via beforeBuildCommand).
+#
+# Signing: Linux desktop has no code-signing requirement for v0.1.0 — AppImage
+# ships unsigned (the common convention); .deb/.rpm GPG signing is a future
+# optional step. Updater artifacts are disabled here (v0.1.0 ships with
+# SKIP_UPDATER; auto-update is deferred), so no signing key is needed.
+#
+# Output: .deb / .rpm / .AppImage uploaded to the workflow run. Cutting the
+# GitHub Release + attaching artifacts remains a deliberate human step.
+
+name: Linux Build
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Linux bundles (.deb / .rpm / .AppImage)
+    # Pin to ubuntu-22.04 (Jammy, webkit2gtk-4.1) for the oldest glibc we
+    # commit to supporting — binaries run on 22.04+; ubuntu-latest would
+    # silently raise the floor.
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Standard Tauri 2 Linux build deps (https://v2.tauri.app/start/prerequisites/)
+      # plus patchelf/file/wget for the AppImage bundler, and the xdg-utils +
+      # gtk/rsvg helpers the AppImage GTK plugin shells out to.
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            build-essential \
+            file \
+            wget \
+            xdg-utils \
+            librsvg2-bin \
+            libgtk-3-bin
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # Builds the frontend, compiles the Rust binary, and bundles
+      # .deb / .rpm / .AppImage. Updater artifacts disabled (v0.1.0).
+      - name: Build Tauri app
+        run: npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: agency-agents-deb
+          path: src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+
+      - name: Upload .rpm
+        uses: actions/upload-artifact@v4
+        with:
+          name: agency-agents-rpm
+          path: src-tauri/target/release/bundle/rpm/*.rpm
+          if-no-files-found: error
+
+      - name: Upload .AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: agency-agents-appimage
+          path: src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error

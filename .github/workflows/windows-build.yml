@@ -1,0 +1,74 @@
+# Windows build — produces Agency Agents' NSIS installers for x64 and arm64
+# on a native windows-latest (x64) runner. arm64 is cross-compiled in-OS via
+# the aarch64-pc-windows-msvc target (the same trick the local VM matrix uses),
+# so one runner yields both installers.
+#
+# Signing: DEFERRED for v0.1.0 (see memory-bank/decisions.md 2026-06-16). The
+# installers are unsigned, so Windows SmartScreen warns on first launch
+# ("More info -> Run anyway"). When a code-signing cert (EV or Azure Trusted
+# Signing) is in place, signing slots in after each build step. Updater
+# artifacts are disabled (auto-update deferred), so no signing key is needed.
+#
+# Output: the x64 + arm64 NSIS .exe installers uploaded to the workflow run.
+
+name: Windows Build
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Windows installers (x64 + arm64, unsigned)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable (+ arm64 target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-pc-windows-msvc
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # x64 (native). Updater artifacts disabled (v0.1.0). shell: bash so the
+      # --config JSON survives quoting (Windows runners ship Git Bash).
+      - name: Build x64 installer
+        shell: bash
+        run: npm run tauri build -- --target x86_64-pc-windows-msvc --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      # arm64 (cross-compiled in-OS). The frontend is already built; this just
+      # recompiles the Rust binary for arm64 and bundles its NSIS installer.
+      - name: Build arm64 installer
+        shell: bash
+        run: npm run tauri build -- --target aarch64-pc-windows-msvc --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Upload x64 installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: agency-agents-windows-x64
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+
+      - name: Upload arm64 installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: agency-agents-windows-arm64
+          path: src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error

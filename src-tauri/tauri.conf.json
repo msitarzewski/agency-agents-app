@@ -23,13 +23,13 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' https://api.github.com https://github.com https://codeload.github.com https://objects.githubusercontent.com https://raw.githubusercontent.com https://agency-agents-app.zerologic.com; img-src 'self' data: https://raw.githubusercontent.com https://avatars.githubusercontent.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+      "csp": "default-src 'self'; connect-src 'self' https://api.github.com https://github.com https://codeload.github.com https://objects.githubusercontent.com https://raw.githubusercontent.com https://agencyagents.app; img-src 'self' data: https://raw.githubusercontent.com https://avatars.githubusercontent.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
     }
   },
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://agency-agents-app.zerologic.com/updater.json"
+        "https://agencyagents.app/updater.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDczMzVERDBGRDAzQTRBNkEKUldScVNqclFEOTAxYy9DYTg5QThJR2JWWHJZSWdWMXRkckFlUDAyVHpxcjgwWXVHaUQ2VlNGcHgK"
     }
