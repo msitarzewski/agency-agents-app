@@ -92,11 +92,20 @@ const SECTION_TITLES: Record<SidebarSection, string> = {
   activity:  "Activity",
 };
 
+/** The hardcoded first-launch section, before any saved default-landing or
+    navigation is applied. `loadDefaultSectionFromStorage` uses this as the
+    "untouched" sentinel: it only applies the saved default when `section` is
+    still this value (i.e. nothing else has routed yet). Keeping it in one
+    constant prevents the guard from drifting away from the initializer — the
+    exact bug where the home screen moved to `personas` but the guard still
+    checked for `dashboard`, silently disabling the default-landing setting. */
+const INITIAL_SECTION: SidebarSection = "personas";
+
 class UiStore {
   /** First-launch landing. The Agents (personas) catalog is the home screen —
       the agent catalog is the front door, not the Dashboard. Clicking the
       sidebar brand returns here. */
-  section: SidebarSection = $state("personas");
+  section: SidebarSection = $state(INITIAL_SECTION);
 
   /** The active section's display name — shown in the window title bar
       (the panel-head `<h1>` was removed in favour of the title bar). */
@@ -310,7 +319,7 @@ class UiStore {
 
   /** On first paint, read the saved default-landing and (if the user
       hasn't already navigated) override `section`. We treat the hardcoded
-      Dashboard default as "untouched" — if some early code already routed
+      `INITIAL_SECTION` as "untouched" — if some early code already routed
       the user elsewhere we leave it alone. Validates against the known
       enum on read per Phase 12 security review § 12b. */
   loadDefaultSectionFromStorage() {
@@ -320,8 +329,8 @@ class UiStore {
         const validated = v as SidebarSection;
         this.defaultSection = validated;
         // Only override the initial section if it's still the hardcoded
-        // dashboard default — anything else means something already routed.
-        if (this.section === "dashboard") {
+        // landing — anything else means something already routed.
+        if (this.section === INITIAL_SECTION) {
           this.section = validated;
         }
       }

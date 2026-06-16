@@ -601,3 +601,27 @@ bundled `agency-categories.json` (no drift). Then wired the app to read it direc
 - Tests: +4 (missing→bundled, malformed→bundled, overlay override+net-new+retain-omitted, unknown-slug
   fallback); updated the bundled-json test to use `category_meta_from`. cargo lib 262/0, no warnings. GOTCHA:
   raw string with hex colors needs `r##"…"##` (a `"#` closes `r#"…"#`).
+
+## 2026-06-15 (later 7) — catalog #593 (integrations purge), strategy-docs finding, default-landing fix
+- **Renderer parity "failure" was a CATALOG data issue, NOT a render bug.** PR #5's matrix run hit a Codex
+  parity mismatch on `design/design-brand-guardian.md`. Root cause: the catalog clone had been pulled to
+  upstream `main` (232→**748** files), and `integrations/` (957 files: openclaw 427, opencode 232,
+  antigravity 143, qwen 143, …) is COMMITTED per-tool CONVERSIONS, yet `integrations` was in `AGENT_DIRS` →
+  convert.sh re-converts them → slug COLLISIONS (`brand-guardian` ×3, last-writer-wins) → the harness compared
+  render's real-agent output to a different agent's file. `render/mod.rs` is faithful — unchanged.
+  **Fixed UPSTREAM** by the catalog: PR #593 (`3f78a30`) drops `integrations` from `AGENT_DIRS` AND removes it
+  from `divisions.json` (→ 17 divisions). Clone pulled; app reads `AGENT_DIRS` live and `build_from_dir` scopes
+  its scan to `dir.join(category)`, so integrations/ is no longer touched (relaunch log: 0 integrations
+  warnings).
+- **Strategy is NOT 16 agents.** `strategy/` = 16 NEXUS *docs* (QUICKSTART/EXECUTIVE-BRIEF/nexus-strategy +
+  coordination/runbooks/playbooks phase-0..6) — all start with `#`, none have a `---` frontmatter fence, so
+  `parse_agent`→`Ok(None)` skips every one. Persisted `corpus-index.json` confirms **strategy = 0**; real
+  catalog = 16 divisions / 232 agents (specialized 53 … product 5). Zero-count divisions hide.
+- **Default-landing setting fix** (Settings→Appearance "open on" did nothing): `loadDefaultSectionFromStorage`
+  guarded `if (this.section === "dashboard")` but the home screen had moved to `personas`, so the saved default
+  loaded into `defaultSection` but was never applied to `section`. FIX: a shared `INITIAL_SECTION = "personas"`
+  const used by BOTH the `section` initializer and the guard, so they can't drift again. `src/lib/stores/ui.svelte.ts`,
+  svelte-check 0. Loader is wired at `+layout.svelte:18` onMount.
+- **PENDING (pre-release hygiene):** app's bundled `agency-categories.json` still lists `integrations` (18) vs
+  upstream `divisions.json` (17) — harmless (never iterated; `category_order` excludes it) but should sync;
+  consider also dropping `strategy` from the division set (0 agents). Then we're clear to cut **v0.1.0**.

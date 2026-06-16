@@ -1,8 +1,11 @@
 # Active Context — Agency Agents
 
-**State**: BUILD (pre-release polish, on `release-planning`). Phase C merged to `main`. **Release plan
-LOCKED & documented, NOT cut yet** — v0.1.0, signed/notarized manual DMG, `SKIP_UPDATER=1`, auto-update
-deferred. Runbook: `docs/BUILD.md#Release Checklist`; decision in `decisions.md` (2026-06-14).
+**State**: BUILD (pre-release polish). Release-planning + 3 PRs (catalog-by-division+icons #3, donut-size #4,
+read-catalog-divisions.json #5) all MERGED to `main`. Catalog `divisions.json` is now canonical (#592) with
+`integrations` purged from the source scan (#593). **Release plan LOCKED & documented, NOT cut yet** — v0.1.0,
+signed/notarized manual DMG, `SKIP_UPDATER=1`, auto-update deferred. Runbook: `docs/BUILD.md#Release Checklist`;
+decision in `decisions.md` (2026-06-14). **Near release-ready** — see `agentLog.md` 2026-06-15 (later 7) for the
+two remaining hygiene items (bundled `agency-categories.json` ↔ `divisions.json` sync; reconsider `strategy`).
 **Last updated**: 2026-06-15
 
 ## ✅ Pre-release polish (2026-06-15) — committed + pushed on `release-planning`
