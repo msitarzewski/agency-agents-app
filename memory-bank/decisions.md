@@ -122,3 +122,22 @@ remains before auto-update works: provision `agency-agents-app.zerologic.com/upd
 manifest, and confirm the matching **private key** is available (Keychain `agency-agents-updater-key`,
 or `~/.config/agency-agents-app/updater.key`). Until then, build with `SKIP_UPDATER=1` (updater inert —
 fine for v0.1.0's manual DMG).
+
+### 2026-06-16: Defer Windows code signing for v0.1.0
+**Status**: Approved. **Context**: v0.1.0 is a Mac-first manual release (signed/notarized DMG); Windows is
+build-validated by the Phase C matrix but not a committed shipping artifact. An unsigned Windows `.exe`
+trips Defender SmartScreen ("Windows protected your PC" / unknown publisher). Removing that warning needs
+both a trusted-CA signature AND SmartScreen reputation. **Decision**: defer Windows signing. Ship v0.1.0
+without it; early Windows users click **More info → Run anyway** (documented in the release notes).
+**Alternatives**: (a) **EV code-signing cert** (DigiCert/Sectigo/SSL.com, ~$250–600/yr, hardware/cloud-key)
+— instant SmartScreen reputation, the "no warnings day 1" answer; (b) **Azure Trusted Signing** (~$10/mo,
+cloud, Microsoft-managed) — cheap and modern but org must be 3+ yrs old or pass identity validation;
+(c) **OV cert** — cheaper but reputation warms up over downloads, so early users still get warned. All
+rejected *for now* on cost + weeks-long CA vetting lead time vs. an early, technical Windows audience.
+**Consequences**: Windows users see a one-time SmartScreen click-through until we sign. **Revisit trigger**:
+real Windows download demand → pick EV cert (instant reputation) or Azure Trusted Signing (if ZeroLogic
+qualifies); the cert publisher name should match the legal entity behind bundle id `com.zerologic.*`. Build
+wiring when we do it: a `tauri.windows.conf.json` (mirroring the macOS split) with
+`bundle.windows.certificateThumbprint`/`signCommand` + `timestampUrl`, build the **NSIS** installer (drop
+`--no-bundle`), sign exe + installer for both arm64 and x64, and verify on the Parallels Windows 11 VM with
+a Mark-of-the-Web download.

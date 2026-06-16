@@ -27,3 +27,7 @@
 - The app is not an agent runtime.
 - Some AA repo targets are not yet exposed as app installs because they need multi-file or aggregate renderer work.
 - Windows/Linux builds need native runtime verification before support is claimed beyond build validation.
+- **Windows: the build is not code-signed yet.** On first launch Microsoft Defender SmartScreen will show
+  "Windows protected your PC" with an unknown-publisher warning. To run it: click **More info → Run anyway**.
+  Code signing is deferred until there's enough Windows demand to justify a certificate (see
+  `memory-bank/decisions.md` 2026-06-16). macOS builds are signed + notarized and launch without warnings.
