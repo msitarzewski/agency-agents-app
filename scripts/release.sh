@@ -71,18 +71,35 @@ else
 fi
 
 # Build BOTH macOS architectures so we ship Apple Silicon + Intel DMGs. Each
-# `--target` build signs with your Developer ID, notarizes, and staples, and
-# writes to src-tauri/target/<triple>/release/bundle/ (per-arch). Override with
-# e.g. RELEASE_TARGETS="aarch64-apple-darwin" to build a single arch.
+# build signs with your Developer ID, notarizes, and staples. The HOST arch
+# builds natively into target/release/bundle/; other arches cross-compile into
+# target/<triple>/release/bundle/. Override the set with e.g.
+# RELEASE_TARGETS="aarch64-apple-darwin x86_64-apple-darwin".
+#
+# ⚠️ macOS BETA TOOLCHAIN GOTCHA: on a beta macOS/Xcode (e.g. Tahoe/26+), this
+# build can fail with "can't find crate for <proc-macro>" (ctor_proc_macro,
+# tauri_macros, serde_with_macros, …). Root cause: the MACOSX_DEPLOYMENT_TARGET
+# the Tauri CLI sets (from minimumSystemVersion) breaks FRESH proc-macro
+# compilation under the beta toolchain. Stable macOS / CI are unaffected.
+# Recovery (pre-compile proc-macros without that env var, then let Tauri reuse
+# the cache to bundle/sign/notarize) is documented in docs/BUILD.md →
+# "Troubleshooting: proc-macro 'can't find crate' on a beta macOS".
 read -r -a TARGETS <<< "${RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin}"
+HOST_TRIPLE="$(rustc -vV | awk '/^host:/{print $2}')"
+DMG_DIRS=()
 
 for target in "${TARGETS[@]}"; do
-  echo "▸ Building signed + notarized Agency Agents for ${target} (Team $APPLE_TEAM_ID)…"
-  npm run tauri build -- --target "$target" "${BUILD_ARGS[@]}"
+  if [[ "$target" == "$HOST_TRIPLE" ]]; then
+    echo "▸ Building signed + notarized Agency Agents for ${target} (native, Team $APPLE_TEAM_ID)…"
+    npm run tauri build -- "${BUILD_ARGS[@]}"
+    DMG_DIRS+=("src-tauri/target/release/bundle/dmg/")
+  else
+    echo "▸ Building signed + notarized Agency Agents for ${target} (cross, Team $APPLE_TEAM_ID)…"
+    npm run tauri build -- --target "$target" "${BUILD_ARGS[@]}"
+    DMG_DIRS+=("src-tauri/target/${target}/release/bundle/dmg/")
+  fi
 done
 
 echo
 echo "✓ Done. Signed + notarized DMGs:"
-for target in "${TARGETS[@]}"; do
-  echo "    src-tauri/target/${target}/release/bundle/dmg/"
-done
+for d in "${DMG_DIRS[@]}"; do echo "    $d"; done

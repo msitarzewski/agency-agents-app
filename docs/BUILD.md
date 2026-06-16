@@ -189,6 +189,44 @@ See [docs/icon/README-liquid-glass.md](./icon/README-liquid-glass.md).
 - Windows Intel and ARM builds should be verified as separate artifacts.
 - Linux packages should be smoke-tested in the Ubuntu VM before claiming support.
 
+## Troubleshooting: proc-macro "can't find crate" on a beta macOS
+
+On a **beta macOS / Xcode** (first hit on macOS 26/27 Tahoe beta during the v0.1.0 cut), `scripts/release.sh` can fail with:
+
+```
+error[E0463]: can't find crate for `ctor_proc_macro`   (or tauri_macros / serde_with_macros / …)
+```
+
+**Root cause:** the Tauri CLI sets `MACOSX_DEPLOYMENT_TARGET` (from `bundle.macOS.minimumSystemVersion`, `13.0`) before invoking cargo, and on the beta toolchain that breaks *fresh* proc-macro dylib compilation. The exact same `cargo build --bins --features tauri/custom-protocol --release` succeeds **bare** (no `MACOSX_DEPLOYMENT_TARGET`) and on the **CI runners** (stable macOS) — so prefer CI for releases when possible. It is non-deterministic (a different proc-macro fails each run) and is NOT a code problem.
+
+**Local recovery** — pre-compile the crate graph (incl. proc-macros) *without* `MACOSX_DEPLOYMENT_TARGET`, using Tauri's exact config so it won't recompile, then let `release.sh` bundle/sign/notarize off the warm cache (proc-macro fingerprints don't include `MACOSX_DEPLOYMENT_TARGET`, so they're reused):
+
+```sh
+# 1. Capture the exact TAURI_CONFIG the CLI passes to cargo (one-shot; the run
+#    is expected to fail at a proc-macro — we only need the dumped value).
+cat > /tmp/dump.sh <<'W'
+#!/bin/bash
+[ -f /tmp/tc.txt ] || printf '%s' "$TAURI_CONFIG" > /tmp/tc.txt
+exec "$@"
+W
+chmod +x /tmp/dump.sh; rm -f /tmp/tc.txt
+RUSTC_WRAPPER=/tmp/dump.sh npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":false}}' >/dev/null 2>&1 || true
+TC=$(cat /tmp/tc.txt)
+
+# 2. Per arch: pre-build WITHOUT MACOSX_DEPLOYMENT_TARGET, then bundle.
+#    (For the non-host arch, use a rustup toolchain that has the target's std.)
+rm -rf src-tauri/target
+env -u MACOSX_DEPLOYMENT_TARGET TAURI_CONFIG="$TC" \
+  cargo build --bins --features tauri/custom-protocol --release   # host arch
+SKIP_UPDATER=1 RELEASE_TARGETS="aarch64-apple-darwin" ./scripts/release.sh
+
+env -u MACOSX_DEPLOYMENT_TARGET TAURI_CONFIG="$TC" \
+  cargo build --bins --features tauri/custom-protocol --release --target x86_64-apple-darwin
+SKIP_UPDATER=1 RELEASE_TARGETS="x86_64-apple-darwin" ./scripts/release.sh
+```
+
+The cleaner long-term fix is to cut macOS releases on a stable macOS box or a macOS CI runner. (Homebrew/CLT vs rustup also matters for the x86_64 cross — that target's std lives in the rustup toolchain; put `~/.rustup/toolchains/stable-<host>/bin` first on `PATH`.)
+
 ## Secrets
 
 Never commit signing credentials, updater private keys, GitHub tokens, or notary credentials. Use local keychain items or files outside the repo with `0600` permissions.

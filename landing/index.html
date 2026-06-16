@@ -198,6 +198,10 @@
         <li><strong>Windows (x64 / ARM64).</strong> the <code>.exe</code> installer. Not code-signed yet — on first launch SmartScreen shows "Windows protected your PC"; click <strong>More info → Run anyway</strong>.</li>
         <li><strong>Linux.</strong> <code>.deb</code> (Debian/Ubuntu), <code>.rpm</code> (Fedora/RHEL/openSUSE), or the portable <code>.AppImage</code>.</li>
       </ul>
+      <p>Or install with <strong>Homebrew</strong> (macOS):</p>
+      <pre><code>brew tap msitarzewski/agency-agents
+brew install --cask agency-agents</code></pre>
+      <p class="small-note">Installs the signed &amp; notarized <code>.dmg</code> (Apple Silicon or Intel, auto-selected). Upgrade with <code>brew upgrade --cask agency-agents</code>.</p>
       <p>Or build it yourself from source:</p>
       <pre><code>git clone https://github.com/msitarzewski/agency-agents-app
 cd agency-agents-app

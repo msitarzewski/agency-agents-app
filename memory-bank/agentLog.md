@@ -625,3 +625,26 @@ bundled `agency-categories.json` (no drift). Then wired the app to read it direc
 - **PENDING (pre-release hygiene):** app's bundled `agency-categories.json` still lists `integrations` (18) vs
   upstream `divisions.json` (17) — harmless (never iterated; `category_order` excludes it) but should sync;
   consider also dropping `strategy` from the division set (0 agents). Then we're clear to cut **v0.1.0**.
+
+## 2026-06-16 — v0.1.0 SHIPPED (cross-platform, signed) + repo PUBLIC + Homebrew tap
+Cut the first public release: **github.com/msitarzewski/agency-agents-app/releases/tag/v0.1.0**, all 7 artifacts.
+- **macOS** aarch64 + x64 DMGs — signed + **notarized** (spctl: accepted / Notarized Developer ID; stapler ok).
+  Built locally via `scripts/release.sh` (dual-arch; host native, x64 cross via rustup).
+- **Linux** deb/rpm/AppImage (x86_64) + **Windows** x64/arm64 NSIS — built by NEW GitHub Actions workflows
+  (`linux-build.yml`, `windows-build.yml`) on native runners, downloaded + attached to the release.
+- PRs this session: #3–#8 (dashboard/landing/CI/domain/docs), #9 landing, #10 CI+domain, #11 release-prep.
+  Tagged `v0.1.0` → CI fired → assembled the GitHub release with `gh release create`.
+- **Repo made PUBLIC** (was private — that's why release-asset `browser_download_url`s 404'd for Homebrew/the
+  public; `gh` auth-download worked, masking it). Pre-flight secret scan: gitleaks 50 commits → **1 FALSE
+  POSITIVE** (AGENTS.md "Context Exceeded" prose); no secret files in history; `.gitignore` covers `.env*`/`*.key`;
+  notary pw + updater private key live in Keychain (never committed). Clean → public.
+- **Homebrew tap**: NEW repo `msitarzewski/homebrew-agency-agents` with `Casks/agency-agents.rb` (dual-arch,
+  installs the notarized DMG). `brew tap msitarzewski/agency-agents && brew install --cask agency-agents`.
+  Audited online (download + sha ok). README/landing got download + brew-install sections; landing redeployed.
+- **⚠️ HARD-WON MACOS BUILD GOTCHA** (cost ~2h of debugging): on macOS 27 Tahoe BETA + Xcode BETA, the Tauri CLI
+  sets `MACOSX_DEPLOYMENT_TARGET=13.0` (from `minimumSystemVersion`), which breaks FRESH proc-macro compilation
+  ("can't find crate for ctor_proc_macro/tauri_macros/…", non-deterministic). The identical cargo cmd works
+  **bare** (no that env) + on **CI** (stable). Fix: pre-compile without `MACOSX_DEPLOYMENT_TARGET` (proc-macro
+  fingerprints don't include it), then Tauri reuses the cache to bundle. Full recipe in `docs/BUILD.md`
+  ("Troubleshooting: proc-macro 'can't find crate' on a beta macOS") + [[macos-beta-macosx-deployment-target-breaks-proc-macros]].
+  Red herrings ruled out: toolchain, linker, Xcode CLT-vs-beta, PATH/node shims, ulimit (1M), disk (5TB), RAM (128GB).
