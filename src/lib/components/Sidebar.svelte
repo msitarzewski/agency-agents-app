@@ -2,7 +2,7 @@
   import LayoutDashboard from "@lucide/svelte/icons/layout-dashboard";
   import Bot from "@lucide/svelte/icons/bot";
   import Wrench from "@lucide/svelte/icons/wrench";
-  import Archive from "@lucide/svelte/icons/archive";
+  import Users from "@lucide/svelte/icons/users";
   import Activity from "@lucide/svelte/icons/activity";
 
   import { ui } from "$lib/stores/ui.svelte";
@@ -26,7 +26,7 @@
     { id: "dashboard", label: "Dashboard", shortcut: shortcut("0"), icon: LayoutDashboard },
     { id: "personas",  label: "Agents",    shortcut: shortcut("1"), icon: Bot },
     { id: "tools",     label: "Tools",     shortcut: shortcut("2"), icon: Wrench },
-    { id: "loadouts",  label: "Loadouts",  shortcut: shortcut("3"), icon: Archive },
+    { id: "teams",     label: "Teams",     shortcut: shortcut("3"), icon: Users },
     { id: "activity",  label: "Activity",  shortcut: shortcut("4"), icon: Activity },
   ];
 

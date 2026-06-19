@@ -4,7 +4,7 @@
   import Sidebar from "$lib/components/Sidebar.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import AgencyDashboard from "$lib/components/AgencyDashboard.svelte";
-  import Loadouts from "$lib/components/Loadouts.svelte";
+  import Teams from "$lib/components/Teams.svelte";
   import AgentsWorkspace from "$lib/components/AgentsWorkspace.svelte";
   import ToolsView from "$lib/components/ToolsView.svelte";
   import ActivityHistory from "$lib/components/ActivityHistory.svelte";
@@ -86,7 +86,7 @@
         "0": "dashboard",
         "1": "personas",
         "2": "tools",
-        "3": "loadouts",
+        "3": "teams",
         "4": "activity",
       };
       ui.setSection(map[e.key]);
@@ -211,8 +211,8 @@
             <AgencyDashboard />
           {:else if ui.section === "tools"}
             <ToolsView />
-          {:else if ui.section === "loadouts"}
-            <Loadouts />
+          {:else if ui.section === "teams"}
+            <Teams />
           {:else if ui.section === "personas"}
             <AgentsWorkspace />
           {:else if ui.section === "activity"}

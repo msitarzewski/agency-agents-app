@@ -20,7 +20,7 @@
     { value: "dashboard", label: "Dashboard" },
     { value: "personas", label: "Agents" },
     { value: "tools", label: "Tools" },
-    { value: "loadouts", label: "Loadouts" },
+    { value: "teams", label: "Teams" },
     { value: "activity", label: "Activity" },
   ];
 

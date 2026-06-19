@@ -61,7 +61,7 @@ const DEFAULT_SECTION_VALUES = [
   "dashboard",
   "personas",
   "tools",
-  "loadouts",
+  "teams",
   "activity",
 ] as const;
 
@@ -88,7 +88,7 @@ const SECTION_TITLES: Record<SidebarSection, string> = {
   dashboard: "Dashboard",
   personas:  "Agents",
   tools:     "Tools",
-  loadouts:  "Loadouts",
+  teams:     "Teams",
   activity:  "Activity",
 };
 

@@ -542,7 +542,7 @@ export type SidebarSection =
   | "dashboard"
   | "personas"
   | "tools"
-  | "loadouts"
+  | "teams"
   | "activity";
 
 export type ThemePreference = "light" | "dark" | "system";
