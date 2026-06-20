@@ -28,8 +28,7 @@
   import EmptyState from "./EmptyState.svelte";
   import Pill from "./Pill.svelte";
   import Button from "./Button.svelte";
-  import Modal from "./Modal.svelte";
-  import InstallModal from "./InstallModal.svelte";
+  import DeployBrowser from "./DeployBrowser.svelte";
   import FolderIcon from "@lucide/svelte/icons/folder";
   import FolderPlus from "@lucide/svelte/icons/folder-plus";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -37,10 +36,7 @@
   import Trash2 from "@lucide/svelte/icons/trash-2";
 
   import { install } from "$lib/stores/install.svelte";
-  import { corpus } from "$lib/stores/corpus.svelte";
   import { projects } from "$lib/stores/projects.svelte";
-  import { PRESET_TEAMS } from "$lib/data/presetTeams";
-  import { resolveCategoryIcon } from "$lib/util/categoryIcon";
   import type { InstalledAgent, ProjectInfo } from "$lib/types";
 
   onMount(() => {
@@ -66,10 +62,6 @@
   function rosterFor(path: string): InstalledAgent[] {
     return rowsByProject.get(path) ?? [];
   }
-  // Distinct agent slugs deployed into a project — the SET we seed Deploy… with.
-  function slugsFor(path: string): string[] {
-    return [...new Set(rosterFor(path).map((r) => r.slug))];
-  }
 
   // ── Expand / collapse a project's roster (mirrors Teams' division groups). ──
   let expanded = $state<Set<string>>(new Set());
@@ -80,45 +72,11 @@
     expanded = next;
   }
 
-  function basename(path: string): string {
-    return path.replace(/\/+$/, "").split("/").pop() || path;
-  }
+  // ── Deploy into a project: open the two-pane DeployBrowser (pick an agent,
+  // division, or team on the left; install into this project's tools on the
+  // right). Opening it on a freshly-added project lets an empty one be filled. ──
+  let browseFor = $state<string | null>(null); // project path, or null = closed
 
-  // ── Two-step deploy: first CHOOSE what to put in the project (a division, a
-  // preset, or "manage the current roster"), then the DeployModal tri-states it
-  // across that project's tools. Choosing-first is what lets an EMPTY project be
-  // populated — seeding the modal with [] would make it inert. ──
-  let chooserFor = $state<string | null>(null); // project path, or null = closed
-
-  // Division choices: every division that actually has agents in the corpus.
-  const divisionChoices = $derived(
-    corpus.tiles.map((c) => ({
-      key: `div:${c.slug}`,
-      label: c.label,
-      icon: resolveCategoryIcon(c.icon),
-      color: corpus.colorOf(c.slug),
-      slugs: corpus.agents.filter((a) => a.category === c.slug).map((a) => a.slug),
-    })),
-  );
-
-  // DeployModal target (the project) + the chosen set.
-  let deployTarget = $state<string | undefined>(undefined);
-  let deploySlugs = $state<string[]>([]);
-  let deployTitle = $state("");
-  const showDeploy = $derived(deployTarget !== undefined);
-
-  function deploySet(path: string, slugs: string[], what: string) {
-    chooserFor = null;
-    deployTarget = path;
-    deploySlugs = slugs;
-    deployTitle = `${what} → ${basename(path)}`;
-  }
-  function closeDeploy() {
-    deployTarget = undefined;
-    deploySlugs = [];
-  }
-
-  // ── Add a project → register + show the chooser so it can be populated. ──
   let adding = $state(false);
   async function addProject() {
     if (adding) return;
@@ -127,7 +85,7 @@
       const p = await projects.addViaPicker();
       if (!p) return;
       await projects.refresh();
-      chooserFor = p;
+      browseFor = p;
     } finally {
       adding = false;
     }
@@ -186,7 +144,7 @@
               </span>
             </button>
             <span class="proj-count">{project.installedCount} agent{project.installedCount === 1 ? "" : "s"}</span>
-            <Button size="sm" variant="secondary" onclick={() => (chooserFor = project.path)}>Deploy…</Button>
+            <Button size="sm" variant="secondary" onclick={() => (browseFor = project.path)}>Deploy…</Button>
             <button class="proj-del" title="Remove from list" aria-label="Remove project from list" onclick={() => projects.unregister(project.path)}><Trash2 size={14} /></button>
           </div>
 
@@ -211,45 +169,8 @@
   {/if}
 </section>
 
-{#if chooserFor !== null}
-  {@const path = chooserFor}
-  {@const current = slugsFor(path)}
-  <Modal open title="Deploy into {basename(path)}" onClose={() => (chooserFor = null)}>
-    <p class="ch-sub">Pick a team or division to deploy into this project — then choose its tools.</p>
-
-    {#if current.length > 0}
-      <button class="ch-row" onclick={() => deploySet(path, current, "Current roster")}>
-        <span class="ch-ic"><FolderIcon size={16} /></span>
-        <span class="ch-body"><span class="ch-label">Current roster</span><span class="ch-meta">{current.length} agent{current.length === 1 ? "" : "s"} already here — add/remove across tools</span></span>
-      </button>
-    {/if}
-
-    <p class="ch-h">Presets</p>
-    {#each PRESET_TEAMS as p (p.slug)}
-      {@const PIcon = p.icon}
-      <button class="ch-row" onclick={() => deploySet(path, p.agents, p.label)}>
-        <span class="ch-ic" style="color:{p.color}"><PIcon size={16} /></span>
-        <span class="ch-body"><span class="ch-label">{p.label}</span><span class="ch-meta">{p.description}</span></span>
-      </button>
-    {/each}
-
-    <p class="ch-h">Divisions</p>
-    {#each divisionChoices as d (d.key)}
-      {@const DIcon = d.icon}
-      <button class="ch-row" onclick={() => deploySet(path, d.slugs, d.label)}>
-        <span class="ch-ic" style="color:{d.color}"><DIcon size={16} /></span>
-        <span class="ch-body"><span class="ch-label">{d.label}</span><span class="ch-meta">{d.slugs.length} agent{d.slugs.length === 1 ? "" : "s"}</span></span>
-      </button>
-    {/each}
-
-    {#snippet actions()}
-      <Button variant="secondary" onclick={() => (chooserFor = null)}>Cancel</Button>
-    {/snippet}
-  </Modal>
-{/if}
-
-{#if showDeploy && deployTarget !== undefined}
-  <InstallModal title={deployTitle} agentSlugs={deploySlugs} onClose={closeDeploy} />
+{#if browseFor !== null}
+  <DeployBrowser projectPath={browseFor} onClose={() => (browseFor = null)} />
 {/if}
 
 <style>
@@ -296,14 +217,6 @@
   .proj-del:hover { background: var(--color-surface-sunken); color: var(--color-danger); }
 
   /* ── Deploy chooser (pick a team/division to put into the project) ── */
-  .ch-sub { font-size: var(--text-body-sm); color: var(--color-text-secondary); margin-bottom: var(--space-3); }
-  .ch-h { font-size: var(--text-caption); font-weight: var(--fw-semibold); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: var(--space-3) 0 var(--space-1); }
-  .ch-row { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-2); border-radius: var(--radius-md); background: transparent; cursor: pointer; text-align: left; }
-  .ch-row:hover { background: var(--color-surface-sunken); }
-  .ch-ic { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: var(--radius-md); background: var(--color-surface-sunken); }
-  .ch-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-  .ch-label { font-weight: var(--fw-medium); color: var(--color-text-primary); }
-  .ch-meta { font-size: var(--text-caption); color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .roster { list-style: none; margin: 0; padding: 0 var(--space-3) var(--space-2) calc(15px + var(--space-2) + var(--space-3)); display: flex; flex-direction: column; gap: 1px; }
   .r-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); }

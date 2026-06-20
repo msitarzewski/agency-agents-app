@@ -17,6 +17,8 @@
      *    for input-collection modals (e.g. "New Snapshot") so the field is focused first.
      */
     defaultFocus?: "cancel" | "confirm" | "first";
+    /** "default" caps width at 440px; "wide" allows a roomier modal (grids). */
+    size?: "default" | "wide";
     onClose?: () => void;
     children: Snippet;
     actions?: Snippet;
@@ -27,6 +29,7 @@
     title,
     dismissible = true,
     defaultFocus = "cancel",
+    size = "default",
     onClose,
     children,
     actions,
@@ -106,7 +109,7 @@
 {#if open}
   <div class="scrim" role="presentation" onclick={backdropClick}></div>
   <div class="modal-wrap" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-    <div class="modal" bind:this={dialogEl}>
+    <div class="modal" class:wide={size === "wide"} bind:this={dialogEl}>
       <header>
         <h1 id="modal-title">{title}</h1>
         {#if dismissible}
@@ -146,6 +149,9 @@
     width: 100%;
     max-width: 440px;
     background: var(--color-surface-raised);
+  }
+  .modal.wide { max-width: min(760px, 94vw); }
+  .modal {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-modal);

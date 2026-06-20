@@ -33,7 +33,11 @@
   }
   let { title, agentSlugs, onClose }: Props = $props();
 
-  onMount(() => projects.refresh());
+  onMount(() => {
+    projects.refresh();
+    // Refresh detection so the columns reflect tools ACTUALLY on this device.
+    void install.loadTools();
+  });
 
   // The agents in this set that exist in the corpus (stale slugs skipped).
   const slugSet = $derived(new Set(agentSlugs));
@@ -143,9 +147,13 @@
   }
 </script>
 
-<Modal open {title} onClose={onClose}>
+<Modal open {title} size="wide" onClose={onClose}>
   <p class="sub">{total} agent{total === 1 ? "" : "s"} · toggle a cell to install into that tool, globally or per project.</p>
 
+  {#if cols.length === 0}
+    <p class="no-tools">No supported tools detected on this device. Open <strong>Tools</strong> to check what's installed.</p>
+  {:else}
+  <div class="grid-wrap">
   <div class="grid" style="--cols: {cols.length}">
     <!-- header row -->
     <div class="cell head corner"></div>
@@ -187,6 +195,8 @@
       {/each}
     {/each}
   </div>
+  </div>
+  {/if}
 
   <button class="addrow" onclick={addProject}><FolderPlus size={14} /> Add project…</button>
 
@@ -215,16 +225,19 @@
 
 <style>
   .sub { font-size: var(--text-body-sm); color: var(--color-text-muted); margin-bottom: var(--space-3); }
+  .no-tools { font-size: var(--text-body-sm); color: var(--color-text-muted); }
 
+  /* Horizontal scroll guards against a very wide tool set (≫ the modal width). */
+  .grid-wrap { overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
   .grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) repeat(var(--cols), 56px);
+    grid-template-columns: minmax(180px, 1fr) repeat(var(--cols), 68px);
+    width: max-content; min-width: 100%;
     align-items: stretch;
-    border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;
   }
   .cell { display: flex; align-items: center; justify-content: center; padding: var(--space-2); border-bottom: 1px solid var(--color-border); }
   .head { background: var(--color-surface-sunken); font-size: var(--text-caption); color: var(--color-text-muted); font-weight: var(--fw-semibold); min-height: 34px; }
-  .head.tool { writing-mode: horizontal-tb; text-align: center; padding: var(--space-2) 4px; line-height: 1.1; }
+  .head.tool { writing-mode: horizontal-tb; text-align: center; padding: var(--space-2) 8px; line-height: 1.15; }
   .corner { background: var(--color-surface-sunken); }
 
   .dest { justify-content: flex-start; gap: var(--space-2); min-width: 0; }

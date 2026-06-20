@@ -10,19 +10,42 @@ Now on **v0.1.1 dev**. Full launch log: `agentLog.md` 2026-06-16.
 
 **Workflow (from 2026-06-16):** ALL changes go through a **branch → PR → merge to `main`**. No direct commits to main.
 
-## 🔵 NEXT FEATURE (v0.1.1 #1) — Divisions landing + bulk install/remove by division
-Change the **Agents panel landing** to a **list of divisions** (not individual agents) with the same **select**
-(multi-select / "Select" mode) behavior the agent list already has, so users can act on **whole divisions**:
-- Landing = the division list (each row = a division, count, color/icon). Multi-select rows.
-- **"Install Selected"** → opens a **modal listing the available tools**; the user picks tool(s), and the app
-  installs **every agent in the selected division(s)** into those tools.
-- **Remove / Delete** → the same flow: select divisions → modal → remove/uninstall all those agents from the
-  chosen tool(s) (respect the adaptive Uninstall-vs-Delete ownership wording + backup-on-delete safety).
-- Reuse the existing select-mode bulk UI in `AgentsWorkspace.svelte`, the per-tool install plumbing in
-  `install.svelte.ts` / `install/mod.rs`, division metadata via `corpus.colorOf/iconOf/labelOf`, and the
-  Switch/tool-target components. Drilling into a division should still reach the per-agent list.
+## ✅ v0.1.1 IA arc — SHIPPED (2026-06-17 → 06-20, PRs #15 + #16, + the deploy-browser PR)
+The whole "how people think about agents" reorganization landed:
+- **Divisions landing** — the Agents tab opens on divisions; select-mode → bulk deploy.
+- **Install-state lens** — filter the agent list by deployment state (In sync / Outdated / Untracked / Missing /
+  Not installed), counts scoped to the division.
+- **Teams** (renamed from Loadouts) — "Your team" (current installs, division-grouped) + "Team presets"
+  (app-bundled `presetTeams.ts` + your saved teams, `teams.svelte.ts`).
+- **how × where engine** (backend, PR #15) — tools are dual-scope; `render::dests()` scope-aware;
+  `supports_user()`/`supports_project()`; install scope derived from the chosen project. Verified tool-path
+  matrix (June 2026) in the PR. Cursor is project-only; Windsurf/Aider/Antigravity/openclaw deferred.
+- **Projects pillar** (4th nav section, ⌘4; Activity → ⌘5) — `projects.svelte.ts` store (registered roots in
+  localStorage ∪ the live ledger), `Projects.svelte` panel with rosters.
+- **One `InstallModal`** — the destinations × tools GRID (rows = Global + each project + "Add project…",
+  columns = detected tools, cells = tri-state toggles). Reused by agent detail, divisions, Teams, Projects.
+  Replaced `DeployModal` + the inline switch-matrix. Agent detail: "Install…" in the title, pills on their own row.
+- **Two-pane `DeployBrowser.svelte`** (Projects "Deploy…") — System-Settings master/detail: left =
+  searchable list of EVERY granularity (agents · divisions · teams incl. saved · current roster); right =
+  per-project per-tool install.
 
-**Last updated**: 2026-06-16
+**Four-pillar model (drives IA copy):** Agents = *who* · Tools = *how* · Teams = *which* · Projects = *where*.
+
+## 🔵 Backlog (next)
+- **InstallModal → pick from existing Projects + "New Project…"** (instead of the inline folder-picker; now
+  that Projects is a managed list). [raised 2026-06-20]
+- **"Auto Updates" subscription** for bulk installs — installing all of a division/team into a project/tool
+  offers to auto-deploy newly-added catalog agents.
+- **Copilot `.md` → `.agent.md`** (needs reconcile `file_stem` double-extension handling).
+- Optionally tighten backend `detect()` to require the tool **binary**, not just a lingering config dir.
+- Bonus: a "scaffold AGENT-ZERO into a project" action (every assistant honors repo-root `AGENTS.md`).
+
+**Dev-harness note:** to screenshot-verify the Svelte frontend in a browser (the native Tauri window can't be
+auto-driven), a `?shim=1` Tauri-IPC shim is temporarily injected into `src/app.html` then reverted — it never
+ships. The shim can't open a real native folder dialog (returns a fixture path), so "Add project…" looks broken
+in the shim though it works natively.
+
+**Last updated**: 2026-06-20
 
 ## ✅ Pre-release polish (2026-06-15) — committed + pushed on `release-planning`
 - **brew vestige cleanup**: error-type rename (`BrewError*`→`AppError*`), removed dead `catalogAutoRefresh`
