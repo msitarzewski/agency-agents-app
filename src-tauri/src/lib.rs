@@ -33,8 +33,8 @@ use commands::*;
 //
 // The matching public key the command prints is what goes here.
 // Keep the private key chmod 600 outside the repo — it's the only
-// thing standing between a compromised agency-agents-app.zerologic.com
-// and a malicious binary push.
+// thing standing between a compromised agencyagents.app and a
+// malicious binary push.
 //
 // Real minisign public key. The matching private key lives at
 // `~/.config/agency-agents-app/updater.key` (chmod 600,
@@ -46,7 +46,7 @@ use commands::*;
 // at startup; keep both in sync. The plugin parses Tauri's base64-of-
 // minisign-blob format directly — what you see here is exactly what
 // `tauri signer generate -w …` printed.
-const UPDATER_PUBKEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDczMzVERDBGRDAzQTRBNkEKUldScVNqclFEOTAxYy9DYTg5QThJR2JWWHJZSWdWMXRkckFlUDAyVHpxcjgwWXVHaUQ2VlNGcHgK";
+const UPDATER_PUBKEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFCRjVBRkQ4ODhFRDI5QkQKUldTOUtlMkkySy8xcTlyRnNjM1pkMy9sc2NkMzdOOVlhTEd5OTVoNFIwWDI4VUROUGhVbFNuMzMK";
 
 pub fn updater_pubkey() -> &'static str {
     UPDATER_PUBKEY

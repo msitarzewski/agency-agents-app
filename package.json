@@ -1,6 +1,6 @@
 {
   "name": "agency-agents-app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Agency Agents — a native macOS app store for AI agents. Browse, install, and track 251+ specialized agents across every AI coding tool.",
   "type": "module",
   "author": "Michael Sitarzewski",

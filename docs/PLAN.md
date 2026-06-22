@@ -19,21 +19,25 @@ The app should answer three questions clearly:
 ## Current Architecture
 
 ```text
-Svelte UI
+Svelte UI                      four pillars: Agents / Tools / Teams / Projects
   Agents workspace
   Tools panel
+  Teams (preset + saved)
+  Projects (project-scoped installs)
   Dashboard
-  Loadouts
+  Playbook
   Settings
       |
       | typed Tauri IPC
       v
 Rust backend
   corpus/     catalog source, refresh, indexing
-  render/     deterministic tool renderers
+  registry    single-source tools.json (shared with the frontend)
+  render/     deterministic tool renderers (format-dispatched)
   install/    write, uninstall, backups, ledger, reconcile
   github/     optional OAuth + GitHub API features
   settings/   local settings and network gates
+  updater/    manifest fetch + minisign verify (present, endpoint not yet live)
       |
       v
 Local filesystem
@@ -68,7 +72,7 @@ Out of scope for the current release:
 
 ## Supported Renderer Set
 
-Current app-supported targets:
+Current app-supported (installable) targets — 8:
 
 - Claude Code
 - Codex
@@ -77,10 +81,11 @@ Current app-supported targets:
 - Qwen Code
 - Cursor
 - opencode
+- Osaurus (`skill-md` → `~/.osaurus/skills/agency-<slug>/SKILL.md`)
 
-Known AA repo targets that still need app support:
+Known AA repo targets that still need app support (recognized-only in the Tools panel) — 5:
 
-- Antigravity
+- Antigravity — blocked on upstream: `convert_antigravity()` still stamps a non-deterministic `date_added: '${TODAY}'`, so byte-parity is impossible until that field is removed or made deterministic.
 - Aider
 - Windsurf
 - OpenClaw
@@ -102,28 +107,14 @@ Mostly done. macOS retains overlay titlebar and vibrancy. Windows/Linux use opaq
 
 ### Phase D: Tool Target Manifest
 
-Next recommended architecture step.
+Done (v0.2.0). Shipped as the upstream-owned single `tools.json` — the twin of `divisions.json` —
+declaring id, label, scopes, detect paths, version probe, output format, and destinations per tool.
+Both the Rust backend (`registry`) and the frontend read it; the Rust `Tool` enum is gone and the
+renderer dispatches on `format`. Installability is derived (`format ∈ IMPLEMENTED_FORMATS`), not stored.
+Upstream guards drift with `scripts/check-tools.sh` (the no-jq twin of `check-divisions.sh`).
 
-Create a manifest in the AA repo that declares:
-
-- tool ID
-- label
-- vendor
-- support status
-- scopes
-- default paths
-- env overrides
-- output format
-- renderer kind
-- authoritative docs/source links
-- verification status
-
-Then:
-
-- update `agency-agents/scripts/install.sh` to consume it for tool metadata and paths
-- add an audit script that checks manifest drift
-- update this app's Tools panel to consume generated manifest metadata
-- keep Rust writes limited to renderers the app can safely implement and test
+Remaining: the app bundles a baseline copy of `tools.json` — it should refresh from the catalog clone
+at runtime (like the corpus), and aa's `check-tools.yml` CI workflow is still staged to land.
 
 ### Phase E: Multi-File Renderers
 
@@ -134,6 +125,50 @@ Implement special output shapes only after their path semantics are verified:
 - OpenClaw workspace directory
 - Antigravity skill directories
 - Kimi if current docs validate an installable custom-agent format
+
+## Post-0.2.0 Punch List
+
+Tracked inventory for the release after v0.2.0. Grouped by what unblocks each item.
+
+### Auto-update
+
+The updater UI, store, plugin, dedicated signing key, and publish tooling all ship.
+
+1. **Endpoint — activated at the v0.2.0 release cut** (no longer post-0.2.0): host is `agencyagents.app`
+   (Caddy on umbp from `~/Sites/agency-agents/`), the v0.2.0 build runs without `SKIP_UPDATER`, and
+   `publish-manifest.sh` rsyncs the signed manifest there. Resolved in `decisions.md` (2026-06-22).
+2. **Opt-in automatic install** *(remaining)* — today the live path is check → notify → one-click Install;
+   the user still clicks. Wire the inert "Install updates automatically" toggle to a real off-by-default
+   setting that does background download → verify → install. Backend install/relaunch plumbing exists.
+3. **Beta channel** — "Update channel: Stable" is a read-only placeholder; wire real channel selection.
+4. **Bulk-install auto-deploy** (separate idea) — a subscription that auto-deploys newly-added catalog
+   agents into a division/team/project. Distinct from app self-update.
+
+### Catalog / registry
+
+5. Refresh `tools.json` from the catalog clone at runtime instead of bundling a baseline copy.
+6. Land `check-tools.yml` CI upstream (aa repo).
+7. Foreign-sweep for nested `…/<dir>/SKILL.md` skills — CLI-installed Osaurus/Antigravity aren't
+   auto-detected; app-installed ones are.
+
+### New install targets (recognized → installable)
+
+8. Multi-file renderers per Phase E (Aider, Windsurf, OpenClaw, Kimi).
+9. Antigravity — *blocked on upstream* removing the non-deterministic `date_added`.
+
+### Platform / packaging
+
+10. Windows code signing — *blocked on a paid cert*.
+11. Native runtime verification on Windows/Linux VMs (Phase C remainder).
+
+### Accessibility (pre-existing)
+
+12. Bulk-delete dialog focus management.
+13. `role=menu` keyboard navigation.
+
+### Longer horizon
+
+14. Local-runtime system-prompt target (Ollama / LM Studio).
 
 ## Quality Gates
 

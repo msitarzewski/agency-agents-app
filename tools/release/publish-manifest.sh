@@ -35,8 +35,9 @@
 #          }
 #        }
 #   6. Echoes (but does NOT execute) the rsync command the user runs
-#      to publish the manifest to agency-agents-app.zerologic.com via
-#      umacbookpro:Sites/agency-agents-app/updater.json. Publishing is a
+#      to publish the manifest to agencyagents.app via
+#      umacbookpro:Sites/agency-agents/updater.json (the Caddy docroot
+#      for agencyagents.app). Publishing is a
 #      deliberate manual step.
 #
 # What it does NOT do:
@@ -105,7 +106,8 @@ if [[ ! -f "$SIGNATURE_FILE" ]]; then
     echo "error: updater signature not found at $SIGNATURE_FILE" >&2
     echo "  The Tauri bundler produces this when TAURI_SIGNING_PRIVATE_KEY[_PATH]" >&2
     echo "  + TAURI_SIGNING_PRIVATE_KEY_PASSWORD are set during 'npm run tauri build'." >&2
-    echo "  Source ~/.config/agency-agents-app/signing.env, then re-run the build." >&2
+    echo "  Source ~/.config/agency-agents-app/signing.env (exports TAURI_SIGNING_PRIVATE_KEY" >&2
+    echo "  [_PATH] + _PASSWORD for the agency updater key), then re-run the build." >&2
     exit 2
 fi
 
@@ -171,7 +173,7 @@ echo "  pub_date:   $PUB_DATE"
 echo "  signature:  $(wc -c < "$SIGNATURE_FILE" | tr -d ' ') bytes from $SIGNATURE_FILE"
 echo ""
 echo "next steps (run manually):"
-echo "  1. rsync -av $MANIFEST_PATH umacbookpro:Sites/agency-agents-app/updater.json"
+echo "  1. rsync -av $MANIFEST_PATH umacbookpro:Sites/agency-agents/updater.json"
 echo "  2. gh release create v${VERSION} \\"
 echo "       src-tauri/target/release/bundle/dmg/Agency\\ Agents_${VERSION}_aarch64.dmg \\"
 echo "       $ARTIFACT_PATH#${ARTIFACT_RELEASE_NAME} \\"
@@ -179,4 +181,4 @@ echo "       --notes-file <release-notes.md>"
 echo ""
 echo "verify before publishing:"
 echo "  shasum -a 256 $ARTIFACT_PATH"
-echo "  curl -s https://agency-agents-app.zerologic.com/updater.json | jq"
+echo "  curl -s https://agencyagents.app/updater.json | jq"

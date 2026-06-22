@@ -55,7 +55,7 @@
         allowed: !paranoid,
       },
       {
-        label: "agency-agents-app.zerologic.com",
+        label: "agencyagents.app",
         desc: "App update checks — the signed updater manifest. Honors your update settings below.",
         allowed: !paranoid,
       },

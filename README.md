@@ -33,12 +33,16 @@ The core idea is simple: AI tools do not share a package database, so the app ke
 
 ## Features
 
-- **Agents workspace** — searchable three-pane catalog, category filters, detail panel, and per-agent deployment controls.
+Agency Agents is organized around four pillars — **Agents** (who), **Tools** (how), **Teams** (which), and **Projects** (where):
+
+- **Agents workspace** — searchable three-pane catalog, division and category filters, an install-state lens, a detail panel, and per-agent deployment controls.
+- **Tools panel** — shows all recognized tools from the registry, detected installs, counts, versions where available, default targets, project installs, and bulk operations. Installable targets render in full; recognized-only targets appear dimmed.
+- **Teams** — app-bundled preset teams plus your own saved teams; open a team for a detail panel with Deploy built in. (Teams replaces the earlier "Loadouts" concept; Agentfile export/import remains.)
+- **Projects** — project-scoped installs with a dedicated panel and master/detail navigation, so a project gets exactly the agents and tools it needs.
 - **Install tracking** — records every app-managed install with source hash, rendered hash, tool, destination, scope, and project path where relevant.
 - **Reconciliation** — classifies installed files as current, outdated, modified, removed, or foreign by re-rendering canonical source and comparing bytes.
-- **Tools panel** — shows detected tools, installed counts, versions where available, default targets, project installs, and bulk operations.
-- **Dashboard** — coverage, health, category distribution, and category-by-tool charts with deep links back into the workspace.
-- **Loadouts** — save and restore groups of agents as portable Agentfiles.
+- **Tool registry** — tool knowledge lives in a single upstream-owned `tools.json` shared by the backend and frontend; adding a tool is editing one JSON entry, and installability is derived from whether the app ships a renderer for that tool's format.
+- **Dashboard** — install health, a Global-vs-Projects install sunburst, cross-tool coverage merged with the catalog-by-division view (linked hover), and deep links back into the workspace.
 - **GitHub integration** — optional OAuth Device Flow for GitHub-backed app features. Tokens are stored in the platform keychain and are never returned to the frontend.
 - **Offline-first catalog** — ships with a bundled corpus baseline and can use a local or managed clone of `agency-agents`.
 - **Cross-platform shell** — Tauri 2 + Svelte 5 frontend with native macOS chrome and opaque native windows on Windows/Linux.
@@ -58,8 +62,9 @@ The app currently installs to the renderer-backed targets that have deterministi
 | Qwen Code | user | `~/.qwen/agents/*.md` |
 | Cursor | project | `.cursor/rules/*.mdc` |
 | opencode | project | `.opencode/agents/*.md` |
+| Osaurus | user | `~/.osaurus/skills/agency-<slug>/SKILL.md` |
 
-The upstream AA repo also contains integrations for Antigravity, Aider, Windsurf, OpenClaw, and Kimi. Those output shapes need additional app work before they should be exposed as first-class app installs.
+The upstream AA repo also contains integrations for Antigravity, Aider, Windsurf, OpenClaw, and Kimi. Those output shapes need additional app work before they should be exposed as first-class app installs — they appear in the Tools panel as recognized-only.
 
 ## What This Isn't
 

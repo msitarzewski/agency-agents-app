@@ -116,12 +116,26 @@ bypassed only when `TAURI_CONFIG` is set, and only with the `false` value). **Co
 green from cold; the Tauri CLI sets its own process-env `TAURI_CONFIG` (precedence over `[env]`), so real
 `tauri dev`/`build` use the merged config (`macOSPrivateApi: true`) — verified `tauri dev` launches clean.
 
-### OPEN: updater endpoint host (+ confirm private key)
-The minisign **pubkey** in `tauri.conf.json` is now a real key (no longer the brew placeholder). What
-remains before auto-update works: provision `agency-agents-app.zerologic.com/updater.json` to serve a
-manifest, and confirm the matching **private key** is available (Keychain `agency-agents-updater-key`,
-or `~/.config/agency-agents-app/updater.key`). Until then, build with `SKIP_UPDATER=1` (updater inert —
-fine for v0.1.0's manual DMG).
+### 2026-06-22: Updater host = `agencyagents.app`; dedicated agency signing key (resolves the OPEN host ADR)
+**Status**: Approved (v0.2.0). **Context**: the prior OPEN entry assumed the endpoint would be
+`agency-agents-app.zerologic.com` and that the embedded pubkey was a one-off real key. Tracing the live
+build host settled both. **Decision (host — the important detail)**: the updater endpoint is
+**`https://agencyagents.app/updater.json`**, NOT the `…zerologic.com` host the UI/docs/source comments
+had drifted to. It is already in `tauri.conf.json` `endpoints` + the CSP `connect-src`, and Caddy on
+`umacbookpro` serves `agencyagents.app` from `~/Sites/agency-agents/` (a sibling vhost to the live
+`brew-browser.zerologic.com/updater.json`, so the file_server pattern is proven). Publishing is an
+`rsync` of `dist/updater.json` to `umacbookpro:Sites/agency-agents/updater.json`. **Decision (key)**:
+the embedded pubkey was byte-identical to brew-browser's shared key (id `7335DD0F`); swapped to a
+**dedicated agency minisign key** (id `ABF5AFD8`) generated on the build machine — clean signing
+isolation, done now while NO updater client is live (endpoint never served a manifest under
+`SKIP_UPDATER`), so there is zero continuity cost. Private key + `signing.env` live at
+`~/.config/agency-agents-app/` (chmod 600, outside the repo); Apple notarization uses the Developer ID
+identity in the login keychain. The Rust `UPDATER_PUBKEY` const (`lib.rs`) is kept in sync with
+`tauri.conf.json` for documentation only — verification is driven entirely by the conf value the
+`tauri-plugin-updater` reads at startup. **Consequences**: v0.1.0 users (old embedded pubkey, and no
+manifest ever existed) upgrade to v0.2.0 manually; auto-update is real from v0.2.0 forward. **Remaining
+before live**: build without `SKIP_UPDATER`, run `tools/release/publish-manifest.sh`, host the signed
+`.app.tar.gz` + manifest. Until then the updater ships present-but-disabled.
 
 ### 2026-06-16: Defer Windows code signing for v0.1.0
 **Status**: Approved. **Context**: v0.1.0 is a Mac-first manual release (signed/notarized DMG); Windows is
