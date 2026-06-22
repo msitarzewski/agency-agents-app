@@ -130,15 +130,16 @@ Implement special output shapes only after their path semantics are verified:
 
 Tracked inventory for the release after v0.2.0. Grouped by what unblocks each item.
 
-### Auto-update (present today, intentionally disabled)
+### Auto-update
 
-The updater UI, store, plugin, public key, and `SKIP_UPDATER=1` build path all ship. What's left:
+The updater UI, store, plugin, dedicated signing key, and publish tooling all ship.
 
-1. **Provision the endpoint** — host `agencyagents.app/updater.json` + the signed `.app` tarball, then
-   build without `SKIP_UPDATER`. *Blocked on infra (hosting + the minisign private key), not code.*
-2. **Opt-in automatic install** — today "Auto-check daily" only surfaces a title-bar notice; the user
-   still clicks Install. Add an "Install updates automatically" toggle, **off by default** (present but
-   disabled until the endpoint is live). Backend install/relaunch plumbing already exists.
+1. **Endpoint — activated at the v0.2.0 release cut** (no longer post-0.2.0): host is `agencyagents.app`
+   (Caddy on umbp from `~/Sites/agency-agents/`), the v0.2.0 build runs without `SKIP_UPDATER`, and
+   `publish-manifest.sh` rsyncs the signed manifest there. Resolved in `decisions.md` (2026-06-22).
+2. **Opt-in automatic install** *(remaining)* — today the live path is check → notify → one-click Install;
+   the user still clicks. Wire the inert "Install updates automatically" toggle to a real off-by-default
+   setting that does background download → verify → install. Backend install/relaunch plumbing exists.
 3. **Beta channel** — "Update channel: Stable" is a read-only placeholder; wire real channel selection.
 4. **Bulk-install auto-deploy** (separate idea) — a subscription that auto-deploys newly-added catalog
    agents into a division/team/project. Distinct from app self-update.
