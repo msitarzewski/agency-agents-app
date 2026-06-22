@@ -116,8 +116,11 @@ The exact filename may vary by version and architecture.
 Agency Agents uses `tauri-plugin-updater`. The configured endpoint is:
 
 ```text
-https://agency-agents-app.zerologic.com/updater.json
+https://agencyagents.app/updater.json
 ```
+
+Served by Caddy on `umacbookpro` from `~/Sites/agency-agents/` (the `agencyagents.app`
+docroot) — the same box and pattern as the live `brew-browser.zerologic.com/updater.json`.
 
 The updater artifact is a gzipped `.app` tarball, not the `.dmg`.
 
@@ -127,7 +130,8 @@ Manifest generation is handled by:
 tools/release/publish-manifest.sh <version>
 ```
 
-The updater public key is embedded in the app config/source. The matching private key must live outside the repo, for example:
+The updater public key is embedded in the app config/source. The matching private key lives outside
+the repo:
 
 ```text
 ~/.config/agency-agents-app/updater.key
@@ -172,9 +176,17 @@ The ordered runbook for cutting a release. The mechanics referenced here are det
 
 ### Enabling auto-update (a later release)
 
-1. Provision `agency-agents-app.zerologic.com/updater.json` to serve the manifest.
-2. Confirm the updater private key is available (Keychain, or `~/.config/agency-agents-app/updater.key`).
-3. Build **without** `SKIP_UPDATER`, then run `tools/release/publish-manifest.sh <version>` and host the gzipped `.app` tarball + manifest at the endpoint.
+1. Hosting is already provisioned: Caddy on `umacbookpro` serves `agencyagents.app` from
+   `~/Sites/agency-agents/`, so publishing the manifest is just an `rsync` of `updater.json`
+   into that docroot (mirrors the live `brew-browser` manifest).
+2. The updater signature uses agency's own minisign key at `~/.config/agency-agents-app/updater.key`
+   (its public half is embedded in `tauri.conf.json` → `plugins.updater.pubkey`). Source
+   `~/.config/agency-agents-app/signing.env` before the build — it exports
+   `TAURI_SIGNING_PRIVATE_KEY[_PATH]` + `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Apple notarization
+   uses the Developer ID identity in the login keychain.
+3. Build **without** `SKIP_UPDATER`, run `tools/release/publish-manifest.sh <version>`, attach the
+   gzipped `.app` tarball to the GitHub release, then `rsync` `dist/updater.json` to
+   `umacbookpro:Sites/agency-agents/updater.json`.
 
 ## macOS Icon Notes
 
