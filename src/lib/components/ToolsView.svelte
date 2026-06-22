@@ -27,7 +27,7 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { toolAccent, toolMark, toolIcon } from "$lib/util/toolBadge";
-  import { TOOLS } from "$lib/data/toolRegistry";
+  import { TOOLS, isInstallable } from "$lib/data/toolRegistry";
   import { resolveCategoryIcon } from "$lib/util/categoryIcon";
   import type { InstalledAgent, InstallState, Tool, ToolInfo } from "$lib/types";
 
@@ -79,7 +79,7 @@
         scope: be?.scope ?? (m.scope?.user ? "user" : "project"),
         userDest: be?.userDest ?? null,
         installedCount: be?.installedCount ?? 0,
-        wired: m.wired,
+        wired: isInstallable(m),
       };
     }),
   );

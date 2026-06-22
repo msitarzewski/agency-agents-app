@@ -569,9 +569,12 @@ mod tests {
 
     #[test]
     fn unsupported_tools_error() {
-        for tool in ["windsurf", "aider", "openclaw", "antigravity"] {
-            assert!(render(&agent(), "raw", tool).is_err());
-            assert!(dests(tool, "x", Path::new("/home"), Some(Path::new("/p"))).is_err());
+        // These tools are in the catalog (upstream truth: real format + dest), but
+        // this app ships no renderer for their format — so render() must refuse.
+        // dests() legitimately returns the upstream templates; the install path is
+        // gated on render(), and these tools aren't in the installable set anyway.
+        for tool in ["windsurf", "aider", "openclaw", "antigravity", "kimi"] {
+            assert!(render(&agent(), "raw", tool).is_err(), "{tool} has no app renderer");
         }
     }
 

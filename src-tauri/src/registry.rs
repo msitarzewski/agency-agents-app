@@ -1,17 +1,32 @@
 //! Tool registry — the single source of truth for supported tools.
 //!
-//! Loaded from the embedded `data/tools/*.json` directory (whole-directory
-//! embed, no per-file index): **adding a tool is adding a JSON file.** Mirrors
-//! the frontend `toolRegistry.ts`, which globs the same files. The backend reads
-//! tool metadata (label, detect dirs, version command, dest path templates,
-//! render `format`, scope) from here rather than hardcoding it per tool.
+//! Loaded from the embedded `data/tools.json`, a bundled baseline of the
+//! canonical catalog the upstream `agency-agents` repo owns (alongside
+//! `divisions.json`). It carries *upstream truth* — what the CLI converts +
+//! installs — and nothing app-specific. Whether THIS app can install a tool is
+//! derived, not stored: a tool is installable iff we ship a native renderer for
+//! its `format` (see `IMPLEMENTED_FORMATS`). Mirrors the frontend
+//! `toolRegistry.ts`, which reads the same file.
 
 use std::sync::OnceLock;
 
-use include_dir::{include_dir, Dir};
 use serde::Deserialize;
 
-static TOOLS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/data/tools");
+const TOOLS_JSON: &str = include_str!("../data/tools.json");
+
+/// The render formats our native Rust renderer implements. A tool is installable
+/// in this app iff its `format` is one of these — derived from the catalog's
+/// `format`, never stored there (the catalog is upstream truth; renderer
+/// coverage is our concern). Adding a renderer = adding its format here.
+const IMPLEMENTED_FORMATS: &[&str] = &[
+    "identity",
+    "codex-toml",
+    "gemini-md",
+    "qwen-md",
+    "cursor-mdc",
+    "opencode-md",
+    "skill-md",
+];
 
 /// Scope capabilities — whether a tool can deploy user-globally and/or per-project.
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -50,11 +65,11 @@ pub struct Dest {
     pub project: Vec<String>,
 }
 
-/// One tool's full definition, as authored in `data/tools/<kebab>.json`.
+/// One tool's definition, as authored in the canonical `tools.json`.
 ///
 /// Some fields (`short`, `accent`, `icon`) exist to mirror the frontend
-/// `toolRegistry.ts` and to validate that every bundled JSON parses cleanly;
-/// the Rust backend doesn't consume them yet, hence `dead_code` is allowed.
+/// `toolRegistry.ts` and to validate that the bundled JSON parses cleanly; the
+/// Rust backend doesn't consume them, hence `dead_code` is allowed.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
@@ -71,9 +86,6 @@ pub struct ToolMeta {
     pub accent: String,
     #[serde(default)]
     pub icon: Option<String>,
-    /// Installable today (has a native renderer) vs merely recognized.
-    #[serde(default)]
-    pub wired: bool,
     #[serde(default)]
     pub order: Option<u32>,
     #[serde(default)]
@@ -82,14 +94,16 @@ pub struct ToolMeta {
     pub detect: Option<Detect>,
     #[serde(default)]
     pub version: Option<VersionCmd>,
-    /// Renderer key (e.g. "identity", "codex-toml"); None ⇒ not installable.
+    /// Renderer key (e.g. "identity", "codex-toml", "skill-md"). The transform
+    /// CONTRACT: same `format` ⇒ byte-identical output.
     #[serde(default)]
     pub format: Option<String>,
-    /// "source" (keep the corpus filename) or "name" (slugify frontmatter name).
+    /// "source" (keep the corpus filename) or "name" (slugify frontmatter name);
+    /// null for single-file roster formats (aider/windsurf).
     #[serde(default)]
     pub slug_from: Option<String>,
     /// Namespace prepended to the output slug AND the rendered `name` field —
-    /// e.g. "agency-" for skill-dir tools that share a global skills folder.
+    /// "agency-" for skill-dir tools that share a global skills folder.
     #[serde(default)]
     pub slug_prefix: Option<String>,
     #[serde(default)]
@@ -103,21 +117,26 @@ impl ToolMeta {
     pub fn supports_project(&self) -> bool {
         self.scope.as_ref().is_some_and(|s| s.project)
     }
+    /// Installable in this app: we ship a native renderer for its `format`.
+    pub fn installable(&self) -> bool {
+        self.format.as_deref().is_some_and(|f| IMPLEMENTED_FORMATS.contains(&f))
+    }
+}
+
+/// The canonical catalog wrapper: `{ "_note": …, "tools": { "<kebab>": {…} } }`.
+#[derive(Deserialize)]
+struct Catalog {
+    tools: std::collections::BTreeMap<String, ToolMeta>,
 }
 
 /// Parse + cache the registry on first access. Panics on malformed JSON — that's
-/// a build-time authoring error in a bundled file, not a runtime condition.
+/// a build-time authoring error in the bundled catalog, not a runtime condition.
 fn registry() -> &'static Vec<ToolMeta> {
     static REG: OnceLock<Vec<ToolMeta>> = OnceLock::new();
     REG.get_or_init(|| {
-        let mut v: Vec<ToolMeta> = TOOLS_DIR
-            .files()
-            .filter(|f| f.path().extension().is_some_and(|e| e == "json"))
-            .map(|f| {
-                serde_json::from_slice(f.contents())
-                    .unwrap_or_else(|e| panic!("invalid tool registry file {:?}: {e}", f.path()))
-            })
-            .collect();
+        let cat: Catalog =
+            serde_json::from_str(TOOLS_JSON).unwrap_or_else(|e| panic!("invalid tools.json: {e}"));
+        let mut v: Vec<ToolMeta> = cat.tools.into_values().collect();
         v.sort_by(|a, b| {
             a.order
                 .unwrap_or(999)
@@ -128,9 +147,9 @@ fn registry() -> &'static Vec<ToolMeta> {
     })
 }
 
-/// All tools, in registry order (wired install-menu order first, then by label).
-/// Part of the loader's public surface (mirrors the frontend's full list); kept
-/// even though the backend currently reaches tools via `get`/`wired`.
+/// All tools, in registry order (install-menu order first, then by label).
+/// Public surface mirroring the frontend's full list; the backend reaches tools
+/// via `get`/`wired`.
 #[allow(dead_code)]
 pub fn all() -> &'static [ToolMeta] {
     registry().as_slice()
@@ -141,9 +160,9 @@ pub fn get(id: &str) -> Option<&'static ToolMeta> {
     registry().iter().find(|t| t.id == id)
 }
 
-/// Iterator over the wired (installable) tools.
+/// Iterator over the tools THIS app can install (has a native renderer for).
 pub fn wired() -> impl Iterator<Item = &'static ToolMeta> {
-    registry().iter().filter(|t| t.wired)
+    registry().iter().filter(|t| t.installable())
 }
 
 #[cfg(test)]
@@ -151,21 +170,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn registry_loads_and_has_wired_tools() {
-        assert!(all().len() >= 7, "expected the bundled tool set to load");
-        // The seven first-class install targets must be present + wired.
-        for id in ["claudeCode", "codex", "geminiCli", "copilot", "qwen", "cursor", "opencode"] {
+    fn registry_loads_and_derives_installable() {
+        assert_eq!(all().len(), 13, "expected the full bundled tool set");
+        // The eight tools whose format we render are installable.
+        for id in [
+            "claudeCode", "codex", "geminiCli", "copilot", "qwen", "cursor", "opencode", "osaurus",
+        ] {
             let m = get(id).unwrap_or_else(|| panic!("missing tool {id}"));
-            assert!(m.wired, "{id} should be wired");
-            assert!(m.format.is_some(), "{id} needs a render format");
-            assert!(m.dest.is_some(), "{id} needs dest templates");
+            assert!(m.installable(), "{id} should be installable");
+            assert!(m.format.is_some() && m.dest.is_some(), "{id} needs format + dest");
         }
     }
 
     #[test]
-    fn recognized_tools_are_not_wired() {
+    fn recognized_tools_are_not_installable() {
+        // These carry a real (upstream) format the app doesn't render yet.
         for id in ["windsurf", "aider", "openclaw", "antigravity", "kimi"] {
-            assert!(!get(id).unwrap().wired, "{id} should be recognized-only");
+            let m = get(id).unwrap();
+            assert!(!m.installable(), "{id} is recognized-only in the app");
+            assert!(m.format.is_some(), "{id} still has an upstream format");
         }
     }
 }
