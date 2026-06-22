@@ -141,7 +141,7 @@ The ordered runbook for cutting a release. The mechanics referenced here are det
 
 - **Version:** `0.1.0` — already set in `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`. No bump needed.
 - **Distribution:** signed + notarized `.dmg`, manual download.
-- **Auto-update: deferred.** The updater public key ships, but the endpoint (`agency-agents-app.zerologic.com/updater.json`) is not yet provisioned. Build with `SKIP_UPDATER=1` so no updater artifact/manifest is expected. A later release turns auto-update on once the endpoint serves a manifest.
+- **Auto-update: deferred.** The updater public key ships, but the endpoint (`agencyagents.app/updater.json`) is not yet provisioned. Build with `SKIP_UPDATER=1` so no updater artifact/manifest is expected. A later release turns auto-update on once the endpoint serves a manifest.
 - **Out of scope (known limitations, noted in the release notes):** auto-update, multi-file renderers (antigravity / openclaw / aider / windsurf), Windows/Linux runtime verification, and the local-runtime (Ollama / LM Studio) target.
 
 ### Steps

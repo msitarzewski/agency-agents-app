@@ -174,7 +174,7 @@ export interface CreatedIssue {
 
 /**
  * A newer Agency Agents version surfaced by the manifest at
- * `agency-agents-app.zerologic.com/updater.json`. Held by the updater store
+ * `agencyagents.app/updater.json`. Held by the updater store
  * once a check returns `available`. Matches the camelCase wire shape
  * the backend's `UpdateCheckOutcome::Available` flattens onto when
  * serde-tagged with `kind`.

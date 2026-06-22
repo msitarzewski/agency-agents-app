@@ -77,7 +77,7 @@
       see the changelog + assets even when the manifest snippet is
       terse. */
   let releaseNotesUrl = $derived(
-    info ? `https://github.com/msitarzewski/Agency Agents/releases/tag/v${info.version}` : null,
+    info ? `https://github.com/msitarzewski/agency-agents-app/releases/tag/v${info.version}` : null,
   );
 
   function onOpenReleaseNotes() {
@@ -123,7 +123,7 @@
       </p>
     {:else}
       <p class="hint">
-        Fetches <code>agency-agents-app.zerologic.com/updater.json</code> and
+        Fetches <code>agencyagents.app/updater.json</code> and
         compares the published version to the one you're running. No
         version number is sent.
       </p>
@@ -146,6 +146,28 @@
       When on, Agency Agents checks the manifest once every 24 hours and
       surfaces a notice in the title bar if a newer version is available.
       Suspended automatically while Offline Mode is on.
+    </p>
+  </div>
+
+  <!-- Row 2b: Install updates automatically — present but disabled.
+       No backing setting yet; the toggle is inert until the update
+       channel is live (endpoint provisioned + auto-install wired). It
+       ships now so the capability is visible and the layout is settled. -->
+  <div class="field">
+    <label class="toggle is-disabled">
+      <input
+        type="checkbox"
+        checked={false}
+        disabled
+        aria-describedby="auto-install-hint"
+      />
+      <span class="toggle-track" aria-hidden="true"></span>
+      <span class="toggle-label">Install updates automatically</span>
+    </label>
+    <p class="hint" id="auto-install-hint">
+      Available once the update channel is live. When enabled, approved updates
+      will download, verify, and install in the background — you'll only be
+      prompted to relaunch.
     </p>
   </div>
 
@@ -284,6 +306,8 @@
     user-select: none;
   }
   .toggle input { position: absolute; opacity: 0; pointer-events: none; }
+  /* Inert "Install updates automatically" row — visible, clearly off. */
+  .toggle.is-disabled { opacity: 0.55; cursor: not-allowed; }
   .toggle-track {
     width: 36px;
     height: 20px;
