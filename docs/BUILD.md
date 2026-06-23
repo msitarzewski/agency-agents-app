@@ -49,43 +49,54 @@ The release build produces a signed `.app` and `.dmg`.
 
 ### Prerequisites
 
+`scripts/release.sh` reads **every secret from the macOS Keychain** — nothing lives in the repo
+or an env file. The non-secret `APPLE_ID` / `APPLE_TEAM_ID` are hardcoded in the script. One-time setup:
+
 1. Apple Developer ID Application certificate in the login keychain:
 
    ```sh
    security find-identity -v -p codesigning
    ```
 
-2. App-specific Apple password generated at <https://appleid.apple.com>.
-
-3. Signing environment outside the repo:
-
-   ```sh
-   mkdir -p ~/.config/agency-agents-app
-   chmod 700 ~/.config/agency-agents-app
-   ```
-
-   Create `~/.config/agency-agents-app/signing.env`:
+2. Apple notarization password — an app-specific password from <https://appleid.apple.com>
+   (Sign-In and Security → App-Specific Passwords), stored in the Keychain:
 
    ```sh
-   export APPLE_ID="your@email.com"
-   export APPLE_PASSWORD="xxxx-xxxx-xxxx-xxxx"
-   export APPLE_TEAM_ID="XXXXXXXXXX"
-   # Optional:
-   # export APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+   security add-generic-password -a "<apple-id>" -s "agency-agents-notary" -U -w
+   # paste the app-specific password when prompted
    ```
 
-   Then:
+3. Updater signing key — the minisign key whose public half is embedded in `tauri.conf.json`.
+   Generate it once (writes the canonical key file), then store the key **and** its password in
+   the Keychain:
 
    ```sh
-   chmod 600 ~/.config/agency-agents-app/signing.env
+   npm run tauri -- signer generate -w ~/.config/agency-agents-app/updater.key
+   # paste the PUBLIC key it prints into tauri.conf.json → plugins.updater.pubkey
+
+   security add-generic-password -a agency-agents -s agency-agents-updater-key    -U -w "$(cat ~/.config/agency-agents-app/updater.key)"
+   security add-generic-password -a agency-agents -s agency-agents-updater-key-pw -U -w
+   # (paste the key's password for the second one)
    ```
+
+   Store the key via `$(cat …)`, not a manual paste — a stray trailing newline corrupts it and
+   signing fails with `incorrect updater private key password: Invalid input`. (Repair script:
+   re-run the `agency-agents-updater-key` line above from the canonical file.)
 
 ### Build
 
 ```sh
-source ~/.config/agency-agents-app/signing.env
 ./scripts/release.sh
 ```
+
+That's it — `release.sh` pulls the notary + updater secrets from the Keychain, then builds, signs,
+notarizes, staples, and (unless `SKIP_UPDATER=1`) emits the signed updater artifacts. It builds both
+Mac arches by default; override with e.g. `RELEASE_TARGETS="aarch64-apple-darwin"`.
+
+> **Intel cross-compile** needs the **rustup** toolchain — Homebrew's `rust` is host-only and yields
+> `can't find crate for core` for `x86_64-apple-darwin`. Add the target once
+> (`rustup target add x86_64-apple-darwin`) and run with
+> `PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH" RELEASE_TARGETS="x86_64-apple-darwin" ./scripts/release.sh`.
 
 If using the lower-level Tauri build directly:
 
@@ -131,8 +142,9 @@ Manifest generation is handled by:
 tools/release/publish-manifest.sh <version>
 ```
 
-The updater public key is embedded in the app config/source. The matching private key lives outside
-the repo:
+The updater public key is embedded in the app config/source. The matching private key is read from
+the **Keychain** at build time (`agency-agents-updater-key` + `…-key-pw`); the canonical key file it
+was generated from is kept outside the repo (chmod 600) as the backup of record:
 
 ```text
 ~/.config/agency-agents-app/updater.key
@@ -175,19 +187,20 @@ The ordered runbook for cutting a release. The mechanics referenced here are det
 
 7. **Post-release** — log the cut in `memory-bank/agentLog.md`; open the next milestone for the deferred items (updater endpoint, Phase 5 quality gate).
 
-### Enabling auto-update (a later release)
+### Auto-update publishing
 
-1. Hosting is already provisioned: Caddy on `umacbookpro` serves `agencyagents.app` from
-   `~/Sites/agency-agents/`, so publishing the manifest is just an `rsync` of `updater.json`
-   into that docroot (mirrors the live `brew-browser` manifest).
-2. The updater signature uses agency's own minisign key at `~/.config/agency-agents-app/updater.key`
-   (its public half is embedded in `tauri.conf.json` → `plugins.updater.pubkey`). Source
-   `~/.config/agency-agents-app/signing.env` before the build — it exports
-   `TAURI_SIGNING_PRIVATE_KEY[_PATH]` + `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Apple notarization
-   uses the Developer ID identity in the login keychain.
-3. Build **without** `SKIP_UPDATER`, run `tools/release/publish-manifest.sh <version>`, attach the
-   gzipped `.app` tarball to the GitHub release, then `rsync` `dist/updater.json` to
-   `umacbookpro:Sites/agency-agents/updater.json`.
+Auto-update went live in **v0.2.0** — the manifest at `agencyagents.app/updater.json` covers both Mac
+arches. The release-time flow:
+
+1. Hosting is provisioned: Caddy on `umacbookpro` serves `agencyagents.app` from `~/Sites/agency-agents/`,
+   so publishing is an `rsync` of `updater.json` into that docroot (mirrors the live `brew-browser` manifest).
+2. The signature uses agency's minisign key (public half embedded in `tauri.conf.json`). `release.sh`
+   reads the private key + password from the **Keychain** (`agency-agents-updater-key` / `…-key-pw`) — no
+   env file is sourced; Apple notarization uses the Developer ID identity in the login keychain.
+3. Build **without** `SKIP_UPDATER`, run `tools/release/publish-manifest.sh <version>`, attach the gzipped
+   `.app` tarball(s) to the GitHub release, then `rsync` `dist/updater.json` to
+   `umacbookpro:Sites/agency-agents/updater.json`. `publish-manifest.sh` emits the `darwin-aarch64` entry;
+   for Intel, sign the x64 `.app.tar.gz` and add a `darwin-x86_64` entry to the manifest by hand.
 
 ## macOS Icon Notes
 

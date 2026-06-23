@@ -55,10 +55,16 @@ export APPLE_PASSWORD
 # auto-update bundle and REQUIRES the minisign private key. SKIP_UPDATER=1
 # turns the updater artifact OFF for this build (config override) so the run
 # exits clean with just the signed+notarized .app/.dmg.
-BUILD_ARGS=()
+# A --config flag forces the tauri CLI to fully re-resolve the config, which
+# auto-merges tauri.macos.conf.json (where macOSPrivateApi:true lives) into the
+# config the build-script allowlist check reads. Without ANY --config, that
+# check sees only base tauri.conf.json (no macOSPrivateApi) and rejects the
+# macos-private-api feature from the [target.macos] block — see tauri#11142.
+# (This is why every SKIP_UPDATER build worked but the updater-on path did not.)
+BUILD_ARGS=(--config '{"app":{"macOSPrivateApi":true}}')
 if [[ "${SKIP_UPDATER:-0}" == "1" ]]; then
   echo "▸ SKIP_UPDATER=1 — building WITHOUT updater artifacts."
-  BUILD_ARGS=(--config '{"bundle":{"createUpdaterArtifacts":false}}')
+  BUILD_ARGS+=(--config '{"bundle":{"createUpdaterArtifacts":false}}')
 else
   TAURI_SIGNING_PRIVATE_KEY="$(kc "agency-agents" "$UPDATER_KEY_SERVICE")"
   TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$(kc "agency-agents" "$UPDATER_KEY_PW_SERVICE")"
@@ -91,11 +97,11 @@ DMG_DIRS=()
 for target in "${TARGETS[@]}"; do
   if [[ "$target" == "$HOST_TRIPLE" ]]; then
     echo "▸ Building signed + notarized Agency Agents for ${target} (native, Team $APPLE_TEAM_ID)…"
-    npm run tauri build -- "${BUILD_ARGS[@]}"
+    npm run tauri build -- ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"}
     DMG_DIRS+=("src-tauri/target/release/bundle/dmg/")
   else
     echo "▸ Building signed + notarized Agency Agents for ${target} (cross, Team $APPLE_TEAM_ID)…"
-    npm run tauri build -- --target "$target" "${BUILD_ARGS[@]}"
+    npm run tauri build -- --target "$target" ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"}
     DMG_DIRS+=("src-tauri/target/${target}/release/bundle/dmg/")
   fi
 done
