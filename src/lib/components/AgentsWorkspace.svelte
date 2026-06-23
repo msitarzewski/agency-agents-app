@@ -96,20 +96,14 @@
   // same dot tones shown per row). Local + localStorage like the Tools lens —
   // not nav state. An agent matches a bucket if ANY of its install rows is in
   // it; "none" = no install rows anywhere.
-  type Lens = "all" | "current" | "outdated" | "foreign" | "removed" | "none";
-  const LENS_KEY = "agency-agents:agents-lens";
-  const LENS_IDS: Lens[] = ["all", "current", "outdated", "foreign", "removed", "none"];
-  let lens = $state<Lens>("all");
-  function setLens(l: Lens) {
-    lens = l;
-    try { localStorage.setItem(LENS_KEY, l); } catch { /* private mode / quota */ }
-  }
-  onMount(() => {
-    try {
-      const v = localStorage.getItem(LENS_KEY);
-      if (v && (LENS_IDS as string[]).includes(v)) lens = v as Lens;
-    } catch { /* ignore */ }
-  });
+  type Lens = "all" | "attention" | "current" | "outdated" | "foreign" | "removed" | "none";
+  // The lens lives in nav (ui.agentsLens) — the single source of truth — so the
+  // Dashboard can deep-link a filter ("5 need attention" → the flat attention list)
+  // and back/forward restores it. It no longer persists across launches: a sticky
+  // filter would hijack the divisions landing, since an active lens now switches the
+  // list to a flat all-divisions view (see showDivisions).
+  const lens: Lens = $derived(ui.agentsLens as Lens);
+  function setLens(l: Lens) { ui.setAgentsLens(l); }
 
   /** Which state buckets an agent falls into, across all its install rows. */
   function buckets(slug: string): Set<Lens> {
@@ -118,9 +112,9 @@
     if (rows.length === 0) { s.add("none"); return s; }
     for (const r of rows) {
       if (r.state === "current") s.add("current");
-      else if (r.state === "outdated" || r.state === "modified") s.add("outdated");
+      else if (r.state === "outdated" || r.state === "modified") { s.add("outdated"); s.add("attention"); }
       else if (r.state === "foreign") s.add("foreign");
-      else if (r.state === "removed") s.add("removed");
+      else if (r.state === "removed") { s.add("removed"); s.add("attention"); }
     }
     return s;
   }
@@ -131,7 +125,7 @@
   const visible = $derived(lens === "all" ? base : base.filter((a) => buckets(a.slug).has(lens)));
 
   const lensCounts = $derived.by<Record<Lens, number>>(() => {
-    const c: Record<Lens, number> = { all: base.length, current: 0, outdated: 0, foreign: 0, removed: 0, none: 0 };
+    const c: Record<Lens, number> = { all: base.length, attention: 0, current: 0, outdated: 0, foreign: 0, removed: 0, none: 0 };
     for (const a of base) for (const b of buckets(a.slug)) c[b]++;
     return c;
   });
@@ -139,6 +133,7 @@
   // Lens definitions paired with the row dot tones so the color story matches.
   const LENSES: { id: Lens; label: string; tone: string }[] = [
     { id: "all", label: "All", tone: "" },
+    { id: "attention", label: "Needs attention", tone: "warn" },
     { id: "current", label: "In sync", tone: "ok" },
     { id: "outdated", label: "Outdated", tone: "warn" },
     { id: "foreign", label: "Untracked", tone: "info" },
@@ -167,7 +162,7 @@
   // The Agents tab LANDS on the division list (not a flat agent list): only when
   // no division is drilled into AND there's no active search. Picking a division
   // or typing a query switches to the agent list below.
-  const showDivisions = $derived(ui.agentsCategory === null && !query.trim());
+  const showDivisions = $derived(ui.agentsCategory === null && !query.trim() && lens === "all");
   // Leaving the landing for the agent list shouldn't carry a stale agent-select
   // session; entering it shouldn't either (the landing has its own selection).
   $effect(() => {

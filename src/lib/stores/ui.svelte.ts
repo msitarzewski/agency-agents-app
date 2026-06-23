@@ -11,6 +11,7 @@ import type { SettingsSection, SidebarSection, ThemePreference, Tool } from "$li
 interface NavLocation {
   section: SidebarSection;
   agentsCategory: string | null;
+  agentsLens: string;
   agentsSelected: string | null;
   projectsSelected: string | null;
   teamsSelected: string | null;
@@ -131,6 +132,10 @@ class UiStore {
       Lifted into ui so division pills can deep-link to it and so back/forward
       can restore it. */
   agentsCategory: string | null = $state(null);
+  /** Install-state lens for the Agents workspace ("all" | "attention" | "current"
+      | "outdated" | "foreign" | "removed" | "none"). In ui so the Dashboard can
+      deep-link a filter and back/forward can restore it. */
+  agentsLens: string = $state("all");
   /** Slug of the agent open in the workspace detail pane; null = none. In ui so
       back/forward can restore the open agent. */
   agentsSelected: string | null = $state(null);
@@ -216,9 +221,10 @@ class UiStore {
   /** Jump to the unified Agents workspace (optionally within a category);
       resets the open agent. Used by the sidebar, the Dashboard stat cards, and
       the command palette. */
-  openAgents(category: string | null = null) {
+  openAgents(category: string | null = null, lens: string = "all") {
     this.applyingNav = true;
     this.agentsCategory = category;
+    this.agentsLens = lens;
     this.agentsSelected = null;
     this.section = "personas";
     this.selectedPackage = null;
@@ -244,6 +250,7 @@ class UiStore {
   }
 
   setAgentsCategory(c: string | null) { this.agentsCategory = c; this.commitNav(); }
+  setAgentsLens(l: string) { this.agentsLens = l; this.commitNav(); }
   selectAgent(slug: string | null) { this.agentsSelected = slug; this.commitNav(); }
 
   /** Seed history with the current location — call once at startup, after the
@@ -267,6 +274,7 @@ class UiStore {
     return {
       section: this.section,
       agentsCategory: this.agentsCategory,
+      agentsLens: this.agentsLens,
       agentsSelected: this.agentsSelected,
       projectsSelected: this.projectsSelected,
       teamsSelected: this.teamsSelected,
@@ -282,6 +290,7 @@ class UiStore {
       cur &&
       cur.section === loc.section &&
       cur.agentsCategory === loc.agentsCategory &&
+      cur.agentsLens === loc.agentsLens &&
       cur.agentsSelected === loc.agentsSelected &&
       cur.projectsSelected === loc.projectsSelected &&
       cur.teamsSelected === loc.teamsSelected
@@ -297,6 +306,7 @@ class UiStore {
     this.applyingNav = true;
     this.section = loc.section;
     this.agentsCategory = loc.agentsCategory;
+    this.agentsLens = loc.agentsLens;
     this.agentsSelected = loc.agentsSelected;
     this.projectsSelected = loc.projectsSelected;
     this.teamsSelected = loc.teamsSelected;

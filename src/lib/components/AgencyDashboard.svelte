@@ -39,11 +39,11 @@
     return c;
   });
   const healthSegments = $derived([
-    { label: "In sync",   value: byState.current,  color: "var(--color-success)", onClick: () => ui.openAgents() },
-    { label: "Outdated",  value: byState.outdated,  color: "var(--color-warning)", onClick: () => ui.openAgents() },
-    { label: "Modified",  value: byState.modified,  color: "color-mix(in srgb, var(--color-warning) 55%, var(--color-danger))", onClick: () => ui.openAgents() },
-    { label: "Untracked", value: byState.foreign,   color: "var(--color-brand)",   onClick: () => ui.openAgents() },
-    { label: "Missing",   value: byState.removed,   color: "var(--color-danger)",  onClick: () => ui.openAgents() },
+    { label: "In sync",   value: byState.current,  color: "var(--color-success)", onClick: () => ui.openAgents(null, "current") },
+    { label: "Outdated",  value: byState.outdated,  color: "var(--color-warning)", onClick: () => ui.openAgents(null, "outdated") },
+    { label: "Modified",  value: byState.modified,  color: "color-mix(in srgb, var(--color-warning) 55%, var(--color-danger))", onClick: () => ui.openAgents(null, "outdated") },
+    { label: "Untracked", value: byState.foreign,   color: "var(--color-brand)",   onClick: () => ui.openAgents(null, "foreign") },
+    { label: "Missing",   value: byState.removed,   color: "var(--color-danger)",  onClick: () => ui.openAgents(null, "removed") },
   ]);
 
   // ── Coverage by tool — only tools that actually hold agents (less noise) ──
@@ -131,13 +131,13 @@
       <span class="s-lbl">installed by you</span>
     </button>
     {#if attention > 0}
-      <button class="stat warn" onclick={() => ui.openAgents()}>
+      <button class="stat warn" onclick={() => ui.openAgents(null, "attention")}>
         <span class="s-num">{attention}</span>
         <span class="s-lbl">need attention</span>
       </button>
     {/if}
     {#if foreign > 0}
-      <button class="stat info" onclick={() => ui.openAgents()}>
+      <button class="stat info" onclick={() => ui.openAgents(null, "foreign")}>
         <span class="s-num">{foreign}</span>
         <span class="s-lbl">found to track</span>
       </button>
