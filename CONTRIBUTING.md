@@ -98,6 +98,25 @@ Tool support needs:
 
 The recommended next architecture is a manifest in the AA repo that both `scripts/install.sh` and this app can consume.
 
+### Tool definitions live in the catalog, not here
+
+`src-tauri/data/tools.json` is a **verbatim mirror** of the `tools.json` the
+[`agency-agents`](https://github.com/msitarzewski/agency-agents) catalog owns, and
+`src-tauri/resources/corpus-baseline/scripts/convert.sh` mirrors that repo's converter.
+The Rust renderers in `src-tauri/src/render/` are ports of `convert.sh` and must stay
+byte-for-byte identical to it — that is exactly what the parity test enforces.
+
+So **changing how an existing tool installs — its `format`, destination paths, slug
+prefix, emitted frontmatter, or scope — is an upstream change first.** Land it in the
+catalog repo's `tools.json` + `scripts/convert.sh`, then sync the copies here. Editing
+only the app's copies forks the source of truth: the CLI `install.sh` and the app would
+then install the same tool to different places, and the next catalog sync would silently
+revert your change.
+
+If you've verified that an upstream tool path is wrong or non-deterministic — a genuinely
+valuable catch — open the catalog PR first (or open both and link them), and the app-side
+PR becomes a clean sync rather than a fork.
+
 ## Tests
 
 Common local checks:
@@ -146,7 +165,7 @@ Easy PRs:
 - tests for existing behavior
 - small accessibility fixes
 - focused bug fixes with reproduction
-- verified tool-path corrections
+- tool-path corrections that sync the app's mirror to the upstream catalog
 
 Discuss first:
 
@@ -154,6 +173,7 @@ Discuss first:
 - new production dependencies
 - new network hosts
 - installer architecture changes
+- redefining how an existing tool installs (paths, format, slug, frontmatter, scope) — take it to the catalog first
 - multi-file renderer support
 - signing, updater, or release pipeline changes
 - telemetry, accounts, or sync features
