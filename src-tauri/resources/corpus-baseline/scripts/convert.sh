@@ -128,21 +128,17 @@ convert_antigravity() {
 
   name="$(get_field "name" "$file")"
   description="$(get_field "description" "$file")"
-  slug="agency-$(slugify "$name")"
+  slug="$(slugify "$name")"
   body="$(get_body "$file")"
 
   outdir="$OUT_DIR/antigravity/$slug"
   outfile="$outdir/SKILL.md"
   mkdir -p "$outdir"
 
-  # Antigravity SKILL.md format mirrors community skills in ~/.gemini/antigravity/skills/
   cat > "$outfile" <<HEREDOC
 ---
 name: ${slug}
 description: ${description}
-risk: low
-source: community
-date_added: '${TODAY}'
 ---
 ${body}
 HEREDOC

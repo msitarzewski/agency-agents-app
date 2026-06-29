@@ -10,8 +10,8 @@
 //! Identity tools (claude-code, copilot) ship the agent `.md` verbatim, so their
 //! "render" is the raw corpus source. Transform tools (cursor/.mdc, codex/TOML,
 //! gemini-cli, opencode, qwen) rebuild the file from frontmatter fields + body.
-//! The remaining tools (antigravity skill dirs, openclaw multi-file, aider /
-//! windsurf accumulated files) are special multi-file shapes — not yet supported
+//! The remaining tools (openclaw multi-file, aider /
+//! windsurf accumulated files, kimi) are special multi-file shapes — not yet supported
 //! here; `render`/`dests` return an error so the UI can disable them cleanly.
 
 use std::path::{Path, PathBuf};
@@ -573,9 +573,35 @@ mod tests {
         // this app ships no renderer for their format — so render() must refuse.
         // dests() legitimately returns the upstream templates; the install path is
         // gated on render(), and these tools aren't in the installable set anyway.
-        for tool in ["windsurf", "aider", "openclaw", "antigravity", "kimi"] {
+        for tool in ["windsurf", "aider", "openclaw", "kimi"] {
             assert!(render(&agent(), "raw", tool).is_err(), "{tool} has no app renderer");
         }
+    }
+
+    #[test]
+    fn antigravity_skill_md_shape_and_dest() {
+        // Antigravity now uses skill-md without a namespace prefix.
+        let out = render(&agent(), raw(), "antigravity").unwrap();
+        assert_eq!(
+            out,
+            "---\nname: frontend-developer\ndescription: Builds UIs.\n---\nYou are a frontend dev.\n"
+        );
+        assert_eq!(output_slug(&agent(), raw(), "antigravity"), "frontend-developer");
+        let proj = Path::new("/proj");
+        let d = dests("antigravity", "frontend-developer", Path::new("/home"), None).unwrap();
+        assert_eq!(
+            d,
+            vec![
+                PathBuf::from("/home/.gemini/config/skills/frontend-developer/SKILL.md"),
+            ]
+        );
+        let d_proj = dests("antigravity", "frontend-developer", Path::new("/home"), Some(proj)).unwrap();
+        assert_eq!(
+            d_proj,
+            vec![
+                PathBuf::from("/proj/.agents/skills/frontend-developer/SKILL.md"),
+            ]
+        );
     }
 
     #[test]

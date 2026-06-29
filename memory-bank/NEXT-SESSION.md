@@ -40,7 +40,7 @@ registry. **State: the install-management loop is real and working.** Signed + n
 
 ## How to run / critical env facts
 - `npm run tauri dev` (repo root). **DEV PORT = 1430** (HMR 1431).
-- Verify green: `cd src-tauri && cargo test --lib` (**258/0**, +1 `--ignored` parity test); `npm run
+- Verify green: `cd src-tauri && cargo test --lib` (**267/0**, +1 `--ignored` parity test); `npm run
   build`; `npm run check` (0 errors; the only warning is a benign tsconfig `node` note). Full Phase C
   gate: `npm run build:phase-c` (adds the parity test + config validation; `:full` adds the VM matrix).
 - **Active catalog source = a USER CLONE**, persisted in

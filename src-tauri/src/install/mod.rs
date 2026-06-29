@@ -1175,7 +1175,7 @@ mod tests {
 
         let path = home.path().join(".codex/agents").join("frontend-developer.toml");
         assert!(!path.exists(), "Track must not write the agent file");
-        assert_eq!(rec.dest, path.to_string_lossy(), "record points at the canonical dest");
+        assert_eq!(std::path::Path::new(&rec.dest), path.as_path(), "record points at the canonical dest");
 
         // The recorded rendered_hash equals a real render — so if the user's file
         // happens to match it, reconcile yields Current; otherwise Modified.
@@ -1216,7 +1216,7 @@ mod tests {
             "2026-06-12T00:00:00Z",
         )
         .unwrap();
-        assert_eq!(tracked.dest, conversion_dest.to_string_lossy());
+        assert_eq!(std::path::Path::new(&tracked.dest), conversion_dest.as_path());
 
         write_agent_files_to(
             &agent,

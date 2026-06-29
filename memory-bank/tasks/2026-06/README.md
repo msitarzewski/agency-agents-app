@@ -69,6 +69,10 @@ allowlist merge / tauri#11142), the rustup-vs-Homebrew Intel cross-compile split
 Keychain key — all fixed + documented (`BUILD.md` reconciled to the Keychain flow). `main` @ `16182e5`.
 See [260623_v0.2.0-ship.md](./260623_v0.2.0-ship.md).
 
+### 2026-06-29: Fix Windows-specific test path mismatches
+Fixed path separator mismatches in tests on Windows by comparing Path objects instead of strings.
+See [260629_fix-windows-tests.md](./260629_fix-windows-tests.md).
+
 ## Next
 - **Opt-in automatic install** — wire the inert "Install updates automatically" toggle to a real off-by-default
   background download → verify → install (the live updater currently does check → notify → one-click install).

@@ -225,7 +225,7 @@ Dev Dock hack REMOVED (lib.rs plain `.run()`, objc2 deps dropped).
 - **Library** — flat list of installs; your ~184 `install.sh` agents show as `foreign` with Adopt.
 - **Tools**, **Loadouts** (Agentfile), **Dashboard** (agency rollup), Activity, Settings (⌘,).
 - Backend: `corpus · render · install · github · util · commands{github,settings,updater}`.
-  `cargo test` ~265/0; `vite build` + `svelte-check` green; app boots clean (210 corpus seeded).
+  `cargo test` ~267/0; `vite build` + `svelte-check` green; app boots clean (210 corpus seeded).
 - New brain-circuit **app icon** (dark shipped; light master in `docs/icon/`). About window rebranded.
 
 ## Immediate next: Michael runs it, then #2 / #3
