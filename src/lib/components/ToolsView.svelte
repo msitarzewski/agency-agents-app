@@ -28,6 +28,8 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { toolAccent, toolMark, toolIcon } from "$lib/util/toolBadge";
   import { TOOLS, isInstallable } from "$lib/data/toolRegistry";
+  import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
+  import { settingsGet, settingsSet } from "$lib/api";
   import { resolveCategoryIcon } from "$lib/util/categoryIcon";
   import type { InstalledAgent, InstallState, Tool, ToolInfo } from "$lib/types";
 
@@ -79,6 +81,7 @@
         scope: be?.scope ?? (m.scope?.user ? "user" : "project"),
         userDest: be?.userDest ?? null,
         installedCount: be?.installedCount ?? 0,
+        customPath: be?.customPath ?? null,
         wired: isInstallable(m),
       };
     }),
@@ -304,6 +307,33 @@
       toast.error("Could not open folder", String(e));
     }
   }
+
+  // ── Per-tool custom install location (e.g. a WSL home from the Windows app) ──
+  let editingLocation = $state(false);
+  let locationBusy = $state(false);
+  async function saveToolPath(tool: Tool, path: string | null): Promise<void> {
+    locationBusy = true;
+    try {
+      const s = await settingsGet();
+      const next = { ...(s.toolPaths ?? {}) };
+      if (path) next[tool] = path;
+      else delete next[tool];
+      await settingsSet({ ...s, toolPaths: next });
+      await install.loadTools(); // re-detect against the new base
+    } catch (e) {
+      toast.error("Could not save install location", String(e));
+    } finally {
+      locationBusy = false;
+    }
+  }
+  async function chooseToolPath(tool: Tool): Promise<void> {
+    try {
+      const picked = await openFolderDialog({ directory: true, multiple: false });
+      if (typeof picked === "string") await saveToolPath(tool, picked);
+    } catch (e) {
+      toast.error("Could not open the folder picker", String(e));
+    }
+  }
   function homePath(p: string): string {
     return p.replace(/^.*\/Users\/[^/]+/, "~").replace(/^.*\\Users\\[^\\]+/, "~");
   }
@@ -393,6 +423,7 @@
               {sel.scope === "user" ? "user-global" : "project-scoped"}
               {#if install.versionOf(sel.tool)}· {install.versionOf(sel.tool)}{/if}
               {#if !sel.detected}· <span class="warn">not detected</span>{/if}
+              {#if sel.customPath}· <span class="cust" title={sel.customPath}>custom location</span>{/if}
             </span>
           </div>
           {#if sel.wired}
@@ -406,7 +437,32 @@
               <FolderOpen size={15} /><span>Reveal</span>
             </button>
           {/if}
+          {#if sel.wired}
+            <button class="ghost" class:on={editingLocation} onclick={() => (editingLocation = !editingLocation)} title="Set a custom install location for {sel.label}">
+              <WrenchIcon size={15} /><span>Location</span>
+            </button>
+          {/if}
         </div>
+
+        {#if editingLocation && sel.wired}
+          <div class="loc-editor">
+            <div class="loc-row">
+              <span class="loc-label">Install location</span>
+              <code class="con-path" title={sel.customPath ?? "Default (home directory)"}>{sel.customPath ? sel.customPath : "Default (~)"}</code>
+            </div>
+            <p class="loc-hint">
+              Point {sel.label} at a custom base directory — e.g. a WSL home
+              (<code>\\wsl.localhost\…</code>) from the Windows app. Detection and
+              user-global installs follow it; project installs are unaffected.
+            </p>
+            <div class="loc-actions">
+              <button class="act" disabled={locationBusy} onclick={() => chooseToolPath(sel.tool)}>Choose folder…</button>
+              {#if sel.customPath}
+                <button class="act subtle" disabled={locationBusy} onclick={() => saveToolPath(sel.tool, null)}>Reset to default</button>
+              {/if}
+            </div>
+          </div>
+        {/if}
 
         {#if sel.wired}
         {#if sel.userDest}
@@ -626,6 +682,20 @@
   .con-id h2 { font-size: var(--text-h2); font-weight: var(--fw-semibold); color: var(--color-text-primary); }
   .con-meta { font-size: var(--text-caption); color: var(--color-text-muted); }
   .con-meta .warn { color: var(--color-warning); }
+  .con-meta .cust { color: var(--color-brand); }
+  .ghost.on { color: var(--color-brand); background: var(--color-surface-sunken); }
+
+  .loc-editor {
+    display: flex; flex-direction: column; gap: var(--space-2);
+    padding: var(--space-3); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); background: var(--color-surface-sunken);
+  }
+  .loc-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+  .loc-label { font-size: var(--text-body-sm); font-weight: var(--fw-semibold); color: var(--color-text-secondary); }
+  .loc-hint { font-size: var(--text-caption); color: var(--color-text-muted); line-height: var(--lh-normal); }
+  .loc-hint code { font-family: var(--font-mono, monospace); }
+  .loc-actions { display: flex; gap: var(--space-2); }
+  .act.subtle { background: transparent; color: var(--color-text-secondary); }
   .def-target { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-body-sm); color: var(--color-text-secondary); cursor: pointer; }
   .con-path {
     font-family: var(--font-mono, monospace); font-size: var(--text-caption);

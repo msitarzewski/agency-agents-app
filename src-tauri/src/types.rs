@@ -292,6 +292,9 @@ pub struct ToolInfo {
     pub scope: Scope,
     pub user_dest: Option<String>,
     pub installed_count: u32,
+    /// Per-tool custom install base path the user configured (else `None` =
+    /// OS home). Detection + `user_dest` already reflect this base.
+    pub custom_path: Option<String>,
 }
 
 /// Best-effort detected version string for a tool, from probing `<bin>
