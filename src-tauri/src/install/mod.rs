@@ -66,6 +66,38 @@ fn home() -> Result<PathBuf, AppError> {
     })
 }
 
+/// User-scope base directory for a tool's installs **and** detection: the
+/// per-tool custom path the user configured (e.g. a WSL home) if any, else the
+/// OS home. Project-scope installs ignore this — they resolve against the
+/// chosen project root. Because the ledger stores the resolved `dest`, reconcile
+/// stays correct with no per-tool logic of its own.
+async fn tool_home(state: &AppState, tool: &str) -> Result<PathBuf, AppError> {
+    let os_home = home()?;
+    let base = state
+        .settings
+        .read()
+        .await
+        .effective_settings()
+        .map(|s| resolve_tool_base(&s.tool_paths, tool, &os_home))
+        .unwrap_or(os_home);
+    Ok(base)
+}
+
+/// Pure per-tool base resolution: a configured, non-empty custom path wins;
+/// otherwise the OS home. Split out from [`tool_home`] so it's unit-testable
+/// without standing up an `AppState`.
+fn resolve_tool_base(
+    tool_paths: &std::collections::HashMap<String, String>,
+    tool: &str,
+    os_home: &Path,
+) -> PathBuf {
+    tool_paths
+        .get(tool)
+        .filter(|p| !p.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| os_home.to_path_buf())
+}
+
 fn now_iso() -> String {
     Utc::now().to_rfc3339()
 }
@@ -162,7 +194,7 @@ async fn do_install(
     })?;
     let raw = corpus::read_source(app, &agent.category, &slug).await?;
 
-    let home = home()?;
+    let home = tool_home(state, &tool).await?;
     let proot = project_path.as_ref().map(PathBuf::from);
     let backups = backups_dir(app)?;
     let mut ledger = load_ledger(app).await?;
@@ -214,7 +246,7 @@ async fn do_track(
     })?;
     let raw = corpus::read_source(app, &agent.category, &slug).await?;
 
-    let home = home()?;
+    let home = tool_home(state, &tool).await?;
     let proot = project_path.as_ref().map(PathBuf::from);
     let record = track_agent_record(
         &agent,
@@ -558,7 +590,7 @@ pub async fn agent_diff(
     let raw = corpus::read_source(&app, &agent.category, &slug).await?;
     let (proposed, _hash) = render::render_with_hash(&agent, &raw, &tool)?;
 
-    let home = home()?;
+    let home = tool_home(&state, &tool).await?;
     let proot = project_path.as_ref().map(PathBuf::from);
     let ledger = load_ledger(&app).await?;
     let ledger_dest = ledger
@@ -600,7 +632,7 @@ pub async fn uninstall_agent(
         message: format!("unknown agent: {slug}"),
     })?;
     let raw = corpus::read_source(&app, &agent.category, &slug).await?;
-    let home = home()?;
+    let home = tool_home(&state, &tool).await?;
     let proot = project_path.as_ref().map(PathBuf::from);
     let mut ledger = load_ledger(&app).await?;
     let ledger_dest = ledger
@@ -690,8 +722,10 @@ pub async fn installs_reconcile(
         .into_iter()
         .map(PathBuf::from)
         .collect();
-    let home = home()?;
     for tool in supported() {
+        // Resolve each tool against its own base (honors a per-tool custom
+        // path, e.g. a WSL home), so the sweep looks where the tool lives.
+        let home = tool_home(&state, tool).await?;
         // Some tools namespace the output slug (e.g. Osaurus dirs are
         // `agency-<slug>`); strip it before recognizing the agent.
         let prefix = crate::registry::get(tool)
@@ -815,13 +849,21 @@ pub async fn installs_for_agent(
 
 /// Detected AI tools + their deployment surface and installed counts.
 #[tauri::command]
-pub async fn tools_list(app: AppHandle) -> Result<Vec<ToolInfo>, AppError> {
+pub async fn tools_list(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Vec<ToolInfo>, AppError> {
     let ledger = load_ledger(&app).await?;
-    let home = home()?;
+    let os_home = home()?;
     let supported = supported();
     let mut out = Vec::with_capacity(supported.len());
     for tool in supported {
         let installed_count = ledger.iter().filter(|r| r.tool == tool).count() as u32;
+        // Resolve against the per-tool base so detection + user_dest reflect a
+        // custom path (e.g. a WSL home). custom_path exposes the override to the
+        // UI (None when it equals the OS home).
+        let home = tool_home(&state, tool).await?;
+        let custom_path = (home != os_home).then(|| home.to_string_lossy().to_string());
         let (detected, user_dest) = detect(tool, &home);
         out.push(ToolInfo {
             tool: tool.to_string(),
@@ -837,6 +879,7 @@ pub async fn tools_list(app: AppHandle) -> Result<Vec<ToolInfo>, AppError> {
             },
             user_dest,
             installed_count,
+            custom_path,
         });
     }
     Ok(out)
@@ -1042,6 +1085,22 @@ mod tests {
         assert_eq!(classify(Some("r"), "r", "s1", Some("s2")), InstallState::Outdated);
         // agent gone from corpus but file intact → current
         assert_eq!(classify(Some("r"), "r", "s1", None), InstallState::Current);
+    }
+
+    #[test]
+    fn resolve_tool_base_prefers_nonempty_override() {
+        use std::collections::HashMap;
+        let os = Path::new("/Users/me");
+        let mut tp: HashMap<String, String> = HashMap::new();
+        // No entry → OS home.
+        assert_eq!(resolve_tool_base(&tp, "claudeCode", os), PathBuf::from("/Users/me"));
+        // Empty entry is treated as unset → OS home.
+        tp.insert("claudeCode".into(), String::new());
+        assert_eq!(resolve_tool_base(&tp, "claudeCode", os), PathBuf::from("/Users/me"));
+        // Non-empty override wins, and ONLY for that tool.
+        tp.insert("claudeCode".into(), "/wsl/home/me".into());
+        assert_eq!(resolve_tool_base(&tp, "claudeCode", os), PathBuf::from("/wsl/home/me"));
+        assert_eq!(resolve_tool_base(&tp, "codex", os), PathBuf::from("/Users/me"));
     }
 
     #[test]

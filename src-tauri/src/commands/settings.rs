@@ -30,6 +30,7 @@
 //!   edit (`settings.json` is plain JSON the user can poke at) can't
 //!   smuggle an out-of-range value.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -130,6 +131,15 @@ pub struct Settings {
     /// from the active AA catalog.
     #[serde(default)]
     pub live_enrichment_enabled: bool,
+
+    /// Per-tool custom install base path (tool id → absolute base directory).
+    /// When set for a tool, user-scope installs + detection resolve against
+    /// this base instead of the OS home — e.g. pointing Claude Code at a WSL
+    /// home (`\\wsl.localhost\Ubuntu\home\me`) from the Windows app. An empty
+    /// or absent entry means "use the OS home". Project-scope installs are
+    /// unaffected (they resolve against the chosen project root).
+    #[serde(default)]
+    pub tool_paths: HashMap<String, String>,
 }
 
 /// Default factory for [`Settings::ai_features_enabled`] — separated
@@ -167,6 +177,9 @@ impl Default for Settings {
             vulnerability_scanning_enabled: false,
             // Off by default; retained legacy field.
             live_enrichment_enabled: false,
+            // Empty by default — user opts a tool into a custom base path
+            // (e.g. a WSL home) from the Tools panel.
+            tool_paths: HashMap::new(),
         }
     }
 }
@@ -583,6 +596,7 @@ mod tests {
             enhanced_trending_enabled: true,
             vulnerability_scanning_enabled: true,
             live_enrichment_enabled: true,
+            tool_paths: HashMap::from([("claudeCode".to_string(), "/wsl/home/me".to_string())]),
         };
         let written = persist(tmp.path(), s.clone()).await.expect("persist");
         assert_eq!(written, s);
@@ -643,6 +657,7 @@ mod tests {
             enhanced_trending_enabled: false,
             vulnerability_scanning_enabled: false,
             live_enrichment_enabled: false,
+            tool_paths: HashMap::new(),
         };
         let written = persist(tmp.path(), s).await.expect("persist");
         assert_eq!(written.catalog_stale_banner_days, Settings::CATALOG_STALE_DAYS_MAX);
