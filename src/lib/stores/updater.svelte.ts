@@ -26,7 +26,8 @@
  */
 
 import { updateCheckNow, updateInstall, updateRelaunch, updateSkip } from "$lib/api";
-import { isAppError, appErrorMessage, type UpdateInfo } from "$lib/types";
+import { i18n } from "$lib/i18n.svelte";
+import { isAppError, type UpdateInfo } from "$lib/types";
 
 class UpdaterStore {
   /** Epoch millis of the most recent check (success OR error). `null`
@@ -98,7 +99,7 @@ class UpdaterStore {
         this.available = null;
         this.error = null;
       } else if (isAppError(e)) {
-        this.error = appErrorMessage(e);
+        this.error = i18n.appErrorMessage(e);
       } else {
         this.error = String(e);
       }
@@ -130,7 +131,7 @@ class UpdaterStore {
       this.installComplete = true;
     } catch (e) {
       if (isAppError(e)) {
-        this.error = appErrorMessage(e);
+        this.error = i18n.appErrorMessage(e);
       } else {
         this.error = String(e);
       }
@@ -161,7 +162,7 @@ class UpdaterStore {
       // explicitly asked to dismiss; better to keep their click than
       // surface a confusing "we couldn't dismiss" toast).
       if (isAppError(e)) {
-        this.error = appErrorMessage(e);
+        this.error = i18n.appErrorMessage(e);
       } else {
         this.error = String(e);
       }
@@ -183,7 +184,7 @@ class UpdaterStore {
       // socket closed mid-call. Treat any error here as benign — if
       // the restart actually failed, the user will notice immediately.
       if (isAppError(e)) {
-        this.error = appErrorMessage(e);
+        this.error = i18n.appErrorMessage(e);
       } else {
         this.error = String(e);
       }

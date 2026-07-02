@@ -16,6 +16,7 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 import { install } from "$lib/stores/install.svelte";
+import { i18n } from "$lib/i18n.svelte";
 import type { ProjectInfo } from "$lib/types";
 
 const STORAGE_KEY = "agency-agents:projects:v1";
@@ -92,7 +93,7 @@ class ProjectsStore {
 
   /** Native folder picker → registers and returns the chosen path (or null). */
   async addViaPicker(): Promise<string | null> {
-    const picked = await openDialog({ directory: true, title: "Choose a project folder" });
+    const picked = await openDialog({ directory: true, title: i18n.t("projects.chooseFolderTitle") });
     const path = typeof picked === "string" ? picked : Array.isArray(picked) ? (picked[0] ?? null) : null;
     if (path) this.register(path);
     return path;

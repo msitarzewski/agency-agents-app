@@ -11,6 +11,7 @@
   import EmptyState from "./EmptyState.svelte";
   import { activity, type JournalEntry } from "$lib/stores/activity.svelte";
   import { install } from "$lib/stores/install.svelte";
+  import { i18n, type TranslationKey } from "$lib/i18n.svelte";
 
   /** Lucide icon per journal action. */
   const ACTION_ICON = {
@@ -24,14 +25,14 @@
   } as const;
 
   /** Sentence-case verb shown at the head of each row. */
-  const ACTION_VERB: Record<JournalEntry["action"], string> = {
-    install: "Installed",
-    uninstall: "Removed",
-    update: "Updated",
-    track: "Tracked",
-    switch: "Switched",
-    sync: "Synced",
-    bulk: "Bulk",
+  const ACTION_VERB: Record<JournalEntry["action"], TranslationKey> = {
+    install: "activity.action.install",
+    uninstall: "activity.action.uninstall",
+    update: "activity.action.update",
+    track: "activity.action.track",
+    switch: "activity.action.switch",
+    sync: "activity.action.sync",
+    bulk: "activity.action.bulk",
   };
 
   /** Basename of a project path, for the " · project" suffix. */
@@ -46,14 +47,14 @@
     const tool = e.tool ? install.toolLabel(e.tool) : "";
     // Default-target toggle: the tool IS the subject, detail is the descriptor.
     if (e.action === "switch") {
-      return tool ? `${tool} · ${e.detail ?? "default target changed"}` : (e.detail ?? "Default target changed");
+      return tool ? `${tool} · ${e.detail ?? i18n.t("activity.defaultTargetChanged")}` : (e.detail ?? i18n.t("activity.defaultTargetChanged"));
     }
     // Batch sweeps: detail is already a self-contained phrase ("Updated 3 agents").
     if (e.action === "sync" || e.action === "bulk") {
-      return e.detail ?? ACTION_VERB[e.action];
+      return e.detail ?? i18n.t(ACTION_VERB[e.action]);
     }
     // Single-agent ops: "Verb agent → Tool · project".
-    let s = `${ACTION_VERB[e.action]} ${e.agentName ?? e.agentSlug ?? ""}`.trim();
+    let s = `${i18n.t(ACTION_VERB[e.action])} ${e.agentName ?? e.agentSlug ?? ""}`.trim();
     if (tool) s += ` → ${tool}`;
     if (e.scope === "project" && e.projectPath) s += ` · ${basename(e.projectPath)}`;
     return s;
@@ -70,9 +71,9 @@
       const n = new Date();
       return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
     })();
-    if (key === today) return "Today";
-    if (key === today - DAY_MS) return "Yesterday";
-    return new Date(key).toLocaleDateString(undefined, {
+    if (key === today) return i18n.t("activity.today");
+    if (key === today - DAY_MS) return i18n.t("activity.yesterday");
+    return new Date(key).toLocaleDateString(i18n.locale === "ru" ? "ru-RU" : "en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
@@ -98,12 +99,12 @@
   function relTime(iso: string): string {
     const diff = Date.now() - new Date(iso).getTime();
     const sec = Math.floor(diff / 1000);
-    if (sec < 45) return "just now";
+    if (sec < 45) return i18n.t("activity.justNow");
     const min = Math.floor(sec / 60);
-    if (min < 60) return `${min}m`;
+    if (min < 60) return i18n.t("activity.minutesShort", { count: i18n.number(min) });
     const hr = Math.floor(min / 60);
-    if (hr < 24) return `${hr}h`;
-    return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    if (hr < 24) return i18n.t("activity.hoursShort", { count: i18n.number(hr) });
+    return new Date(iso).toLocaleTimeString(i18n.locale === "ru" ? "ru-RU" : "en-US", { hour: "numeric", minute: "2-digit" });
   }
 </script>
 
@@ -113,7 +114,7 @@
       <span class="action-wrap" data-tauri-drag-region="false">
         <Button size="sm" variant="ghost" onclick={() => activity.clear()}>
           {#snippet icon()}<Trash2 size={14} />{/snippet}
-          Clear
+          {i18n.t("activity.clear")}
         </Button>
       </span>
     </header>
@@ -122,8 +123,8 @@
   <div class="list-wrap">
     {#if activity.entries.length === 0}
       <EmptyState
-        title="No activity yet"
-        body="Installs, updates, and removes will show up here."
+        title={i18n.t("activity.emptyTitle")}
+        body={i18n.t("activity.emptyBody")}
       >
         {#snippet icon()}<ActivityIcon size={48} />{/snippet}
       </EmptyState>
@@ -138,13 +139,13 @@
               <span class="text truncate" title={e.outcome === "error" && e.detail ? e.detail : rowText(e)}>
                 {rowText(e)}
               </span>
-              <span class="time" title={new Date(e.ts).toLocaleString()}>{relTime(e.ts)}</span>
+              <span class="time" title={new Date(e.ts).toLocaleString(i18n.locale === "ru" ? "ru-RU" : "en-US")}>{relTime(e.ts)}</span>
               <span
                 class="status-dot"
                 class:ok={e.outcome === "ok"}
                 class:fail={e.outcome === "error"}
-                aria-label={e.outcome === "error" ? "Failed" : "Succeeded"}
-                title={e.outcome === "error" ? (e.detail ?? "Failed") : "Succeeded"}
+                aria-label={e.outcome === "error" ? i18n.t("activity.failed") : i18n.t("activity.succeeded")}
+                title={e.outcome === "error" ? (e.detail ?? i18n.t("activity.failed")) : i18n.t("activity.succeeded")}
               ></span>
             </li>
           {/each}

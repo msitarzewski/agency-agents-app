@@ -30,8 +30,8 @@ import {
 } from "$lib/api";
 import { safeOpenUrl } from "$lib/util/url";
 import { toast } from "./toast.svelte";
+import { i18n } from "$lib/i18n.svelte";
 import {
-  appErrorMessage,
   isAppError,
   type CreatedIssue,
   type DeviceFlowStart,
@@ -226,7 +226,7 @@ class GithubStore {
     } catch (e) {
       this._setSignin("signIn-startError", {
         kind: "error",
-        message: isAppError(e) ? appErrorMessage(e) : String(e),
+        message: isAppError(e) ? i18n.appErrorMessage(e) : String(e),
       });
       return;
     }
@@ -266,7 +266,7 @@ class GithubStore {
       } catch (e) {
         this._setSignin("poll-error", {
           kind: "error",
-          message: isAppError(e) ? appErrorMessage(e) : String(e),
+          message: isAppError(e) ? i18n.appErrorMessage(e) : String(e),
         });
         return;
       }
@@ -283,7 +283,7 @@ class GithubStore {
         // reactivity scheduler (see issue #1 root cause; this app
         // exhibited 300+ effect re-runs per single signinState write).
         // The toast belongs at the call site of the transition.
-        toast.success(username ? `Signed in as @${username}` : "Signed in to GitHub");
+        toast.success(username ? i18n.t("github.signedInAs", { user: username }) : i18n.t("github.signIn"));
         // Auto-close the modal 1.5s after success so the user reads
         // the "Signed in as …" panel before it dismisses.
         setTimeout(() => this.cancelSignin(), 1500);
@@ -291,13 +291,13 @@ class GithubStore {
       }
       if (result.kind === "denied") {
         this._setSignin("poll-denied", { kind: "denied" });
-        toast.error("GitHub sign-in denied");
+        toast.error(i18n.t("github.signInDenied"));
         setTimeout(() => this.cancelSignin(), 2000);
         return;
       }
       if (result.kind === "expired") {
         this._setSignin("poll-expired", { kind: "expired" });
-        toast.error("Sign-in code expired", "Try again.");
+        toast.error(i18n.t("github.codeExpired"), i18n.t("updates.tryAgain"));
         setTimeout(() => this.cancelSignin(), 2000);
         return;
       }

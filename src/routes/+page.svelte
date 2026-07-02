@@ -29,13 +29,14 @@
     SIDEBAR_DEFAULT_WIDTH,
   } from "$lib/stores/ui.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { i18n, type TranslationKey } from "$lib/i18n.svelte";
   import { isMac, shortcut } from "$lib/util/platform";
   import type { SidebarSection, ThemePreference } from "$lib/types";
 
-  const themeLabel: Record<ThemePreference, string> = {
-    light: "Light",
-    dark: "Dark",
-    system: "System",
+  const themeLabel: Record<ThemePreference, TranslationKey> = {
+    light: "theme.light",
+    dark: "theme.dark",
+    system: "theme.system",
   };
 
   function isTextInput(el: EventTarget | null): boolean {
@@ -66,7 +67,7 @@
       const order = ["light", "dark", "system"] as const;
       const next = order[(order.indexOf(ui.theme) + 1) % order.length];
       ui.setTheme(next);
-      toast.info(`Theme: ${themeLabel[next]}`);
+      toast.info(i18n.t("theme.changed", { theme: i18n.t(themeLabel[next]) }));
       return;
     }
 
@@ -155,8 +156,8 @@
       type="button"
       class="titlebar-btn"
       data-tauri-drag-region="false"
-      title={ui.sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-      aria-label={ui.sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+      title={ui.sidebarCollapsed ? i18n.t("nav.showSidebar") : i18n.t("nav.hideSidebar")}
+      aria-label={ui.sidebarCollapsed ? i18n.t("nav.showSidebar") : i18n.t("nav.hideSidebar")}
       aria-pressed={ui.sidebarCollapsed}
       onclick={() => ui.toggleSidebarCollapsed()}
     >
@@ -170,8 +171,8 @@
       <button
         type="button"
         class="titlebar-btn nav"
-        title={`Back (${shortcut("[")})`}
-        aria-label="Back"
+        title={`${i18n.t("common.back")} (${shortcut("[")})`}
+        aria-label={i18n.t("common.back")}
         disabled={!ui.canBack}
         onclick={() => ui.back()}
       >
@@ -180,15 +181,15 @@
       <button
         type="button"
         class="titlebar-btn nav"
-        title={`Forward (${shortcut("]")})`}
-        aria-label="Forward"
+        title={`${i18n.t("common.forward")} (${shortcut("]")})`}
+        aria-label={i18n.t("common.forward")}
         disabled={!ui.canForward}
         onclick={() => ui.forward()}
       >
         <ArrowRight size={16} />
       </button>
     </div>
-    <h1 class="titlebar-title">{ui.pageTitle}</h1>
+    <h1 class="titlebar-title">{i18n.section(ui.section)}</h1>
     <div class="titlebar-right">
       <UpdateIndicator />
       <TitlebarControls />
@@ -203,7 +204,7 @@
         max={SIDEBAR_MAX_WIDTH}
         defaultWidth={SIDEBAR_DEFAULT_WIDTH}
         direction="right"
-        label="Resize sidebar"
+        label={i18n.t("nav.resizeSidebar")}
         onChange={(w) => (ui.sidebarWidth = w)}
         onCommit={(w) => ui.setSidebarWidth(w)}
       />

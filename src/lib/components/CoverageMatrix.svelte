@@ -17,6 +17,7 @@
   import { corpus } from "$lib/stores/corpus.svelte";
   import { install, SUPPORTED_TOOLS } from "$lib/stores/install.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { i18n } from "$lib/i18n.svelte";
   import { toolShort } from "$lib/data/toolRegistry";
 
   const slugCat = $derived(new Map(corpus.agents.map((a) => [a.slug, a.category])));
@@ -67,27 +68,27 @@
 </script>
 
 {#if data.rows.length === 0}
-  <EmptyState title="No coverage yet" body="Install agents across your tools to see the cross-tool map here.">
+  <EmptyState title={i18n.t("empty.noCoverage")} body={i18n.t("empty.coverageMatrix")}>
     {#snippet icon()}<LayersIcon size={40} />{/snippet}
   </EmptyState>
 {:else}
   <div class="cm" style="--cols:{data.tools.length}">
     <!-- header -->
     <div class="cm-row cm-head">
-      <div class="cm-cat cm-corner">Division</div>
+      <div class="cm-cat cm-corner">{i18n.t("common.division")}</div>
       {#each data.tools as t (t.id)}
-        <div class="cm-th" title={`${t.label} · ${data.toolTotals[t.id] ?? 0} installed`}>
+        <div class="cm-th" title={i18n.t("coverage.toolInstalledTitle", { tool: t.label, count: i18n.number(data.toolTotals[t.id] ?? 0) })}>
           <span class="cm-th-l">{toolShort(t.id)}</span>
-          <span class="cm-th-n">{data.toolTotals[t.id] ?? 0}</span>
+          <span class="cm-th-n">{i18n.number(data.toolTotals[t.id] ?? 0)}</span>
         </div>
       {/each}
     </div>
     <!-- body -->
     {#each data.rows as r (r.cat)}
       <div class="cm-row">
-        <button class="cm-cat" title={`See all ${corpus.labelOf(r.cat)} agents`} onclick={() => ui.openDivision(r.cat)}>
+        <button class="cm-cat" title={i18n.t("coverage.seeDivision", { division: corpus.labelOf(r.cat) })} onclick={() => ui.openDivision(r.cat)}>
           <span class="truncate">{corpus.labelOf(r.cat)}</span>
-          <span class="cm-cat-n">{r.catTotal}</span>
+          <span class="cm-cat-n">{i18n.number(r.catTotal)}</span>
         </button>
         {#each data.tools as t (t.id)}
           {@const n = r.counts[t.id] ?? 0}
@@ -97,10 +98,10 @@
             class:strong={strong(frac)}
             class:empty={n === 0}
             style={cellStyle(frac)}
-            title={`${corpus.labelOf(r.cat)} × ${t.label}: ${n} of ${r.catTotal} (${Math.round(frac * 100)}%)`}
+            title={i18n.t("coverage.cellTitle", { division: corpus.labelOf(r.cat), tool: t.label, count: i18n.number(n), total: i18n.number(r.catTotal), percent: i18n.number(Math.round(frac * 100)) })}
             disabled={n === 0}
             onclick={() => ui.openDivision(r.cat)}
-          >{n > 0 ? n : ""}</button>
+          >{n > 0 ? i18n.number(n) : ""}</button>
         {/each}
       </div>
     {/each}

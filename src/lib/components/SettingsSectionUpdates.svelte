@@ -39,6 +39,7 @@
 
   import { settings } from "$lib/stores/settings.svelte";
   import { updater } from "$lib/stores/updater.svelte";
+  import { i18n } from "$lib/i18n.svelte";
   import { safeOpenUrl } from "$lib/util/url";
 
   /** Offline Mode gates both the manual button and the Install action.
@@ -88,44 +89,41 @@
       sensitive; falls back to "—" when never checked. */
   let lastCheckedLabel = $derived.by(() => {
     if (updater.lastChecked === null) return "—";
-    return new Date(updater.lastChecked).toLocaleString();
+    return i18n.dateTime(updater.lastChecked);
   });
 </script>
 
 <div class="section">
-  <h2>Updates</h2>
+  <h2>{i18n.t("updates.title")}</h2>
 
   <!-- Row 1: Check for updates now -->
   <div class="field">
-    <span class="field-label">Check for updates now</span>
+    <span class="field-label">{i18n.t("updates.checkNowLabel")}</span>
     <div class="row">
       <button
         type="button"
         class="btn-secondary"
         onclick={onCheckNow}
         disabled={offline || updater.checking}
-        title={offline ? "Disabled by Offline Mode" : "Check the manifest for a newer release"}
+        title={offline ? i18n.t("updates.disabledOffline") : i18n.t("updates.checkManifest")}
       >
         {#if updater.checking}
           <span class="spin"><Loader size={14} /></span>
-          Checking…
+          {i18n.t("common.checking")}
         {:else}
           <RefreshCw size={14} />
-          Check now
+          {i18n.t("updates.checkNow")}
         {/if}
       </button>
-      <span class="meta">Last checked: {lastCheckedLabel}</span>
+      <span class="meta">{i18n.t("updates.lastChecked", { time: lastCheckedLabel })}</span>
     </div>
     {#if offline}
       <p class="hint">
-        Offline Mode is on — manual update checks are blocked. Turn it off above
-        to check the manifest.
+        {i18n.t("updates.offlineHint")}
       </p>
     {:else}
       <p class="hint">
-        Fetches <code>agencyagents.app/updater.json</code> and
-        compares the published version to the one you're running. No
-        version number is sent.
+        {i18n.t("updates.checkHint")}
       </p>
     {/if}
   </div>
@@ -140,13 +138,9 @@
         disabled={settings.loading || settings.corruptOnDisk}
       />
       <span class="toggle-track" aria-hidden="true"></span>
-      <span class="toggle-label">Auto-check daily</span>
+      <span class="toggle-label">{i18n.t("updates.autoCheck")}</span>
     </label>
-    <p class="hint">
-      When on, Agency Agents checks the manifest once every 24 hours and
-      surfaces a notice in the title bar if a newer version is available.
-      Suspended automatically while Offline Mode is on.
-    </p>
+    <p class="hint">{i18n.t("updates.autoCheckHint")}</p>
   </div>
 
   <!-- Row 2b: Install updates automatically — present but disabled.
@@ -162,56 +156,52 @@
         aria-describedby="auto-install-hint"
       />
       <span class="toggle-track" aria-hidden="true"></span>
-      <span class="toggle-label">Install updates automatically</span>
+      <span class="toggle-label">{i18n.t("updates.autoInstall")}</span>
     </label>
-    <p class="hint" id="auto-install-hint">
-      Available once the update channel is live. When enabled, approved updates
-      will download, verify, and install in the background — you'll only be
-      prompted to relaunch.
-    </p>
+    <p class="hint" id="auto-install-hint">{i18n.t("updates.autoInstallHint")}</p>
   </div>
 
   <!-- Row 3: Update channel -->
   <div class="field">
-    <span class="field-label">Update channel</span>
+    <span class="field-label">{i18n.t("updates.channel")}</span>
     <div class="channel-row">
-      <span class="channel-name">Stable</span>
-      <span class="meta">No beta channel in this release.</span>
+      <span class="channel-name">{i18n.t("updates.stable")}</span>
+      <span class="meta">{i18n.t("updates.noBeta")}</span>
     </div>
   </div>
 
   <!-- Conditional: notice card when an update is available -->
   {#if info}
-    <div class="notice" role="region" aria-label={`Update available: Agency Agents ${info.version}`}>
+    <div class="notice" role="region" aria-label={i18n.t("updates.availableAria", { version: info.version })}>
       <div class="notice-head">
-        <strong>v{info.version} available</strong>
+        <strong>{i18n.t("updates.available", { version: info.version })}</strong>
         <button
           type="button"
           class="link"
           onclick={onOpenReleaseNotes}
-          aria-label="Open release notes in your browser"
+          aria-label={i18n.t("updates.openReleaseNotes")}
         >
-          Release notes <ExternalLink size={12} />
+          {i18n.t("updates.releaseNotes")} <ExternalLink size={12} />
         </button>
       </div>
 
       {#if updater.installComplete}
         <div class="result success">
           <CheckCircle size={16} />
-          <span>Install complete. Relaunch to use the new version.</span>
+          <span>{i18n.t("updates.installComplete")}</span>
         </div>
         <button
           type="button"
           class="btn-primary"
           onclick={onRelaunch}
-          title="Relaunch into the freshly-installed Agency Agents"
+          title={i18n.t("updates.relaunchTitle")}
         >
-          <RotateCw size={14} /> Relaunch now
+          <RotateCw size={14} /> {i18n.t("updates.relaunchNow")}
         </button>
       {:else if updater.installing}
         <div class="progress" role="status" aria-live="polite">
           <span class="spin"><Loader size={16} /></span>
-          <span>Downloading and verifying Agency Agents v{info.version}…</span>
+          <span>{i18n.t("updates.downloading", { version: info.version })}</span>
         </div>
       {:else if updater.error}
         <div class="result error">
@@ -223,9 +213,9 @@
           class="btn-secondary"
           onclick={onTryAgain}
           disabled={offline}
-          title={offline ? "Disabled by Offline Mode" : "Retry the install"}
+          title={offline ? i18n.t("updates.disabledOffline") : i18n.t("updates.tryAgain")}
         >
-          <RotateCw size={14} /> Try again
+          <RotateCw size={14} /> {i18n.t("updates.tryAgain")}
         </button>
       {:else}
         <button
@@ -233,9 +223,9 @@
           class="btn-primary"
           onclick={onInstall}
           disabled={offline}
-          title={offline ? "Disabled by Offline Mode" : `Download and install Agency Agents v${info.version}`}
+          title={offline ? i18n.t("updates.disabledOffline") : i18n.t("updates.downloadInstallTitle", { version: info.version })}
         >
-          <Download size={14} /> Install update
+          <Download size={14} /> {i18n.t("updates.installUpdate")}
         </button>
       {/if}
 
@@ -279,13 +269,6 @@
     font-size: var(--text-body-sm);
     color: var(--color-text-muted);
     line-height: var(--lh-snug);
-  }
-  .hint code {
-    font-family: var(--font-mono);
-    font-size: var(--text-mono);
-    padding: 1px 4px;
-    background: var(--color-surface-sunken);
-    border-radius: var(--radius-sm);
   }
   .row {
     display: inline-flex;

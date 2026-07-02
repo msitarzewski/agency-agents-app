@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { i18n } from "$lib/i18n.svelte";
+
   interface Props {
     rows?: number;
     label?: string;
   }
-  let { rows = 6, label = "Loading…" }: Props = $props();
+  let { rows = 6, label = i18n.t("common.loading") }: Props = $props();
 </script>
 
 <div class="loading" role="status" aria-live="polite">

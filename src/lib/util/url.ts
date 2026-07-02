@@ -12,6 +12,7 @@
  * Security audit §H1 (memory-bank/security.md) — keep this helper centralized
  * so every future caller picks up the same defense automatically.
  */
+import { i18n } from "$lib/i18n.svelte";
 import { toast } from "$lib/stores/toast.svelte";
 
 /** Schemes we will actually pass to the opener. Intentionally narrow. */
@@ -29,10 +30,10 @@ export function classifyUrl(url: string): { ok: true; url: string } | { ok: fals
   try {
     parsed = new URL(url);
   } catch {
-    return { ok: false, reason: "Invalid URL" };
+    return { ok: false, reason: i18n.t("error.invalidUrl") };
   }
   if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
-    return { ok: false, reason: `Refusing to open ${parsed.protocol} URL` };
+    return { ok: false, reason: i18n.t("error.refuseProtocol", { protocol: parsed.protocol }) };
   }
   return { ok: true, url: parsed.toString() };
 }

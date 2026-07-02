@@ -9,6 +9,8 @@
  * regression is visible during dev/testing.
  */
 
+import { i18n } from "$lib/i18n.svelte";
+
 const STORAGE_KEY = "agency-agents:teams:v1";
 
 export interface SavedTeam {
@@ -56,7 +58,7 @@ class TeamsStore {
   save(name: string, agents: string[]): SavedTeam {
     const team: SavedTeam = {
       id: crypto.randomUUID(),
-      name: name.trim() || "Untitled team",
+      name: name.trim() || i18n.t("teams.untitled"),
       agents: [...new Set(agents)],
       createdAt: new Date().toISOString(),
     };

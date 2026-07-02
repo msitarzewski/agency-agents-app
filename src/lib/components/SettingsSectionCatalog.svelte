@@ -24,6 +24,7 @@
   import { catalog } from "$lib/stores/catalog.svelte";
   import { github, type RepoStatsOutcome } from "$lib/stores/github.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { i18n } from "$lib/i18n.svelte";
   import { safeOpenUrl } from "$lib/util/url";
   import type { CatalogCandidate } from "$lib/types";
 
@@ -51,19 +52,19 @@
       await fn();
       toast.success(ok);
     } catch (e) {
-      toast.error("Catalog action failed", String(e));
+      toast.error(i18n.t("catalog.actionFailed"), String(e));
     }
   }
 
   async function pickFolder() {
-    const picked = await openDialog({ directory: true, multiple: false, title: "Choose your agency-agents clone" });
+    const picked = await openDialog({ directory: true, multiple: false, title: i18n.t("catalog.chooseClone") });
     if (typeof picked === "string") {
-      await run(() => catalog.useClone(picked, manage), "Switched to your clone");
+      await run(() => catalog.useClone(picked, manage), i18n.t("catalog.switchedClone"));
     }
   }
 
   function useCandidate(c: CatalogCandidate) {
-    void run(() => catalog.useClone(c.path, manage), `Switched to ${c.path}`);
+    void run(() => catalog.useClone(c.path, manage), i18n.t("firstRun.usingPath", { path: c.path }));
   }
 
   const isReadOnly = $derived(catalog.source.kind === "userClone" && !catalog.source.manage);
@@ -73,35 +74,46 @@
   function shortDate(iso: string | null): string {
     if (!iso) return "—";
     const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString();
+    return Number.isNaN(d.getTime()) ? iso : i18n.date(d);
+  }
+
+  function sourceLabel(): string {
+    switch (catalog.source.kind) {
+      case "bundled":
+        return i18n.t("catalog.source.bundled");
+      case "managed":
+        return i18n.t("catalog.source.managed");
+      case "userClone":
+        return catalog.source.manage ? i18n.t("catalog.source.userManaged") : i18n.t("catalog.source.userReadOnly");
+    }
   }
 </script>
 
 <div class="section">
-  <h2>Catalog</h2>
+  <h2>{i18n.t("catalog.title")}</h2>
 
   <!-- Source + git provenance -->
   <dl class="meta">
-    <div class="row"><dt>Source</dt><dd>{catalog.sourceLabel}</dd></div>
+    <div class="row"><dt>{i18n.t("catalog.source")}</dt><dd>{sourceLabel()}</dd></div>
     {#if catalog.sourcePath}
-      <div class="row"><dt>Path</dt><dd class="mono">{catalog.sourcePath}</dd></div>
+      <div class="row"><dt>{i18n.t("catalog.path")}</dt><dd class="mono">{catalog.sourcePath}</dd></div>
     {/if}
-    <div class="row"><dt>Agents</dt><dd>{st?.agentCount ?? catalog.status?.agentCount ?? "—"}</dd></div>
+    <div class="row"><dt>{i18n.t("catalog.agents")}</dt><dd>{st?.agentCount ?? catalog.status?.agentCount ?? "—"}</dd></div>
     {#if st?.isGit}
       <div class="row">
-        <dt>Commit</dt>
+        <dt>{i18n.t("catalog.commit")}</dt>
         <dd class="mono"><GitCommitHorizontal size={13} /> {st.commit}{st.branch ? ` (${st.branch})` : ""}</dd>
       </div>
       <div class="row">
-        <dt>Last change</dt>
+        <dt>{i18n.t("catalog.lastChange")}</dt>
         <dd>{st.lastCommitSubject ?? "—"} <span class="muted">· {shortDate(st.lastCommitDate)}</span></dd>
       </div>
       {#if st.dirtyCount > 0}
-        <div class="row"><dt>Local edits</dt><dd class="warn">{st.dirtyCount} uncommitted change{st.dirtyCount === 1 ? "" : "s"}</dd></div>
+        <div class="row"><dt>{i18n.t("catalog.localEdits")}</dt><dd class="warn">{i18n.t("catalog.uncommittedChanges", { count: st.dirtyCount, changes: i18n.plural(st.dirtyCount, "change", "changes", "изменение", "изменения", "изменений") })}</dd></div>
       {/if}
     {:else}
-      <div class="row"><dt>Version</dt><dd class="mono">{st?.version ?? "—"}</dd></div>
-      <div class="row"><dt>Fetched</dt><dd>{shortDate(st?.fetchedAt ?? null)}</dd></div>
+      <div class="row"><dt>{i18n.t("catalog.version")}</dt><dd class="mono">{st?.version ?? "—"}</dd></div>
+      <div class="row"><dt>{i18n.t("catalog.fetched")}</dt><dd>{shortDate(st?.fetchedAt ?? null)}</dd></div>
     {/if}
   </dl>
 
@@ -110,24 +122,24 @@
     <div class="sync-actions">
       {#if st?.isGit}
         <button class="ghost" disabled={catalog.checking || isReadOnly} onclick={() => catalog.checkUpdates()}>
-          <Search size={14} /><span>{catalog.checking ? "Checking…" : "Check for updates"}</span>
+          <Search size={14} /><span>{catalog.checking ? i18n.t("common.checking") : i18n.t("catalog.checkUpdates")}</span>
         </button>
       {/if}
-      <button class="primary" disabled={catalog.busy || isReadOnly} onclick={() => run(() => catalog.pull(), "Catalog updated")}>
-        <RefreshCw size={14} /><span>{catalog.busy ? "Working…" : st?.isGit ? "Pull latest" : "Refresh snapshot"}</span>
+      <button class="primary" disabled={catalog.busy || isReadOnly} onclick={() => run(() => catalog.pull(), i18n.t("catalog.updated"))}>
+        <RefreshCw size={14} /><span>{catalog.busy ? i18n.t("common.working") : st?.isGit ? i18n.t("catalog.pullLatest") : i18n.t("catalog.refreshSnapshot")}</span>
       </button>
-      {#if isReadOnly}<span class="hint">Read-only clone — turn on management below to pull.</span>{/if}
+      {#if isReadOnly}<span class="hint">{i18n.t("catalog.readOnly")}</span>{/if}
     </div>
 
     {#if uc}
       {#if !uc.isGit}
-        <p class="hint">This is a snapshot source — use Refresh to re-download the latest.</p>
+        <p class="hint">{i18n.t("catalog.snapshotHint")}</p>
       {:else if uc.upToDate}
-        <p class="ok">✓ Up to date{uc.ahead > 0 ? ` · ${uc.ahead} local commit${uc.ahead === 1 ? "" : "s"} ahead` : ""}.</p>
+        <p class="ok">✓ {i18n.t("catalog.upToDate")}{uc.ahead > 0 ? ` · ${i18n.t("catalog.localAhead", { count: uc.ahead, commits: i18n.commits(uc.ahead) })}` : ""}.</p>
       {:else}
         <div class="diff">
           <p class="diff-head">
-            <strong>{uc.behind}</strong> commit{uc.behind === 1 ? "" : "s"} behind · {uc.changedFiles} file{uc.changedFiles === 1 ? "" : "s"} would change
+            {i18n.t("catalog.behind", { behind: uc.behind, commits: i18n.commits(uc.behind), files: uc.changedFiles, fileWord: i18n.files(uc.changedFiles) })}
           </p>
           {#if uc.diffstat}<pre class="diffstat">{uc.diffstat}</pre>{/if}
         </div>
@@ -145,49 +157,49 @@
         </button>
         {#if repoStats.kind === "loaded"}
           <div class="gh-stats">
-            <span title="Stars"><Star size={13} /> {repoStats.stats.stars.toLocaleString()}</span>
-            <span title="Forks"><GitFork size={13} /> {repoStats.stats.forks.toLocaleString()}</span>
-            <span title="Open issues"><CircleDot size={13} /> {repoStats.stats.openIssues.toLocaleString()}</span>
+            <span title={i18n.t("catalog.stars")}><Star size={13} /> {i18n.number(repoStats.stats.stars)}</span>
+            <span title={i18n.t("catalog.forks")}><GitFork size={13} /> {i18n.number(repoStats.stats.forks)}</span>
+            <span title={i18n.t("catalog.openIssues")}><CircleDot size={13} /> {i18n.number(repoStats.stats.openIssues)}</span>
             {#if repoStats.stats.lastReleaseTag}<span class="rel">{repoStats.stats.lastReleaseTag}</span>{/if}
           </div>
         {:else if repoStats.kind === "rateLimited"}
-          <span class="hint">GitHub rate limit hit — sign in to lift it.</span>
+          <span class="hint">{i18n.t("catalog.rateLimit")}</span>
         {/if}
       </div>
 
       <div class="gh-auth">
         {#if github.status?.signedIn}
-          <span class="signed">Signed in as <strong>{github.status.username}</strong></span>
+          <span class="signed">{i18n.t("catalog.signedInAs")} <strong>{github.status.username}</strong></span>
         {:else}
           <button class="ghost" disabled={github.signinState.kind !== "idle"} onclick={() => github.signIn()}>
-            Sign in to GitHub
+            {i18n.t("catalog.signIn")}
           </button>
-          <span class="hint">Lifts the rate limit and enables starring the repo.</span>
+          <span class="hint">{i18n.t("catalog.signInHint")}</span>
         {/if}
       </div>
     </div>
   {/if}
 
   <!-- Switch source -->
-  <h3>Switch source</h3>
+  <h3>{i18n.t("catalog.switchSource")}</h3>
   <div class="cards">
-    <button class="card" disabled={catalog.busy} onclick={() => run(() => catalog.provisionManaged(), "Set up ~/.agency-agents")}>
+    <button class="card" disabled={catalog.busy} onclick={() => run(() => catalog.provisionManaged(), i18n.t("catalog.setUpManaged"))}>
       <Sparkles size={20} />
       <div class="ct">
-        <span class="t">Set up <code>~/.agency-agents</code></span>
-        <span class="d">App-managed clone (git if available, else a snapshot). Needs network.</span>
+        <span class="t">{i18n.t("catalog.setupManaged")}</span>
+        <span class="d">{i18n.t("catalog.setupManagedDesc")}</span>
       </div>
     </button>
-    <button class="card" disabled={catalog.busy} onclick={() => run(() => catalog.useBundled(), "Using the bundled snapshot")}>
+    <button class="card" disabled={catalog.busy} onclick={() => run(() => catalog.useBundled(), i18n.t("catalog.usingBundled"))}>
       <Package size={20} />
       <div class="ct">
-        <span class="t">Bundled snapshot</span>
-        <span class="d">Ships with the app, works offline.</span>
+        <span class="t">{i18n.t("catalog.bundledSnapshot")}</span>
+        <span class="d">{i18n.t("catalog.bundledDesc")}</span>
       </div>
     </button>
   </div>
 
-  <h3>Use your own clone</h3>
+  <h3>{i18n.t("catalog.useOwnClone")}</h3>
   {#if catalog.detection?.candidates.length}
     <ul class="cands">
       {#each catalog.detection.candidates as c (c.path)}
@@ -196,7 +208,7 @@
             <FolderGit2 size={15} />
             <div class="cand-main">
               <span class="cand-path">{c.path}</span>
-              <span class="cand-meta">{c.agentCount} agents{c.hasGit ? " · git" : ""}</span>
+              <span class="cand-meta">{c.agentCount} {i18n.agents(c.agentCount)}{c.hasGit ? " · git" : ""}</span>
             </div>
           </button>
         </li>
@@ -205,13 +217,13 @@
   {/if}
   <label class="manage">
     <input type="checkbox" bind:checked={manage} />
-    Let the app keep my clone updated (<code>git pull</code> / refresh). Off = read-only.
+    {i18n.t("catalog.manageClone")}
   </label>
   <div class="row-actions">
     <button class="ghost" disabled={catalog.scanning} onclick={() => catalog.detect(true)}>
-      <Search size={14} /><span>{catalog.scanning ? "Searching…" : "Find Agency Agents"}</span>
+      <Search size={14} /><span>{catalog.scanning ? i18n.t("common.searching") : i18n.t("catalog.findAgency")}</span>
     </button>
-    <button class="ghost" disabled={catalog.busy} onclick={pickFolder}>Choose folder…</button>
+    <button class="ghost" disabled={catalog.busy} onclick={pickFolder}>{i18n.t("catalog.chooseFolder")}</button>
   </div>
 
   {#if catalog.error}<p class="err">{catalog.error}</p>{/if}

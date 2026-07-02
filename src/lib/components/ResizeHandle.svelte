@@ -24,6 +24,8 @@
    * so direction = "left". The default fits Agency Agents' right-side detail pane.
    */
 
+  import { i18n } from "$lib/i18n.svelte";
+
   type Props = {
     width: number;
     min: number;
@@ -142,7 +144,7 @@
   onpointercancel={endDrag}
   onkeydown={onKeyDown}
   ondblclick={onDblClick}
-  title="Drag to resize · double-click to reset"
+  title={i18n.t("common.resizeTitle")}
 ></div>
 
 <style>

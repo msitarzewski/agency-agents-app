@@ -545,6 +545,8 @@ export type SidebarSection =
 
 export type ThemePreference = "light" | "dark" | "system";
 
+export type LocalePreference = "system" | "en" | "ru";
+
 /** Settings modal subsection. Kept in sync with Settings.svelte's
     internal section list — use this when deep-linking via
     `ui.openSettings(section)`. */

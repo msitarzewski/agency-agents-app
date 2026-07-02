@@ -3,6 +3,7 @@
   import Search from "@lucide/svelte/icons/search";
 
   import { ui } from "$lib/stores/ui.svelte";
+  import { i18n, type TranslationKey } from "$lib/i18n.svelte";
   import { shortcut } from "$lib/util/platform";
   import type { PaletteItem } from "$lib/types";
 
@@ -19,30 +20,32 @@
     }
   });
 
-  const commands: PaletteItem[] = [
-    { kind: "command", id: "dashboard", label: "Open Dashboard", shortcut: shortcut("0"), section: "Nav", run: () => ui.setSection("dashboard") },
-    { kind: "command", id: "personas",  label: "Open Agents",    shortcut: shortcut("1"), section: "Nav", run: () => ui.openAgents() },
-    { kind: "command", id: "tools",     label: "Open Tools",     shortcut: shortcut("2"), section: "Nav", run: () => ui.setSection("tools") },
-    { kind: "command", id: "teams",     label: "Open Teams",     shortcut: shortcut("3"), section: "Nav", run: () => ui.setSection("teams") },
-    { kind: "command", id: "projects",  label: "Open Projects",  shortcut: shortcut("4"), section: "Nav", run: () => ui.setSection("projects") },
-    { kind: "command", id: "activity",  label: "Open Activity",  shortcut: shortcut("5"), section: "Nav", run: () => ui.setSection("activity") },
-    { kind: "command", id: "drawer",    label: "Toggle Activity drawer", shortcut: shortcut("L"), section: "View", run: () => ui.toggleDrawer() },
-    { kind: "command", id: "playbook",  label: "Open the Playbook", section: "Help", run: () => ui.openPlaybook() },
+  type LocalPaletteItem = PaletteItem & { labelKey: TranslationKey; sectionKey: TranslationKey };
+
+  const commands: LocalPaletteItem[] = [
+    { kind: "command", id: "dashboard", label: "", labelKey: "palette.openDashboard", shortcut: shortcut("0"), section: "", sectionKey: "common.commands", run: () => ui.setSection("dashboard") },
+    { kind: "command", id: "personas",  label: "", labelKey: "palette.openAgents",    shortcut: shortcut("1"), section: "", sectionKey: "common.commands", run: () => ui.openAgents() },
+    { kind: "command", id: "tools",     label: "", labelKey: "palette.openTools",     shortcut: shortcut("2"), section: "", sectionKey: "common.commands", run: () => ui.setSection("tools") },
+    { kind: "command", id: "teams",     label: "", labelKey: "palette.openTeams",     shortcut: shortcut("3"), section: "", sectionKey: "common.commands", run: () => ui.setSection("teams") },
+    { kind: "command", id: "projects",  label: "", labelKey: "palette.openProjects",  shortcut: shortcut("4"), section: "", sectionKey: "common.commands", run: () => ui.setSection("projects") },
+    { kind: "command", id: "activity",  label: "", labelKey: "palette.openActivity",  shortcut: shortcut("5"), section: "", sectionKey: "common.commands", run: () => ui.setSection("activity") },
+    { kind: "command", id: "drawer",    label: "", labelKey: "palette.toggleActivityDrawer", shortcut: shortcut("L"), section: "", sectionKey: "common.view", run: () => ui.toggleDrawer() },
+    { kind: "command", id: "playbook",  label: "", labelKey: "palette.openPlaybook", section: "", sectionKey: "common.help", run: () => ui.openPlaybook() },
   ];
 
   let commandHits = $derived.by(() => {
     const q = query.trim().toLowerCase();
     if (!q) return commands;
-    return commands.filter((c) => c.kind === "command" && c.label.toLowerCase().includes(q));
+    return commands.filter((c) => c.kind === "command" && i18n.t(c.labelKey).toLowerCase().includes(q));
   });
 
-  type Group = { label: string; items: Array<{ item: PaletteItem; idx: number }> };
+  type Group = { label: string; items: Array<{ item: LocalPaletteItem; idx: number }> };
   let groups = $derived.by<Group[]>(() => {
     const out: Group[] = [];
     let idx = 0;
     if (commandHits.length > 0) {
       out.push({
-        label: "Commands",
+        label: i18n.t("common.commands"),
         items: commandHits.map((c) => ({ item: c, idx: idx++ })),
       });
     }
@@ -55,7 +58,7 @@
     if (selectedIdx >= totalItems) selectedIdx = Math.max(0, totalItems - 1);
   });
 
-  function activate(item: PaletteItem) {
+  function activate(item: LocalPaletteItem) {
     if (item.kind === "command") {
       item.run();
       ui.closePalette();
@@ -68,7 +71,7 @@
     if (e.key === "ArrowUp") { e.preventDefault(); selectedIdx = Math.max(0, selectedIdx - 1); }
     if (e.key === "Enter") {
       e.preventDefault();
-      let found: PaletteItem | undefined;
+      let found: LocalPaletteItem | undefined;
       for (const g of groups) {
         const hit = g.items.find((x) => x.idx === selectedIdx);
         if (hit) { found = hit.item; break; }
@@ -80,16 +83,16 @@
 
 {#if ui.paletteOpen}
   <div class="scrim" role="presentation" onclick={() => ui.closePalette()}></div>
-  <div class="palette" role="dialog" aria-modal="true" aria-label="Command palette">
+  <div class="palette" role="dialog" aria-modal="true" aria-label={i18n.t("palette.title")}>
     <div class="search">
       <Search size={16} />
       <input
         bind:this={inputEl}
         type="text"
-        placeholder="Type a command, package, or section."
+        placeholder={i18n.t("palette.placeholder")}
         bind:value={query}
         onkeydown={onKey}
-        aria-label="Command palette search"
+        aria-label={i18n.t("palette.searchAria")}
         role="combobox"
         aria-controls="palette-listbox"
         aria-expanded={totalItems > 0}
@@ -101,9 +104,9 @@
 
     <div class="results">
       {#if totalItems === 0}
-        <p class="empty">No results.</p>
+        <p class="empty">{i18n.t("common.noResults")}</p>
       {:else}
-        <div id="palette-listbox" role="listbox" aria-label="Command palette results">
+        <div id="palette-listbox" role="listbox" aria-label={i18n.t("palette.results")}>
           {#each groups as g (g.label)}
             <div class="group" role="group" aria-label={g.label}>
               <div class="group-label" aria-hidden="true">{g.label}</div>
@@ -118,7 +121,7 @@
                   onmouseenter={() => (selectedIdx = entry.idx)}
                   onclick={() => activate(item)}
                 >
-                  <span class="name">{item.label}</span>
+                  <span class="name">{i18n.t(item.labelKey)}</span>
                   {#if item.shortcut}<span class="meta kbd">{item.shortcut}</span>{/if}
                 </button>
               {/each}
@@ -129,9 +132,9 @@
     </div>
 
     <footer class="foot">
-      <span class="kbd">↑↓</span> navigate
-      <span class="kbd">⏎</span> open
-      <span class="kbd">Esc</span> close
+      <span class="kbd">↑↓</span> {i18n.t("palette.navigate")}
+      <span class="kbd">⏎</span> {i18n.t("palette.open")}
+      <span class="kbd">Esc</span> {i18n.t("palette.close")}
     </footer>
   </div>
 {/if}

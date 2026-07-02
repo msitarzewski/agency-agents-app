@@ -33,6 +33,7 @@
   import { projects } from "$lib/stores/projects.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { i18n } from "$lib/i18n.svelte";
   import { resolveCategoryIcon } from "$lib/util/categoryIcon";
   import type { InstalledAgent } from "$lib/types";
 
@@ -78,7 +79,7 @@
     }
     const out = [...m.entries()].map(([slug, rows]) => ({
       slug,
-      label: slug === OTHER ? "Other" : corpus.labelOf(slug),
+      label: slug === OTHER ? i18n.t("common.other") : corpus.labelOf(slug),
       color: slug === OTHER ? "#94A3B8" : corpus.colorOf(slug),
       icon: slug === OTHER ? "HelpCircle" : corpus.iconOf(slug),
       rows: rows.slice().sort((a, b) => a.name.localeCompare(b.name)),
@@ -113,7 +114,7 @@
     try {
       await install.revealPath(path);
     } catch (e) {
-      toast.error("Could not open folder", String(e));
+      toast.error(i18n.t("tools.couldNotOpenFolder"), String(e));
     }
   }
 
@@ -146,18 +147,18 @@
         <h2 class="dh-label">{selected.label}</h2>
         <button class="dh-path" title={selected.path} onclick={() => reveal(selected.path)}>{selected.path}</button>
       </div>
-      <span class="dh-count">{selected.installedCount} agent{selected.installedCount === 1 ? "" : "s"}</span>
-      <button class="btn" onclick={() => reveal(selected.path)}><FolderOpen size={15} /><span>Reveal</span></button>
-      <button class="btn primary" onclick={() => (browseFor = selected.path)}>Deploy…</button>
-      <button class="btn danger-ic" title="Remove from list" aria-label="Remove project from list" onclick={() => removeFromList(selected.path)}><Trash2 size={15} /></button>
+      <span class="dh-count">{i18n.number(selected.installedCount)} {i18n.agents(selected.installedCount)}</span>
+      <button class="btn" onclick={() => reveal(selected.path)}><FolderOpen size={15} /><span>{i18n.t("projects.reveal")}</span></button>
+      <button class="btn primary" onclick={() => (browseFor = selected.path)}>{i18n.t("projects.deploy")}</button>
+      <button class="btn danger-ic" title={i18n.t("projects.removeFromList")} aria-label={i18n.t("projects.removeFromListAria")} onclick={() => removeFromList(selected.path)}><Trash2 size={15} /></button>
     </header>
 
     <div class="scroll">
       {#if detailGroups.length === 0}
         <div class="d-empty">
           <LayersIcon size={40} />
-          <p>No agents deployed here yet.</p>
-          <Button variant="primary" onclick={() => (browseFor = selected.path)}>Deploy a division or team…</Button>
+          <p>{i18n.t("projects.emptyDetail")}</p>
+          <Button variant="primary" onclick={() => (browseFor = selected.path)}>{i18n.t("projects.deployDivisionOrTeam")}</Button>
         </div>
       {:else}
         <div class="groups">
@@ -189,28 +190,27 @@
   {:else}
     <!-- ── List ── -->
     <header class="pr-head">
-      <p class="pr-count">{projects.list.length} project{projects.list.length === 1 ? "" : "s"}</p>
+      <p class="pr-count">{i18n.t("projects.count", { count: i18n.number(projects.list.length), projects: i18n.projects(projects.list.length) })}</p>
       <div class="pr-actions">
         <button class="btn primary" disabled={adding} onclick={addProject}>
-          <FolderPlus size={15} /><span>Add project…</span>
+          <FolderPlus size={15} /><span>{i18n.t("projects.add")}</span>
         </button>
       </div>
     </header>
 
     {#if projects.list.length === 0}
       <div class="scroll">
-        <EmptyState title="No projects yet">
+        <EmptyState title={i18n.t("projects.emptyTitle")}>
           {#snippet icon()}<FolderIcon size={48} />{/snippet}
-          Install agents into a project — a folder with <strong>Claude</strong>, <strong>Codex</strong>,
-          or another tool — and that project shows up here with its roster. Work wherever you like:
-          <code>~/Software/*</code>, <code>~/Clean/*</code>, anywhere.
+          {i18n.t("projects.emptyBody")}
+          <code>~/Software/*</code>, <code>~/Clean/*</code>, {i18n.t("projects.emptyAnywhere")}
           {#snippet cta()}
             <div class="empty-cta">
               <Button variant="primary" disabled={adding} onclick={addProject}>
                 {#snippet icon()}<FolderPlus size={15} />{/snippet}
-                Add project…
+                {i18n.t("projects.add")}
               </Button>
-              <button class="link-btn" onclick={() => ui.openPlaybook()}>New to agents? Open the Playbook →</button>
+              <button class="link-btn" onclick={() => ui.openPlaybook()}>{i18n.t("projects.newToAgents")}</button>
             </div>
           {/snippet}
         </EmptyState>
@@ -225,7 +225,7 @@
                 <span class="proj-label">{project.label}</span>
                 <span class="proj-path" title={project.path}>{project.path}</span>
               </span>
-              <span class="proj-count">{project.installedCount} agent{project.installedCount === 1 ? "" : "s"}</span>
+              <span class="proj-count">{i18n.number(project.installedCount)} {i18n.agents(project.installedCount)}</span>
               <ChevronRight size={16} class="proj-go" />
             </button>
           </li>

@@ -35,6 +35,7 @@
   import { github } from "$lib/stores/github.svelte";
   import { safeOpenUrl } from "$lib/util/url";
   import { toast } from "$lib/stores/toast.svelte";
+  import { i18n } from "$lib/i18n.svelte";
   // NOTE: `toast` is still used inside copyCode()'s clipboard handlers
   // (Code copied to clipboard / Couldn't copy code). Those are
   // event-handler-driven imperative toasts — the correct Svelte 5
@@ -91,8 +92,8 @@
     if (github.signinState.kind !== "waiting") return;
     const code = github.signinState.userCode;
     void navigator.clipboard.writeText(code).then(
-      () => toast.success("Code copied to clipboard"),
-      () => toast.error("Couldn't copy code"),
+      () => toast.success(i18n.t("github.codeCopied")),
+      () => toast.error(i18n.t("github.codeCopyFailed")),
     );
   }
 
@@ -122,11 +123,11 @@
 
 {#if isOpen}
   <div class="scrim" role="presentation" onclick={onCancel}></div>
-  <div class="wrap" role="dialog" aria-modal="true" aria-label="Sign in to GitHub">
+  <div class="wrap" role="dialog" aria-modal="true" aria-label={i18n.t("github.signInDialog")}>
     <div class="modal">
       <header>
-        <h2>Sign in to GitHub</h2>
-        <button class="close" aria-label="Cancel sign in" onclick={onCancel}>
+        <h2>{i18n.t("github.signInDialog")}</h2>
+        <button class="close" aria-label={i18n.t("github.cancelSignIn")} onclick={onCancel}>
           <X size={16} />
         </button>
       </header>
@@ -135,49 +136,49 @@
         {#if github.signinState.kind === "starting"}
           <div class="status">
             <Loader size={18} class="spin" />
-            <span>Contacting GitHub…</span>
+            <span>{i18n.t("github.contacting")}</span>
           </div>
         {:else if github.signinState.kind === "waiting"}
           <ol class="steps">
             <li>
-              Open
+              {i18n.t("github.openDevicePrefix")}
               <button class="link" type="button" onclick={openVerification}>
                 {github.signinState.verificationUri}
                 <ExternalLink size={12} />
               </button>
-              in your browser.
+              {i18n.t("github.openDeviceSuffix")}
             </li>
-            <li>Enter this code:</li>
+            <li>{i18n.t("github.enterCode")}</li>
           </ol>
-          <button class="code" type="button" onclick={copyCode} title="Click to copy">
+          <button class="code" type="button" onclick={copyCode} title={i18n.t("github.copyCodeTitle")}>
             {github.signinState.userCode}
           </button>
-          <p class="hint">Click the code to copy it.</p>
+          <p class="hint">{i18n.t("github.copyCodeHint")}</p>
 
           <div class="status">
             <Loader size={16} class="spin" />
-            <span>Waiting for authorization…</span>
+            <span>{i18n.t("github.waitingAuth")}</span>
           </div>
 
           {#if remainingSeconds !== null}
             <p class="expires">
-              Code expires in {Math.floor(remainingSeconds / 60)}m {remainingSeconds % 60}s.
+              {i18n.t("github.codeExpires", { minutes: i18n.number(Math.floor(remainingSeconds / 60)), seconds: i18n.number(remainingSeconds % 60) })}
             </p>
           {/if}
         {:else if github.signinState.kind === "approved"}
           <div class="status status-ok">
             <CircleCheck size={20} />
-            <span>Signed in as @{github.status?.username ?? "github user"}.</span>
+            <span>{i18n.t("github.signedInAsShort", { user: github.status?.username ?? i18n.t("github.userFallback") })}</span>
           </div>
         {:else if github.signinState.kind === "denied"}
           <div class="status status-bad">
             <CircleX size={20} />
-            <span>Sign-in denied.</span>
+            <span>{i18n.t("github.signInDenied")}</span>
           </div>
         {:else if github.signinState.kind === "expired"}
           <div class="status status-bad">
             <TriangleAlert size={20} />
-            <span>Code expired. Please try again.</span>
+            <span>{i18n.t("github.codeExpired")}</span>
           </div>
         {:else if github.signinState.kind === "error"}
           <div class="status status-bad">
@@ -190,8 +191,8 @@
       <footer>
         <button type="button" class="btn-secondary" onclick={onCancel}>
           {github.signinState.kind === "waiting" || github.signinState.kind === "starting"
-            ? "Cancel"
-            : "Close"}
+            ? i18n.t("common.cancel")
+            : i18n.t("common.close")}
         </button>
       </footer>
     </div>

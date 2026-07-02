@@ -11,6 +11,7 @@
   import { install, SUPPORTED_TOOLS } from "$lib/stores/install.svelte";
   import { projects } from "$lib/stores/projects.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { i18n } from "$lib/i18n.svelte";
   import { toolAccent, toolLabel } from "$lib/data/toolRegistry";
   import HealthDonut from "./HealthDonut.svelte";
   import CoverageDonuts from "./CoverageDonuts.svelte";
@@ -43,11 +44,11 @@
     return c;
   });
   const healthSegments = $derived([
-    { label: "In sync",   value: byState.current,  color: "var(--color-success)", onClick: () => ui.openAgents(null, "current") },
-    { label: "Outdated",  value: byState.outdated,  color: "var(--color-warning)", onClick: () => ui.openAgents(null, "outdated") },
-    { label: "Modified",  value: byState.modified,  color: "color-mix(in srgb, var(--color-warning) 55%, var(--color-danger))", onClick: () => ui.openAgents(null, "outdated") },
-    { label: "Untracked", value: byState.foreign,   color: "var(--color-brand)",   onClick: () => ui.openAgents(null, "foreign") },
-    { label: "Missing",   value: byState.removed,   color: "var(--color-danger)",  onClick: () => ui.openAgents(null, "removed") },
+    { label: i18n.t("state.current"),  value: byState.current,  color: "var(--color-success)", onClick: () => ui.openAgents(null, "current") },
+    { label: i18n.t("state.outdated"), value: byState.outdated, color: "var(--color-warning)", onClick: () => ui.openAgents(null, "outdated") },
+    { label: i18n.t("state.modified"), value: byState.modified, color: "color-mix(in srgb, var(--color-warning) 55%, var(--color-danger))", onClick: () => ui.openAgents(null, "outdated") },
+    { label: i18n.t("state.foreign"),  value: byState.foreign,  color: "var(--color-brand)",   onClick: () => ui.openAgents(null, "foreign") },
+    { label: i18n.t("state.removed"),  value: byState.removed,  color: "var(--color-danger)",  onClick: () => ui.openAgents(null, "removed") },
   ]);
 
   // ── Coverage by tool — only tools that actually hold agents (less noise) ──
@@ -95,8 +96,8 @@
       .map(([path, value], i) => ({ label: basename(path), value, color: projectColor(i), onClick: () => ui.selectProject(path) }));
   });
   const sunburstGroups = $derived([
-    { label: "Global", value: globalRows.length, color: "var(--color-brand)", onClick: () => ui.setSection("tools"), children: globalByTool },
-    { label: "Projects", value: projectRows.length, color: "var(--color-success)", onClick: () => ui.setSection("projects"), children: projByProject },
+    { label: i18n.t("common.global"), value: globalRows.length, color: "var(--color-brand)", onClick: () => ui.setSection("tools"), children: globalByTool },
+    { label: i18n.t("common.projects"), value: projectRows.length, color: "var(--color-success)", onClick: () => ui.setSection("projects"), children: projByProject },
   ]);
 
   // ── Projects list with per-division breakdown (project-scoped installs). ──
@@ -128,35 +129,35 @@
   <div class="stats">
     <button class="stat" onclick={() => ui.openAgents()}>
       <span class="s-num">{available}</span>
-      <span class="s-lbl">agents available</span>
+      <span class="s-lbl">{i18n.t("dashboard.available")}</span>
     </button>
     <button class="stat" onclick={() => ui.openAgents()}>
       <span class="s-num">{managed}</span>
-      <span class="s-lbl">Total Installed</span>
+      <span class="s-lbl">{i18n.t("dashboard.totalInstalled")}</span>
       {#if fromOtherTools > 0}
-        <span class="s-sub">{trackedByApp} via this app · {fromOtherTools} other tools</span>
+        <span class="s-sub">{i18n.t("dashboard.viaThisApp", { tracked: trackedByApp, other: fromOtherTools })}</span>
       {/if}
     </button>
     {#if attention > 0}
       <button class="stat warn" onclick={() => ui.openAgents(null, "attention")}>
         <span class="s-num">{attention}</span>
-        <span class="s-lbl">need attention</span>
+        <span class="s-lbl">{i18n.t("dashboard.needAttention")}</span>
       </button>
     {/if}
     {#if foreign > 0}
       <button class="stat info" onclick={() => ui.openAgents(null, "foreign")}>
         <span class="s-num">{foreign}</span>
-        <span class="s-lbl">found to track</span>
+        <span class="s-lbl">{i18n.t("dashboard.foundToTrack")}</span>
       </button>
     {/if}
   </div>
 
   <div class="cols">
     <div class="card">
-      <h3 class="c-title">Total Installed</h3>
+      <h3 class="c-title">{i18n.t("dashboard.totalInstalled")}</h3>
       <div class="card-fill center">
         {#if managed === 0}
-          <p class="muted">Nothing installed yet — deploy an agent and it'll show up here.</p>
+          <p class="muted">{i18n.t("dashboard.emptyInstalled")}</p>
         {:else}
           <InstallSunburst groups={sunburstGroups} />
         {/if}
@@ -164,12 +165,12 @@
     </div>
 
     <div class="card">
-      <h3 class="c-title">Projects</h3>
+      <h3 class="c-title">{i18n.t("dashboard.projects")}</h3>
       <div class="card-fill">
         {#if projectBreakdown.length === 0}
         <p class="muted">
-          No project-scoped installs yet.
-          <button class="link inline" onclick={() => ui.setSection("projects")}>Open Projects →</button>
+          {i18n.t("dashboard.noProjectInstalls")}
+          <button class="link inline" onclick={() => ui.setSection("projects")}>{i18n.t("dashboard.openProjects")}</button>
         </p>
       {:else}
         <ul class="proj-list">
@@ -178,7 +179,7 @@
               <button class="proj-row" onclick={() => ui.selectProject(p.path)} title={p.path}>
                 <span class="proj-top">
                   <span class="proj-name">{p.label}</span>
-                  <span class="proj-total">{p.total} agent{p.total === 1 ? "" : "s"}</span>
+                  <span class="proj-total">{i18n.t("dashboard.projectAgents", { count: p.total, agents: i18n.agents(p.total) })}</span>
                 </span>
                 <span class="proj-bar">
                   {#each p.divisions as d (d.slug)}
@@ -189,7 +190,7 @@
                   {#each p.divisions.slice(0, 4) as d (d.slug)}
                     <span class="proj-div"><span class="pd-dot" style="background:{d.color}"></span>{d.label} {d.count}</span>
                   {/each}
-                  {#if p.divisions.length > 4}<span class="proj-div more">+{p.divisions.length - 4} more</span>{/if}
+                  {#if p.divisions.length > 4}<span class="proj-div more">{i18n.t("common.more", { count: p.divisions.length - 4 })}</span>{/if}
                 </span>
               </button>
             </li>
@@ -202,10 +203,10 @@
 
   <div class="cols">
     <div class="card">
-      <h3 class="c-title">Install health</h3>
+      <h3 class="c-title">{i18n.t("dashboard.installHealth")}</h3>
       <div class="card-fill center">
         {#if totalInstalls === 0}
-          <p class="muted">Nothing installed yet — deploy an agent to see its health here.</p>
+          <p class="muted">{i18n.t("dashboard.emptyHealth")}</p>
         {:else}
           <HealthDonut segments={healthSegments} />
         {/if}
@@ -213,15 +214,15 @@
     </div>
 
     <div class="card">
-      <h3 class="c-title">Coverage by tool</h3>
+      <h3 class="c-title">{i18n.t("dashboard.coverageByTool")}</h3>
       <div class="card-fill">
         {#if perTool.length === 0}
-        <p class="muted">No agents installed yet — deploy one and it'll show up here.</p>
+        <p class="muted">{i18n.t("dashboard.emptyCoverage")}</p>
       {:else}
         <ul class="bars">
           {#each perTool as t (t.id)}
             <li>
-              <button class="bar-btn" onclick={() => ui.openTools(t.id)} title={t.detected ? "Detected on this device" : "Not detected on this device"}>
+              <button class="bar-btn" onclick={() => ui.openTools(t.id)} title={t.detected ? i18n.t("common.detectedDevice") : i18n.t("common.notDetectedDevice")}>
                 <span class="tool-dot" class:off={!t.detected}></span>
                 <span class="bar-label">{t.label}</span>
                 <span class="bar-track"><span class="bar-fill" style="width:{(t.count / maxTool) * 100}%"></span></span>
@@ -232,15 +233,15 @@
         </ul>
       {/if}
       </div>
-      <button class="link" onclick={() => ui.setSection("tools")}>Manage tools →</button>
+      <button class="link" onclick={() => ui.setSection("tools")}>{i18n.t("dashboard.manageTools")}</button>
     </div>
   </div>
 
   <div class="card">
-    <h3 class="c-title">Cross-tool coverage</h3>
+    <h3 class="c-title">{i18n.t("dashboard.crossToolCoverage")}</h3>
     <CoverageDonuts bind:hovered={divisionHover} />
     <div class="merge-sep">
-      <span class="merge-cap">Catalog by division</span>
+      <span class="merge-cap">{i18n.t("dashboard.catalogByDivision")}</span>
     </div>
     <CatalogByDivision bind:hovered={divisionHover} />
   </div>

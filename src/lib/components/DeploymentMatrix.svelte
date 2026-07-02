@@ -8,8 +8,9 @@
    *
    * Pills for `foreign`/`modified`/`outdated` installs are clickable — they open
    * the diff so you can see how the on-disk file departs from the catalog.
-   */
+  */
   import { install } from "$lib/stores/install.svelte";
+  import { i18n, type TranslationKey } from "$lib/i18n.svelte";
   import type { Agent, InstallState, Tool } from "$lib/types";
 
   let {
@@ -28,6 +29,13 @@
   );
 
   const DIFFABLE: InstallState[] = ["foreign", "modified", "outdated"];
+  const STATE_KEY: Record<InstallState, TranslationKey> = {
+    current: "state.current",
+    outdated: "state.outdated",
+    modified: "state.modified",
+    foreign: "state.foreign",
+    removed: "state.removed",
+  };
   function tone(s: InstallState): string {
     if (s === "current") return "ok";
     if (s === "outdated" || s === "modified") return "warn";
@@ -48,7 +56,7 @@
         class:link={diffable}
         data-tone={tone(r.state)}
         disabled={!diffable}
-        title={`${install.toolLabel(r.tool)}${r.projectPath ? " · " + basename(r.projectPath) : ""} · ${r.state}${diffable ? " — click to see changes" : ""}`}
+        title={`${install.toolLabel(r.tool)}${r.projectPath ? " · " + basename(r.projectPath) : ""} · ${i18n.t(STATE_KEY[r.state])}${diffable ? ` - ${i18n.t("deployment.clickDiff")}` : ""}`}
         onclick={() => diffable && onDiff({ slug: r.slug, tool: r.tool, projectPath: r.projectPath, name: agent.name })}
       >
         <span class="pdot" data-tone={tone(r.state)}></span>
@@ -57,7 +65,7 @@
     {/each}
   </div>
 {:else}
-  <p class="none">Not deployed anywhere yet</p>
+  <p class="none">{i18n.t("deployment.none")}</p>
 {/if}
 
 <style>

@@ -11,6 +11,8 @@ export interface Practice {
   body: string;
 }
 
+export type ContentLocale = "en" | "ru";
+
 /** The five habits that turn a pile of agents into shipped, tested work. */
 export const PLAYBOOK_PRACTICES: Practice[] = [
   {
@@ -32,6 +34,29 @@ export const PLAYBOOK_PRACTICES: Practice[] = [
   {
     title: "Start with one, then scale",
     body: "New to this? Install one agent into one project and give it one task. Watch it work — then graduate to a team and the loop.",
+  },
+];
+
+const PLAYBOOK_PRACTICES_RU: Practice[] = [
+  {
+    title: "Описывайте результат, а не шаги",
+    body: "Скажите команде, как выглядит готовая работа: какой артефакт нужен и по каким признакам понятно, что он завершён. Дайте агентам самим спланировать путь. Чем конкретнее критерий готовности, тем лучше результат.",
+  },
+  {
+    title: "Собирайте команду, а не солиста",
+    body: "Один агент похож на подрядчика; команда работает как студия. Установите команду или целый раздел, чтобы создатель и критик работали вместе: соедините исполнителя с Code Reviewer и Reality Checker, чтобы решения не проходили без проверки.",
+  },
+  {
+    title: "Повторяйте цикл до проверенного результата",
+    body: "«Компилируется» ещё не значит «готово». Завершайте цикл только на доказательствах: проверка в браузере, функциональные и unit-тесты, пентест там, где он применим. Просите не обещания, а подтверждения.",
+  },
+  {
+    title: "Давайте контекст",
+    body: "На входе мусор - на выходе мусор. Сразу укажите репозиторий, ограничения и критерии успеха. Пять минут контекста лучше пятидесяти уточняющих промптов.",
+  },
+  {
+    title: "Начните с одного агента, затем масштабируйте",
+    body: "Если вы только начинаете, установите одного агента в один проект и дайте ему одну задачу. Посмотрите, как он работает, а затем переходите к команде и циклу.",
   },
 ];
 
@@ -67,6 +92,30 @@ export const STARTER_PROMPTS: StarterPromptDef[] = [
   },
 ];
 
+const STARTER_PROMPTS_RU: StarterPromptDef[] = [
+  {
+    id: "build-test-loop",
+    label: "Цикл сборки и проверки",
+    description: "Основной сценарий: соберите команду и не останавливайтесь, пока результат не доказан.",
+    template:
+      "Используйте всех доступных агентов как команду и работайте в цикле, пока [результат работы] не будет собран и проверен: в браузере, функционально, unit-тестами и пентестом там, где это применимо. Не останавливайтесь, пока все проверки не пройдут; покажите доказательства по каждой.",
+  },
+  {
+    id: "review-pass",
+    label: "Ревью-проход",
+    description: "Исполнитель, ревьюер и скептик помогут поймать то, что пропускает одиночная проверка.",
+    template:
+      "Проверьте [изменение или файл]. Пусть Code Reviewer оценит корректность, безопасность и поддерживаемость, а Reality Checker независимо подтвердит каждую находку доказательствами. Покажите только проблемы, которые выдержали проверку, в порядке серьёзности.",
+  },
+  {
+    id: "discovery-pass",
+    label: "Discovery-проход",
+    description: "Исследуйте и разложите работу по порядку до начала разработки.",
+    template:
+      "Перед разработкой исследуйте [проблему]. Пусть Trend Researcher и Feedback Synthesizer опишут рынок и потребности пользователей, а Sprint Prioritizer превратит это в последовательный план с понятной первой вехой. Отдельно укажите предположения и открытые вопросы.",
+  },
+];
+
 /**
  * Curated example tasks per preset team (keyed by the team's slug in
  * `presetTeams.ts`). Each is a ready starting prompt that shows what that squad
@@ -92,6 +141,29 @@ export const TEAM_EXAMPLES: Record<string, string[]> = {
   "ai-builders": [
     "Design and build [AI feature] on a solid data + prompt foundation: schema, retrieval, prompts, and evals — loop until the evals pass on a held-out set.",
     "Harden our prompts for [use case]: write a suite of test cases, measure the pass rate, and iterate until it's reliable.",
+  ],
+};
+
+const TEAM_EXAMPLES_RU: Record<string, string[]> = {
+  "mobile-launch": [
+    "Доведите прототип в [path] до TestFlight-ready сборки: реализуйте основной flow, отполируйте UI и повторяйте цикл, пока приложение чисто запускается в симуляторе, а unit + UI-тесты проходят.",
+    "Подготовьте страницу App Store: название, subtitle, ключевые слова и план скриншотов для [category]; проверьте текст по ASO best practices.",
+  ],
+  "ship-web-app": [
+    "Соберите [feature] end to end: API, frontend и тесты, затем подключите CI и деплой; повторяйте цикл, пока staging зелёный с функциональным и unit-покрытием.",
+    "Проведите аудит production readiness для [app]: health checks, error budgets и rollback plan. Выведите пробелы с исправлениями, отсортированными по риску.",
+  ],
+  "growth-squad": [
+    "Проаудируйте [landing page URL] и выпустите 3 A/B-варианта с настроенным tracking; повторяйте цикл, пока каждый вариант не будет живым и измеримым.",
+    "Составьте двухнедельный content + social calendar для привлечения регистраций в [product]: SEO-посты и нативные hooks для TikTok и Instagram.",
+  ],
+  "product-discovery": [
+    "Сведите [feedback source] к топ-5 возможностям, оцените каждую и подготовьте последовательный roadmap с чёткой первой вехой.",
+    "Исследуйте, что конкуренты выпускают для [problem], и порекомендуйте, что нам строить дальше, с явными предположениями и рисками.",
+  ],
+  "ai-builders": [
+    "Спроектируйте и соберите [AI feature] на прочной базе данных и промптов: schema, retrieval, prompts и evals; повторяйте цикл, пока evals не пройдут на hold-out наборе.",
+    "Укрепите промпты для [use case]: напишите набор тест-кейсов, измерьте pass rate и итеративно доведите до надёжного результата.",
   ],
 };
 
@@ -139,8 +211,67 @@ export const DIVISION_PROMPTS: Record<string, string> = {
     "Use the Testing division as a team to build [the test plan or suite] for [system] — loop until coverage hits the critical paths, edge cases are covered, and the suite runs green and deterministic.",
 };
 
+const DIVISION_PROMPTS_RU: Record<string, string> = {
+  academic:
+    "Используйте раздел Academic как команду, чтобы исследовать [topic] и подготовить подкреплённый литературой [paper/report]; повторяйте цикл, пока каждое утверждение не будет процитировано, а аргумент не станет готовым к peer review.",
+  design:
+    "Используйте раздел Design как команду, чтобы довести [feature or screen] от брифа до отполированного, доступного UI; повторяйте цикл, пока визуальный дизайн, текст и usability pass не будут приняты.",
+  engineering:
+    "Используйте раздел Engineering как команду и работайте в цикле, пока [the feature] не будет реализована и проверена: functional, unit, integration и security pass, все проверки зелёные.",
+  finance:
+    "Используйте раздел Finance как команду, чтобы собрать [the model or budget]; повторяйте цикл, пока цифры не сойдутся, предположения не будут задокументированы, а scenario analysis не выдержит проверку.",
+  "game-development":
+    "Используйте раздел Game Development как команду, чтобы прототипировать [the mechanic]; повторяйте цикл, пока это не станет playable, fun-tested и не уложится в performance budget.",
+  gis:
+    "Используйте раздел GIS как команду, чтобы построить [the map or analysis] на основе [data]; повторяйте цикл, пока данные не будут очищены, projection не будет корректной, а результат не будет validated.",
+  marketing:
+    "Используйте раздел Marketing как команду, чтобы спланировать и подготовить [the campaign]; повторяйте цикл, пока messaging, channels, assets и success metrics не будут готовы.",
+  "paid-media":
+    "Используйте раздел Paid Media как команду, чтобы собрать [the ad campaign] для [channels]; повторяйте цикл, пока targeting, creative, conversion tracking и budget/bid plan не будут настроены.",
+  product:
+    "Используйте раздел Product как команду, чтобы превратить [the problem] в последовательный план; повторяйте цикл, пока opportunity не будет оценена, scoped и не получит чёткую первую веху.",
+  "project-management":
+    "Используйте раздел Project Management как команду, чтобы спланировать [the initiative]; повторяйте цикл, пока scope, timeline, risks, owners и dependencies не будут определены.",
+  sales:
+    "Используйте раздел Sales как команду, чтобы собрать [the outbound motion or deal strategy] для [target]; повторяйте цикл, пока ICP, messaging, sequence и ответы на вероятные objections не будут готовы.",
+  security:
+    "Используйте раздел Security как команду, чтобы оценить [the system]; повторяйте цикл, пока threats не будут смоделированы, каждая находка не будет подтверждена доказательствами, а remediation не будет приоритизирована.",
+  "spatial-computing":
+    "Используйте раздел Spatial Computing как команду, чтобы прототипировать [the AR/VR experience]; повторяйте цикл, пока interaction model не заработает, performance budget не будет соблюдён, а comfort не будет проверен.",
+  specialized:
+    "Используйте раздел Specialized как команду, чтобы доставить [the outcome]; повторяйте цикл, пока результат не будет создан, проверен относительно цели и подтверждён доказательствами.",
+  strategy:
+    "Используйте раздел Strategy как команду, чтобы разработать [the strategy] для [goal]; повторяйте цикл, пока analysis, options и recommended path с trade-offs не станут ясными.",
+  support:
+    "Используйте раздел Support как команду, чтобы обработать [the support workflow]; повторяйте цикл, пока ответы не станут точными, тон не будет соответствовать бренду, а escalation paths не будут описаны.",
+  testing:
+    "Используйте раздел Testing как команду, чтобы собрать [the test plan or suite] для [system]; повторяйте цикл, пока coverage не закрывает critical paths и edge cases, а suite не запускается зелёно и детерминированно.",
+};
+
+function isRu(locale: ContentLocale): boolean {
+  return locale === "ru";
+}
+
+export function playbookPractices(locale: ContentLocale): Practice[] {
+  return isRu(locale) ? PLAYBOOK_PRACTICES_RU : PLAYBOOK_PRACTICES;
+}
+
+export function starterPrompts(locale: ContentLocale): StarterPromptDef[] {
+  return isRu(locale) ? STARTER_PROMPTS_RU : STARTER_PROMPTS;
+}
+
+export function teamExamples(slug: string, locale: ContentLocale): string[] {
+  return (isRu(locale) ? TEAM_EXAMPLES_RU : TEAM_EXAMPLES)[slug] ?? [];
+}
+
 /** The division's curated prompt, or a craft-neutral loop fallback. */
-export function divisionPrompt(slug: string, label: string): string {
+export function divisionPrompt(slug: string, label: string, locale: ContentLocale = "en"): string {
+  if (isRu(locale)) {
+    return (
+      DIVISION_PROMPTS_RU[slug] ??
+      `Используйте раздел «${label}» как команду и работайте в цикле, пока [результат работы] не будет готов и проверен относительно цели.`
+    );
+  }
   return (
     DIVISION_PROMPTS[slug] ??
     `Use the ${label} division as a team and work in a loop until [the work product] is done and reviewed against the goal.`

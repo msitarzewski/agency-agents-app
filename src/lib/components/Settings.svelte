@@ -27,6 +27,7 @@
   import Info from "@lucide/svelte/icons/info";
 
   import { ui } from "$lib/stores/ui.svelte";
+  import { i18n, type TranslationKey } from "$lib/i18n.svelte";
   import SettingsSectionAppearance from "./SettingsSectionAppearance.svelte";
   import SettingsSectionCatalog from "./SettingsSectionCatalog.svelte";
   import SettingsSectionNetwork from "./SettingsSectionNetwork.svelte";
@@ -37,17 +38,17 @@
 
   interface NavEntry {
     id: SettingsSection;
-    label: string;
+    labelKey: TranslationKey;
     icon: typeof Paintbrush;
   }
 
   const NAV: NavEntry[] = [
-    { id: "appearance", label: "Appearance", icon: Paintbrush },
-    { id: "catalog",    label: "Catalog",    icon: Library },
-    { id: "network",    label: "Network",    icon: Globe },
-    { id: "github",     label: "GitHub",     icon: Github },
-    { id: "activity",   label: "Activity",   icon: Activity },
-    { id: "about",      label: "About",      icon: Info },
+    { id: "appearance", labelKey: "settings.appearance", icon: Paintbrush },
+    { id: "catalog",    labelKey: "settings.catalog",    icon: Library },
+    { id: "network",    labelKey: "settings.network",    icon: Globe },
+    { id: "github",     labelKey: "settings.github",     icon: Github },
+    { id: "activity",   labelKey: "settings.activity",   icon: Activity },
+    { id: "about",      labelKey: "settings.about",      icon: Info },
   ];
 
   let activeSection: SettingsSection = $state("appearance");
@@ -109,15 +110,15 @@
     class="settings-wrap"
     role="dialog"
     aria-modal="true"
-    aria-label="Settings"
+    aria-label={i18n.t("settings.title")}
   >
     <div
       class="settings"
       bind:this={modalEl}
       data-tauri-drag-region="false"
     >
-      <div class="nav" role="tablist" aria-label="Settings sections">
-        <h1 class="nav-title">Settings</h1>
+      <div class="nav" role="tablist" aria-label={i18n.t("settings.sections")}>
+        <h1 class="nav-title">{i18n.t("settings.title")}</h1>
         <ul>
           {#each NAV as entry (entry.id)}
             {@const isActive = activeSection === entry.id}
@@ -132,7 +133,7 @@
                 onclick={() => (activeSection = entry.id)}
               >
                 <span class="nav-icon" aria-hidden="true"><entry.icon size={14} /></span>
-                <span>{entry.label}</span>
+                <span>{i18n.t(entry.labelKey)}</span>
               </button>
             </li>
           {/each}
@@ -143,12 +144,12 @@
         class="pane"
         id="settings-pane"
         role="tabpanel"
-        aria-label={`Settings — ${activeSection}`}
+        aria-label={i18n.t("settings.paneLabel", { section: i18n.t(NAV.find((entry) => entry.id === activeSection)?.labelKey ?? "settings.appearance") })}
       >
         <button
           type="button"
           class="close"
-          aria-label="Close Settings"
+          aria-label={i18n.t("settings.close")}
           onclick={() => ui.closeSettings()}
         >
           <X size={16} />

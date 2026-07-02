@@ -21,6 +21,7 @@
    */
   import { corpus } from "$lib/stores/corpus.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { i18n } from "$lib/i18n.svelte";
 
   // Lane geometry (px; the SVG viewBox y-space matches these 1:1).
   const ROW_H = 22;
@@ -94,11 +95,11 @@
 </script>
 
 {#if model.total === 0}
-  <p class="cbd-empty">No agents in the catalog yet.</p>
+  <p class="cbd-empty">{i18n.t("empty.catalog")}</p>
 {:else}
   <div class="cbd">
     <div class="cbd-head">
-      <span class="cbd-total">{model.total} agents</span>
+      <span class="cbd-total">{i18n.number(model.total)} {i18n.agents(model.total)}</span>
       <span class="cbd-pct">100%</span>
     </div>
 
@@ -128,8 +129,8 @@
           <button
             class="cbd-seg" class:dim={dim(s.slug)}
             style="width:{s.pct}%; background:{s.color}"
-            title={`${s.label}: ${s.count} agents (${s.pct.toFixed(1)}%)`}
-            aria-label={`${s.label}: ${s.count} agents`}
+            title={`${s.label}: ${i18n.number(s.count)} ${i18n.agents(s.count)} (${s.pct.toFixed(1)}%)`}
+            aria-label={`${s.label}: ${i18n.number(s.count)} ${i18n.agents(s.count)}`}
             onmouseenter={() => (hovered = s.slug)}
             onmouseleave={() => (hovered = null)}
             onclick={() => ui.openDivision(s.slug)}
@@ -147,7 +148,7 @@
           onclick={() => ui.openDivision(m.slug)}
         >
           <span class="cbd-name">{m.label}</span>
-          <span class="cbd-n">{m.count}</span>
+          <span class="cbd-n">{i18n.number(m.count)}</span>
         </button>
       {/each}
 
@@ -159,11 +160,11 @@
           onmouseenter={() => (hovered = f.slug)}
           onmouseleave={() => (hovered = null)}
           onclick={() => ui.openDivision(f.slug)}
-          title={`${f.label}: ${f.count} agents`}
+          title={`${f.label}: ${i18n.number(f.count)} ${i18n.agents(f.count)}`}
         >
           <span class="cbd-swatch" style="background:{f.color}"></span>
           <span class="cbd-name truncate">{f.label}</span>
-          <span class="cbd-n">{f.count}</span>
+          <span class="cbd-n">{i18n.number(f.count)}</span>
         </button>
       {/each}
     </div>

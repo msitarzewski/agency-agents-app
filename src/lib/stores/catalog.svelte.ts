@@ -13,6 +13,7 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 
+import { i18n } from "$lib/i18n.svelte";
 import type {
   CatalogDetection,
   CatalogSource,
@@ -160,11 +161,11 @@ class CatalogStore {
   get sourceLabel(): string {
     switch (this.source.kind) {
       case "bundled":
-        return "Bundled snapshot";
+        return i18n.t("catalog.source.bundled");
       case "managed":
-        return "Managed clone";
+        return i18n.t("catalog.source.managed");
       case "userClone":
-        return this.source.manage ? "Your clone (managed)" : "Your clone (read-only)";
+        return this.source.manage ? i18n.t("catalog.source.userManaged") : i18n.t("catalog.source.userReadOnly");
     }
   }
 

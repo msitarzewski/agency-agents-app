@@ -11,6 +11,7 @@
 
   import { ui } from "$lib/stores/ui.svelte";
   import { github } from "$lib/stores/github.svelte";
+  import { i18n } from "$lib/i18n.svelte";
   import { safeOpenUrl } from "$lib/util/url";
   import { SPONSOR_URL } from "$lib/util/donate";
   import { shortcut } from "$lib/util/platform";
@@ -31,7 +32,7 @@
     return t === "light" ? Sun : t === "dark" ? Moon : Monitor;
   }
   function activeLabel(t: ThemePreference) {
-    return t === "light" ? "Light" : t === "dark" ? "Dark" : "System";
+    return t === "light" ? i18n.t("theme.light") : t === "dark" ? i18n.t("theme.dark") : i18n.t("theme.system");
   }
 
   let ActiveIcon = $derived(activeIcon(ui.theme));
@@ -106,7 +107,7 @@
   });
 </script>
 
-<div class="cluster" data-tauri-drag-region="false" role="group" aria-label="App controls">
+<div class="cluster" data-tauri-drag-region="false" role="group" aria-label={i18n.t("titlebar.controls")}>
   {#if githubChipState !== "hidden"}
     <button
       type="button"
@@ -115,9 +116,9 @@
       class:warn={githubChipState === "scope-incomplete"}
       onclick={openGithubSettings}
       title={githubChipState === "ok"
-        ? `GitHub: connected as @${github.status?.username ?? "user"}`
-        : "GitHub: signed in, but scope incomplete — click to fix"}
-      aria-label="GitHub connection status"
+        ? i18n.t("github.connectedAs", { user: github.status?.username ?? "user" })
+        : i18n.t("github.scopeIncomplete")}
+      aria-label={i18n.t("github.statusAria")}
     >
       <GithubMarkIcon size={14} />
     </button>
@@ -128,8 +129,8 @@
     class="ctrl"
     class:open={themeOpen}
     onclick={() => (themeOpen = !themeOpen)}
-    title={`Theme: ${activeLabel(ui.theme)}`}
-    aria-label="Change theme"
+    title={i18n.t("theme.title", { theme: activeLabel(ui.theme) })}
+    aria-label={i18n.t("theme.change")}
     aria-haspopup="menu"
     aria-expanded={themeOpen}
   >
@@ -139,8 +140,8 @@
     type="button"
     class="ctrl"
     onclick={() => ui.openPlaybook()}
-    title="The Playbook — how to use your agents"
-    aria-label="Open the Playbook"
+    title={i18n.t("titlebar.playbookTitle")}
+    aria-label={i18n.t("titlebar.openPlaybook")}
   >
     <BookOpenIcon size={14} />
   </button>
@@ -148,8 +149,8 @@
     type="button"
     class="ctrl"
     onclick={() => ui.openSettings()}
-    title={`Settings (${shortcut(",")})`}
-    aria-label="Open Settings"
+    title={`${i18n.t("settings.title")} (${shortcut(",")})`}
+    aria-label={i18n.t("titlebar.openSettings")}
   >
     <SettingsIcon size={14} />
   </button>
@@ -157,8 +158,8 @@
     type="button"
     class="ctrl donate"
     onclick={openSponsor}
-    title="Donate via GitHub Sponsors"
-    aria-label="Support Agency Agents on GitHub Sponsors"
+    title={i18n.t("titlebar.donateTitle")}
+    aria-label={i18n.t("titlebar.donateAria")}
   >
     <Heart size={14} fill="currentColor" />
   </button>
@@ -168,7 +169,7 @@
       bind:this={themePopover}
       class="popover"
       role="menu"
-      aria-label="Theme"
+      aria-label={i18n.t("appearance.theme")}
     >
       <button
         type="button"
@@ -179,7 +180,7 @@
         onclick={() => pickTheme("light")}
       >
         <Sun size={14} />
-        <span>Light</span>
+        <span>{i18n.t("theme.light")}</span>
         {#if ui.theme === "light"}<Check size={12} class="check" />{/if}
       </button>
       <button
@@ -191,7 +192,7 @@
         onclick={() => pickTheme("dark")}
       >
         <Moon size={14} />
-        <span>Dark</span>
+        <span>{i18n.t("theme.dark")}</span>
         {#if ui.theme === "dark"}<Check size={12} class="check" />{/if}
       </button>
       <button
@@ -203,7 +204,7 @@
         onclick={() => pickTheme("system")}
       >
         <Monitor size={14} />
-        <span>System</span>
+        <span>{i18n.t("theme.system")}</span>
         {#if ui.theme === "system"}<Check size={12} class="check" />{/if}
       </button>
     </div>

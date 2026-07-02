@@ -35,9 +35,10 @@
   import { teams, type SavedTeam } from "$lib/stores/teams.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { i18n } from "$lib/i18n.svelte";
   import { resolveCategoryIcon } from "$lib/util/categoryIcon";
-  import { PRESET_TEAMS } from "$lib/data/presetTeams";
-  import { TEAM_EXAMPLES } from "$lib/data/playbook";
+  import { PRESET_TEAMS, presetTeamText } from "$lib/data/presetTeams";
+  import { teamExamples } from "$lib/data/playbook";
   import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
   import type { InstalledAgent, Agent } from "$lib/types";
   import type { Component } from "svelte";
@@ -68,7 +69,7 @@
     }
     const out = [...m.entries()].map(([slug, rows]) => ({
       slug,
-      label: slug === OTHER ? "Other" : corpus.labelOf(slug),
+      label: slug === OTHER ? i18n.t("common.other") : corpus.labelOf(slug),
       color: slug === OTHER ? "#94A3B8" : corpus.colorOf(slug),
       icon: slug === OTHER ? "HelpCircle" : corpus.iconOf(slug),
       rows: rows.slice().sort((a, b) => a.name.localeCompare(b.name)),
@@ -124,12 +125,14 @@
     if (key.startsWith("preset:")) {
       const slug = key.slice("preset:".length);
       const p = PRESET_TEAMS.find((x) => x.slug === slug);
-      return p ? { key, label: p.label, description: p.description, color: p.color, icon: p.icon, saved: false, agents: p.agents, examples: TEAM_EXAMPLES[p.slug] ?? [] } : null;
+      if (!p) return null;
+      const text = presetTeamText(p, i18n.locale);
+      return { key, label: text.label, description: text.description, color: p.color, icon: p.icon, saved: false, agents: p.agents, examples: teamExamples(p.slug, i18n.locale) };
     }
     if (key.startsWith("saved:")) {
       const id = key.slice("saved:".length);
       const t = teams.saved.find((x) => x.id === id);
-      return t ? { key, label: t.name, description: `${t.agents.length} agent${t.agents.length === 1 ? "" : "s"} · saved team`, color: null, icon: UsersIcon as unknown as Component, saved: true, agents: t.agents, examples: [] } : null;
+      return t ? { key, label: t.name, description: i18n.t("teams.savedTeam", { count: t.agents.length, agents: i18n.agents(t.agents.length) }), color: null, icon: UsersIcon as unknown as Component, saved: true, agents: t.agents, examples: [] } : null;
     }
     return null;
   });
@@ -148,7 +151,7 @@
     }
     const out = [...m.entries()].map(([slug, rows]) => ({
       slug,
-      label: slug === TOTHER ? "Other" : corpus.labelOf(slug),
+      label: slug === TOTHER ? i18n.t("common.other") : corpus.labelOf(slug),
       color: slug === TOTHER ? "#94A3B8" : corpus.colorOf(slug),
       icon: slug === TOTHER ? "HelpCircle" : corpus.iconOf(slug),
       rows: rows.slice().sort((a, b) => a.name.localeCompare(b.name)),
@@ -162,7 +165,7 @@
     openedTeam
       ? openedTeam.examples.length > 0
         ? openedTeam.examples
-        : [`Use the ${openedTeam.label} team and work in a loop until [the work product] is built and tested — browser, functional, unit, and pen-test where applicable.`]
+        : [i18n.t("teams.genericExample", { team: openedTeam.label })]
       : [],
   );
 
@@ -193,6 +196,11 @@
     return { count: present.length, deployed };
   }
 
+  function teamMeta(count: number, deployed: number): string {
+    const base = `${i18n.number(count)} ${i18n.agents(count)}`;
+    return deployed > 0 ? `${base} · ${i18n.number(deployed)} ${i18n.t("common.deployed")}` : base;
+  }
+
   // ── Save current installs as a named team ──
   let saveOpen = $state(false);
   let saveName = $state("");
@@ -205,37 +213,37 @@
     const t = teams.save(saveName, managedSlugs);
     saveOpen = false;
     tab = "presets";
-    toast.success(`Saved “${t.name}”`, `${t.agents.length} agent${t.agents.length === 1 ? "" : "s"}`);
+    toast.success(i18n.t("teams.savedToast", { name: t.name }), `${i18n.number(t.agents.length)} ${i18n.agents(t.agents.length)}`);
   }
 
   function deleteSaved(t: SavedTeam) {
     teams.remove(t.id);
-    toast.success(`Deleted “${t.name}”`);
+    toast.success(i18n.t("teams.deletedToast", { name: t.name }));
   }
 
   // ── Agentfile export / restore (your current team) ──
   async function exportLoadout() {
-    const path = await saveDialog({ title: "Save Agentfile", defaultPath: "Agentfile.json", filters: [{ name: "Agentfile", extensions: ["json"] }] });
+    const path = await saveDialog({ title: i18n.t("teams.saveAgentfile"), defaultPath: "Agentfile.json", filters: [{ name: "Agentfile", extensions: ["json"] }] });
     if (!path) return;
     busy = true;
     try {
       const n = await install.exportLoadout(path);
-      toast.success(`Exported ${n} agent${n === 1 ? "" : "s"}`, path);
+      toast.success(i18n.t("teams.exportedToast", { count: i18n.number(n), agents: i18n.agents(n) }), path);
     } catch (e) {
-      toast.error("Export failed", String(e));
+      toast.error(i18n.t("teams.exportFailed"), String(e));
     } finally {
       busy = false;
     }
   }
   async function importLoadout() {
-    const picked = await openDialog({ title: "Restore from Agentfile", multiple: false, filters: [{ name: "Agentfile", extensions: ["json"] }] });
+    const picked = await openDialog({ title: i18n.t("teams.restoreAgentfile"), multiple: false, filters: [{ name: "Agentfile", extensions: ["json"] }] });
     if (!picked || Array.isArray(picked)) return;
     busy = true;
     try {
       const recs = await install.importLoadout(picked);
-      toast.success(`Restored ${recs.length} agent${recs.length === 1 ? "" : "s"}`, picked);
+      toast.success(i18n.t("teams.restoredToast", { count: i18n.number(recs.length), agents: i18n.agents(recs.length) }), picked);
     } catch (e) {
-      toast.error("Restore failed", String(e));
+      toast.error(i18n.t("teams.restoreFailed"), String(e));
     } finally {
       busy = false;
     }
@@ -244,46 +252,44 @@
 
 <section class="lo">
   <header class="lo-head">
-    <div class="seg" role="tablist" aria-label="Teams view">
+    <div class="seg" role="tablist" aria-label={i18n.t("teams.viewAria")}>
       <button class="seg-btn" class:on={tab === "current"} role="tab" aria-selected={tab === "current"} onclick={() => (tab = "current")}>
-        <UsersIcon size={14} /> Your team
+        <UsersIcon size={14} /> {i18n.t("teams.yourTeam")}
       </button>
       <button class="seg-btn" class:on={tab === "presets"} role="tab" aria-selected={tab === "presets"} onclick={() => (tab = "presets")}>
-        <RocketIcon size={14} /> Team presets
+        <RocketIcon size={14} /> {i18n.t("teams.presets")}
       </button>
     </div>
 
     {#if tab === "current"}
       <div class="lo-actions">
         {#if managed.length > 0}
-          <button class="btn ghost" onclick={toggleAll}>{allCollapsed ? "Expand all" : "Collapse all"}</button>
-          <button class="btn" onclick={openSave}><SaveIcon size={15} /><span>Save as team…</span></button>
+          <button class="btn ghost" onclick={toggleAll}>{allCollapsed ? i18n.t("common.expandAll") : i18n.t("common.collapseAll")}</button>
+          <button class="btn" onclick={openSave}><SaveIcon size={15} /><span>{i18n.t("teams.saveAs")}</span></button>
         {/if}
-        <button class="btn" disabled={busy} onclick={importLoadout}><DownloadIcon size={15} /><span>Restore…</span></button>
-        <button class="btn primary" disabled={busy || managed.length === 0} onclick={exportLoadout}><UploadIcon size={15} /><span>Export…</span></button>
+        <button class="btn" disabled={busy} onclick={importLoadout}><DownloadIcon size={15} /><span>{i18n.t("teams.restore")}</span></button>
+        <button class="btn primary" disabled={busy || managed.length === 0} onclick={exportLoadout}><UploadIcon size={15} /><span>{i18n.t("teams.export")}</span></button>
       </div>
     {/if}
   </header>
 
   {#if tab === "current"}
     {#if managed.length === 0}
-      <EmptyState title="No team yet">
+      <EmptyState title={i18n.t("teams.emptyTitle")} body={i18n.t("teams.emptyBody")}>
         {#snippet icon()}<ArchiveIcon size={48} />{/snippet}
-        Install some agents — or deploy a <strong>preset</strong> — then save your setup as a team
-        and <strong>Export</strong> it to move to a new Mac in one click.
         {#snippet cta()}
           <div class="empty-cta">
             <Button variant="primary" onclick={() => (tab = "presets")}>
               {#snippet icon()}<RocketIcon size={15} />{/snippet}
-              Browse team presets
+              {i18n.t("teams.browsePresets")}
             </Button>
-            <button class="link-btn" onclick={() => ui.openPlaybook()}>New to agents? Open the Playbook →</button>
+            <button class="link-btn" onclick={() => ui.openPlaybook()}>{i18n.t("projects.newToAgents")}</button>
           </div>
         {/snippet}
       </EmptyState>
     {:else}
       <p class="lo-sub">
-        {managed.length} agent{managed.length === 1 ? "" : "s"}{#if groups.length > 1} · {groups.length} divisions{/if}
+        {i18n.number(managed.length)} {i18n.agents(managed.length)}{#if groups.length > 1} · {i18n.number(groups.length)} {i18n.plural(groups.length, "division", "divisions", "раздел", "раздела", "разделов")}{/if}
       </p>
       <div class="groups">
         {#each groups as g (g.slug)}
@@ -322,18 +328,18 @@
           <h2 class="td-name">{team.label}</h2>
           <p class="td-desc">{team.description}</p>
         </div>
-        <span class="td-count">{st.count} agent{st.count === 1 ? "" : "s"}{#if st.deployed > 0} · {st.deployed} deployed{/if}</span>
-        <Button variant="primary" onclick={() => deploy(`Deploy ${team.label}`, team.agents)}>Deploy…</Button>
+        <span class="td-count">{teamMeta(st.count, st.deployed)}</span>
+        <Button variant="primary" onclick={() => deploy(`${i18n.t("common.install")} ${team.label}`, team.agents)}>{i18n.t("teams.deploy")}</Button>
       </div>
 
-      <h3 class="td-sec">Try these</h3>
+      <h3 class="td-sec">{i18n.t("teams.tryThese")}</h3>
       <div class="td-examples">
         {#each detailExamples as ex (ex)}
           <StarterPrompt template={ex} />
         {/each}
       </div>
 
-      <h3 class="td-sec">{st.count} agent{st.count === 1 ? "" : "s"}{#if detailGroups.length > 1} · {detailGroups.length} divisions{/if}</h3>
+      <h3 class="td-sec">{i18n.number(st.count)} {i18n.agents(st.count)}{#if detailGroups.length > 1} · {i18n.number(detailGroups.length)} {i18n.plural(detailGroups.length, "division", "divisions", "раздел", "раздела", "разделов")}{/if}</h3>
       <div class="groups">
         {#each detailGroups as g (g.slug)}
           {@const Icon = resolveCategoryIcon(g.icon)}
@@ -355,14 +361,14 @@
           </section>
         {/each}
         {#if detailMissing > 0}
-          <p class="td-missing">{detailMissing} agent{detailMissing === 1 ? "" : "s"} in this team aren't in your catalog yet — they'll be skipped on deploy.</p>
+          <p class="td-missing">{i18n.t("teams.missing", { count: i18n.number(detailMissing), agents: i18n.agents(detailMissing) })}</p>
         {/if}
       </div>
     </div>
   {:else}
     <div class="cards">
       {#if teams.saved.length > 0}
-        <h2 class="cards-h">Your saved teams</h2>
+        <h2 class="cards-h">{i18n.t("teams.savedTeams")}</h2>
         <ul class="card-list">
           {#each teams.saved as t (t.id)}
             {@const st = teamStats(t.agents)}
@@ -371,28 +377,29 @@
                 <span class="card-ic saved"><UsersIcon size={18} /></span>
                 <span class="card-body">
                   <span class="card-title">{t.name}</span>
-                  <span class="card-desc">{st.count} agent{st.count === 1 ? "" : "s"}{#if st.deployed > 0} · {st.deployed} deployed{/if}</span>
+                  <span class="card-desc">{teamMeta(st.count, st.deployed)}</span>
                 </span>
                 <ChevronRight size={16} class="card-go" />
               </button>
-              <button class="card-del" title="Delete team" aria-label={`Delete ${t.name}`} onclick={() => deleteSaved(t)}><Trash2 size={14} /></button>
+              <button class="card-del" title={i18n.t("teams.deleteTeam")} aria-label={`${i18n.t("teams.deleteTeam")}: ${t.name}`} onclick={() => deleteSaved(t)}><Trash2 size={14} /></button>
             </li>
           {/each}
         </ul>
       {/if}
 
-      <h2 class="cards-h">Presets</h2>
+      <h2 class="cards-h">{i18n.t("teams.presetHeading")}</h2>
       <ul class="card-list">
         {#each PRESET_TEAMS as p (p.slug)}
           {@const st = teamStats(p.agents)}
           {@const Icon = p.icon}
+          {@const text = presetTeamText(p, i18n.locale)}
           <li class="card">
             <button class="card-main" onclick={() => openPreset(p)}>
               <span class="card-ic" style="color:{p.color}"><Icon size={18} /></span>
               <span class="card-body">
-                <span class="card-title">{p.label}</span>
-                <span class="card-desc">{p.description}</span>
-                <span class="card-meta">{st.count} agent{st.count === 1 ? "" : "s"}{#if st.deployed > 0} · {st.deployed} deployed{/if}</span>
+                <span class="card-title">{text.label}</span>
+                <span class="card-desc">{text.description}</span>
+                <span class="card-meta">{teamMeta(st.count, st.deployed)}</span>
               </span>
               <ChevronRight size={16} class="card-go" />
             </button>
@@ -408,12 +415,12 @@
 {/if}
 
 {#if saveOpen}
-  <Modal open title="Save as team" defaultFocus="first" onClose={() => (saveOpen = false)}>
-    <p class="save-sub">Snapshots your {managedSlugs.length} installed agent{managedSlugs.length === 1 ? "" : "s"} as a reusable team.</p>
-    <Input bind:value={saveName} placeholder="Team name (e.g. “My SaaS stack”)" ariaLabel="Team name" />
+  <Modal open title={i18n.t("teams.saveTitle")} defaultFocus="first" onClose={() => (saveOpen = false)}>
+    <p class="save-sub">{i18n.t("teams.saveSub", { count: i18n.number(managedSlugs.length), agents: i18n.agents(managedSlugs.length) })}</p>
+    <Input bind:value={saveName} placeholder={i18n.t("teams.namePlaceholder")} ariaLabel={i18n.t("teams.nameAria")} />
     {#snippet actions()}
-      <Button variant="secondary" modalAction="cancel" onclick={() => (saveOpen = false)}>Cancel</Button>
-      <Button variant="primary" modalAction="confirm" disabled={managedSlugs.length === 0} onclick={confirmSave}>Save team</Button>
+      <Button variant="secondary" modalAction="cancel" onclick={() => (saveOpen = false)}>{i18n.t("common.cancel")}</Button>
+      <Button variant="primary" modalAction="confirm" disabled={managedSlugs.length === 0} onclick={confirmSave}>{i18n.t("teams.saveTeam")}</Button>
     {/snippet}
   </Modal>
 {/if}

@@ -18,13 +18,10 @@
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
 
   import { settings } from "$lib/stores/settings.svelte";
+  import { i18n } from "$lib/i18n.svelte";
   import SettingsSectionUpdates from "$lib/components/SettingsSectionUpdates.svelte";
 
-  const OFFLINE_MODE_DESCRIPTION =
-    "Blocks every outbound network call: catalog clone/pull/refresh, GitHub " +
-    "repo stats, GitHub sign-in, and app update checks. The bundled snapshot " +
-    "and everything already installed keep working — Agency Agents is fully " +
-    "usable offline.";
+  const OFFLINE_MODE_DESCRIPTION = $derived(i18n.t("network.offlineDescription"));
 
   function toggleParanoid(e: Event) {
     const v = (e.currentTarget as HTMLInputElement).checked;
@@ -41,27 +38,27 @@
     return [
       {
         label: "github.com · codeload.github.com",
-        desc: "Catalog source — git clone/pull of agency-agents, or the snapshot tarball. Only when you provision a managed/clone source or pull.",
+        desc: i18n.t("network.path.catalog"),
         allowed: !paranoid,
       },
       {
         label: "api.github.com",
-        desc: "Catalog repo stats (stars/forks/issues), GitHub sign-in (device flow), and star/watch actions. Optional.",
+        desc: i18n.t("network.path.githubApi"),
         allowed: !paranoid,
       },
       {
         label: "raw.githubusercontent.com · objects.githubusercontent.com",
-        desc: "Avatars and release assets referenced by GitHub responses.",
+        desc: i18n.t("network.path.raw"),
         allowed: !paranoid,
       },
       {
         label: "agencyagents.app",
-        desc: "App update checks — the signed updater manifest. Honors your update settings below.",
+        desc: i18n.t("network.path.updates"),
         allowed: !paranoid,
       },
       {
-        label: "Default browser",
-        desc: "Opening external links hands off to macOS open(1). Not a network call from us.",
+        label: i18n.t("network.defaultBrowser"),
+        desc: i18n.t("network.path.browser"),
         allowed: true,
       },
     ];
@@ -69,24 +66,20 @@
 </script>
 
 <div class="section">
-  <h2>Network &amp; Privacy</h2>
+  <h2>{i18n.t("network.title")}</h2>
 
   {#if settings.loading && !settings.data}
-    <p class="lead">Loading settings…</p>
+    <p class="lead">{i18n.t("network.loading")}</p>
   {:else if settings.corruptOnDisk}
     <div class="callout corrupt" role="alert">
       <div class="callout-head">
         <AlertTriangle size={18} />
-        <strong>Settings file is unreadable.</strong>
+        <strong>{i18n.t("network.corruptTitle")}</strong>
       </div>
-      <p class="callout-body">
-        Your <code>settings.json</code> couldn't be parsed. Until it's repaired,
-        all outbound network calls are blocked as a safety measure. Resetting
-        will overwrite the file with defaults.
-      </p>
+      <p class="callout-body">{i18n.t("network.corruptBody")}</p>
       {#if settings.error}<p class="callout-error">{settings.error}</p>{/if}
       <button type="button" class="btn-danger" onclick={handleReset} disabled={settings.loading}>
-        <RefreshCw size={14} /> Reset to defaults
+        <RefreshCw size={14} /> {i18n.t("network.reset")}
       </button>
     </div>
   {:else if settings.data}
@@ -100,24 +93,24 @@
           aria-describedby="offline-mode-hint"
         />
         <span class="toggle-track" aria-hidden="true"></span>
-        <span class="toggle-label">Offline Mode</span>
+        <span class="toggle-label">{i18n.t("network.offlineMode")}</span>
       </label>
       <p class="hint" id="offline-mode-hint">{OFFLINE_MODE_DESCRIPTION}</p>
       {#if settings.data.paranoidMode}
         <div class="callout warn" role="status">
           <AlertTriangle size={16} />
-          <span>Offline Mode is on — catalog pull/refresh, GitHub, and update checks are blocked.</span>
+          <span>{i18n.t("network.offlineOn")}</span>
         </div>
       {/if}
     </div>
 
     <div class="field disclosure">
-      <span class="field-label">Where Agency Agents connects</span>
+      <span class="field-label">{i18n.t("network.whereConnects")}</span>
       <ol class="paths">
         {#each pathStatuses as p, i (p.label)}
           <li>
             <span class="num">{i + 1}.</span>
-            <span class="status" aria-label={p.allowed ? "allowed" : "blocked"}>
+            <span class="status" aria-label={p.allowed ? i18n.t("network.allowed") : i18n.t("network.blocked")}>
               {#if p.allowed}<CheckCircle size={14} class="ok" />{:else}<XCircle size={14} class="bad" />{/if}
             </span>
             <div>
@@ -127,7 +120,7 @@
           </li>
         {/each}
       </ol>
-      <p class="hint">Every outbound call is listed here and fires only when you take an action that needs it. No telemetry, no analytics, no accounts required.</p>
+      <p class="hint">{i18n.t("network.pathsHint")}</p>
     </div>
 
     {#if settings.error}<p class="callout-error">{settings.error}</p>{/if}

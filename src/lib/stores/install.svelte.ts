@@ -14,6 +14,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { activity } from "$lib/stores/activity.svelte";
 import { corpus } from "$lib/stores/corpus.svelte";
 import { wiredTools } from "$lib/data/toolRegistry";
+import { i18n } from "$lib/i18n.svelte";
 import type { AgentDiff, InstalledAgent, InstallRecord, InstallState, Tool, ToolInfo, ToolVersion } from "$lib/types";
 
 /** The tools Phase 2 can install to. Mirrors the Rust `SUPPORTED` set and the
@@ -109,7 +110,7 @@ class InstallStore {
       tool,
       scope: this.scopeOf(null),
       outcome: "ok",
-      detail: nowSelected ? "added as default target" : "removed as default target",
+      detail: nowSelected ? i18n.t("activity.defaultTargetAdded") : i18n.t("activity.defaultTargetRemoved"),
     });
   }
 
@@ -391,19 +392,20 @@ class InstallStore {
     // "update" sweep is a Sync; install/track/uninstall sweeps are generic Bulk
     // ops. `detail` is a self-contained verb phrase so the row reads naturally;
     // no single `tool` since a batch can span tools.
-    const plural = (n: number) => `${n} agent${n === 1 ? "" : "s"}`;
     const verb =
       action === "install"
-        ? "Installed"
+        ? i18n.t("activity.action.install")
         : action === "update"
-          ? "Updated"
+          ? i18n.t("activity.action.update")
           : action === "track"
-            ? "Tracked"
-            : "Removed";
+            ? i18n.t("activity.action.track")
+            : i18n.t("activity.action.uninstall");
     activity.log({
       action: action === "update" ? "sync" : "bulk",
       outcome: fail > 0 ? "error" : "ok",
-      detail: fail > 0 ? `${verb} ${plural(ok)}, ${fail} failed` : `${verb} ${plural(ok)}`,
+      detail: fail > 0
+        ? i18n.t("agents.bulkFail", { verb, ok: i18n.number(ok), fail: i18n.number(fail) })
+        : i18n.t("agents.bulkOk", { verb, count: i18n.number(ok), installs: i18n.agents(ok) }),
     });
     return { ok, fail };
   }

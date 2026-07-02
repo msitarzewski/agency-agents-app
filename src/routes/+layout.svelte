@@ -7,12 +7,14 @@
   import { activity } from "$lib/stores/activity.svelte";
   import { settings } from "$lib/stores/settings.svelte";
   import { catalog } from "$lib/stores/catalog.svelte";
+  import { i18n } from "$lib/i18n.svelte";
   import CatalogFirstRun from "$lib/components/CatalogFirstRun.svelte";
 
   let { children } = $props();
 
   onMount(() => {
     ui.loadThemeFromStorage();
+    i18n.load();
     // Settings (Phase 12b) — all read with enum/numeric validation so a
     // corrupt or hostile localStorage entry can't poison runtime state.
     ui.loadDefaultSectionFromStorage();

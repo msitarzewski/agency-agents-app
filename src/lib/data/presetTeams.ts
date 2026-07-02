@@ -28,6 +28,8 @@ export interface PresetTeam {
   agents: string[];
 }
 
+type PresetLocale = "en" | "ru";
+
 export const PRESET_TEAMS: PresetTeam[] = [
   {
     slug: "mobile-launch",
@@ -98,3 +100,31 @@ export const PRESET_TEAMS: PresetTeam[] = [
     ],
   },
 ];
+
+const PRESET_TEAM_RU: Record<string, { label: string; description: string }> = {
+  "mobile-launch": {
+    label: "Мобильный запуск",
+    description: "Провести мобильное приложение от прототипа до App Store.",
+  },
+  "ship-web-app": {
+    label: "Web-релиз",
+    description: "Собрать, развернуть и поддерживать web-приложение в production.",
+  },
+  "growth-squad": {
+    label: "Growth-команда",
+    description: "Растить acquisition через контент, поиск и социальные каналы.",
+  },
+  "product-discovery": {
+    label: "Product Discovery",
+    description: "Найти, что строить дальше, и разложить работу по очереди.",
+  },
+  "ai-builders": {
+    label: "AI Builders",
+    description: "Выпускать AI-функции на прочной базе данных и промптов.",
+  },
+};
+
+export function presetTeamText(team: PresetTeam, locale: PresetLocale): { label: string; description: string } {
+  if (locale !== "ru") return { label: team.label, description: team.description };
+  return PRESET_TEAM_RU[team.slug] ?? { label: team.label, description: team.description };
+}

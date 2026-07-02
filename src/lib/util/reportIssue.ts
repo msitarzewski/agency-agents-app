@@ -17,9 +17,9 @@
  */
 
 import { appVersion } from "$lib/api";
+import { i18n } from "$lib/i18n.svelte";
 import { toast } from "$lib/stores/toast.svelte";
 import {
-  appErrorMessage,
   isAppError,
   type AppErrorPayload,
 } from "$lib/types";
@@ -112,7 +112,7 @@ export function reportContextFromError(
   // context, and pin the discriminator for triage.
   return {
     summary,
-    friendlyMessage: appErrorMessage(e),
+    friendlyMessage: i18n.appErrorMessage(e),
     errorCode: e.code,
   };
 }
@@ -131,8 +131,8 @@ export function reportContextFromError(
 export function reportableToastError(title: string, e: unknown): void {
   if (isAppError(e)) {
     const ctx = reportContextFromError(e, title);
-    toast.error(title, appErrorMessage(e), {
-      label: "Report to Agency Agents",
+    toast.error(title, i18n.appErrorMessage(e), {
+      label: i18n.t("report.issue"),
       onClick: () => {
         void openReportIssue(ctx);
       },
@@ -141,7 +141,7 @@ export function reportableToastError(title: string, e: unknown): void {
   }
   const stringified = String(e);
   toast.error(title, stringified, {
-    label: "Report to Agency Agents",
+    label: i18n.t("report.issue"),
     onClick: () => {
       void openReportIssue({
         summary: title,

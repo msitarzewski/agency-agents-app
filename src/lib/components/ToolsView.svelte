@@ -26,6 +26,7 @@
   import { corpus } from "$lib/stores/corpus.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { i18n, type TranslationKey } from "$lib/i18n.svelte";
   import { toolAccent, toolMark, toolIcon } from "$lib/util/toolBadge";
   import { TOOLS, isInstallable } from "$lib/data/toolRegistry";
   import { resolveCategoryIcon } from "$lib/util/categoryIcon";
@@ -103,10 +104,10 @@
   function toolPresent(t: ToolInfo): boolean {
     return t.detected || health(t.tool).total > 0;
   }
-  const TLENS: { id: ToolLens; label: string }[] = [
-    { id: "installed", label: "Installed" },
-    { id: "uninstalled", label: "Not installed" },
-    { id: "all", label: "All" },
+  const TLENS: { id: ToolLens; labelKey: TranslationKey }[] = [
+    { id: "installed", labelKey: "tools.installed" },
+    { id: "uninstalled", labelKey: "tools.notInstalled" },
+    { id: "all", labelKey: "tools.all" },
   ];
   function lensMatch(l: ToolLens, t: ToolInfo): boolean {
     if (l === "all") return true;
@@ -121,12 +122,12 @@
     foreign: "var(--color-brand)",
     removed: "var(--color-danger)",
   };
-  const STATE_LABEL: Record<InstallState, string> = {
-    current: "In sync",
-    outdated: "Outdated",
-    modified: "Modified",
-    foreign: "Untracked",
-    removed: "Missing",
+  const STATE_LABEL: Record<InstallState, TranslationKey> = {
+    current: "state.current",
+    outdated: "state.outdated",
+    modified: "state.modified",
+    foreign: "state.foreign",
+    removed: "state.removed",
   };
   const DIFFABLE: InstallState[] = ["foreign", "modified", "outdated"];
   const ORDER: InstallState[] = ["current", "outdated", "modified", "foreign", "removed"];
@@ -209,7 +210,7 @@
     }
     const out = [...m.entries()].map(([slug, rows]) => ({
       slug,
-      label: slug === OTHER ? "Other" : corpus.labelOf(slug),
+      label: slug === OTHER ? i18n.t("common.other") : corpus.labelOf(slug),
       color: slug === OTHER ? "#94A3B8" : corpus.colorOf(slug),
       icon: slug === OTHER ? "HelpCircle" : corpus.iconOf(slug),
       rows,
@@ -260,7 +261,8 @@
     busy = true;
     try {
       await Promise.all([install.loadTools(), install.reconcile(), install.loadVersions()]);
-      toast.success("Rescanned tools", `${install.tools.filter((t) => t.detected).length} detected`);
+      const detected = install.tools.filter((t) => t.detected).length;
+      toast.success(i18n.t("tools.rescanned"), i18n.t("tools.detectedCount", { count: i18n.number(detected) }));
     } finally {
       busy = false;
     }
@@ -281,8 +283,8 @@
     busy = true;
     try {
       const { ok, fail } = await install.bulk(action, targets);
-      if (fail === 0) toast.success(`${verb} ${ok} agent${ok === 1 ? "" : "s"}`, sel?.label);
-      else toast.error(`${verb}: ${ok} ok, ${fail} failed`);
+      if (fail === 0) toast.success(i18n.t("agents.bulkOk", { verb, count: i18n.number(ok), installs: i18n.agents(ok) }), sel?.label);
+      else toast.error(i18n.t("agents.bulkFail", { verb, ok: i18n.number(ok), fail: i18n.number(fail) }));
     } finally {
       busy = false;
     }
@@ -293,7 +295,7 @@
       await fn();
       toast.success(ok);
     } catch (e) {
-      toast.error("Action failed", String(e));
+      toast.error(i18n.t("tools.actionFailed"), String(e));
     }
   }
   async function reveal(path: string | null | undefined) {
@@ -301,7 +303,7 @@
     try {
       await install.revealPath(path);
     } catch (e) {
-      toast.error("Could not open folder", String(e));
+      toast.error(i18n.t("tools.couldNotOpenFolder"), String(e));
     }
   }
   function homePath(p: string): string {
@@ -313,7 +315,7 @@
   <!-- ── List pane ── -->
   <div class="list-pane" style="width:{listWidth}px">
     <header class="lp-head">
-      <div class="seg" role="tablist" aria-label="Filter tools">
+      <div class="seg" role="tablist" aria-label={i18n.t("tools.filterAria")}>
         {#each TLENS as f (f.id)}
           <button
             class="seg-btn"
@@ -322,11 +324,11 @@
             aria-selected={toolLens === f.id}
             onclick={() => setToolLens(f.id)}
           >
-            {f.label}
+            {i18n.t(f.labelKey)}
           </button>
         {/each}
       </div>
-      <button class="ghost icon" disabled={busy} onclick={rescan} title="Re-detect tools, versions + installs" aria-label="Rescan">
+      <button class="ghost icon" disabled={busy} onclick={rescan} title={i18n.t("tools.rescanTitle")} aria-label={i18n.t("common.rescan")}>
         <RefreshIcon size={15} />
       </button>
     </header>
@@ -334,8 +336,8 @@
       {#if visibleTools.length === 0}
         <li class="tlist-empty">
           {toolLens === "installed"
-            ? "No tools detected on this device yet."
-            : "Every supported tool is installed."}
+            ? i18n.t("tools.noDetected")
+            : i18n.t("tools.everyInstalled")}
         </li>
       {/if}
       {#each visibleTools as t (t.tool)}
@@ -348,18 +350,18 @@
             <span class="trow-id">
               <span class="trow-top">
                 <span class="trow-name">{t.label}</span>
-                {#if t.wired}<span class="c-dot" class:on={t.detected} title={t.detected ? "Detected" : "Not detected"}></span>{/if}
+                {#if t.wired}<span class="c-dot" class:on={t.detected} title={t.detected ? i18n.t("common.detected") : i18n.t("common.notDetected")}></span>{/if}
               </span>
               {#if t.wired}
-                <span class="hbar" title="{inst} of {catalogTotal} catalog agents installed">
+                <span class="hbar" title={i18n.t("tools.catalogInstalledTitle", { installed: i18n.number(inst), total: i18n.number(catalogTotal) })}>
                   <span class="hseg" style="flex:{inst};background:var(--color-success)"></span>
                   <span class="hseg" style="flex:{Math.max(catalogTotal - inst, 0)}"></span>
                 </span>
                 <span class="trow-sub">
-                  {h.total > 0 ? `${h.total} agent${h.total === 1 ? "" : "s"}` : "No agents"}{#if ver} · <span class="trow-ver" title={ver}>{ver}</span>{/if}
+                  {h.total > 0 ? `${i18n.number(h.total)} ${i18n.agents(h.total)}` : i18n.t("tools.noAgents")}{#if ver} · <span class="trow-ver" title={ver}>{ver}</span>{/if}
                 </span>
               {:else}
-                <span class="trow-sub recognized">Recognized · not yet installable</span>
+                <span class="trow-sub recognized">{i18n.t("tools.recognizedSub")}</span>
               {/if}
             </span>
           </button>
@@ -375,7 +377,7 @@
       max={LW_MAX}
       defaultWidth={300}
       direction="right"
-      label="Resize tool list"
+      label={i18n.t("tools.resizeList")}
       onChange={(w) => (listWidth = clampLW(w))}
       onCommit={setListWidth}
     />
@@ -390,20 +392,20 @@
           <div class="con-id">
             <h2>{sel.label}</h2>
             <span class="con-meta">
-              {sel.scope === "user" ? "user-global" : "project-scoped"}
+              {sel.scope === "user" ? i18n.t("tools.userGlobal") : i18n.t("tools.projectScoped")}
               {#if install.versionOf(sel.tool)}· {install.versionOf(sel.tool)}{/if}
-              {#if !sel.detected}· <span class="warn">not detected</span>{/if}
+              {#if !sel.detected}· <span class="warn">{i18n.t("common.notDetected")}</span>{/if}
             </span>
           </div>
           {#if sel.wired}
-            <label class="def-target" title="Preselect this tool in the agent “Use with” menu">
-              <Switch checked={install.isSelected(sel.tool)} ariaLabel="Default install target" onToggle={() => install.toggleSelected(sel.tool)} />
-              <span>Default target</span>
+            <label class="def-target" title={i18n.t("tools.defaultTargetTitle")}>
+              <Switch checked={install.isSelected(sel.tool)} ariaLabel={i18n.t("tools.defaultInstallTarget")} onToggle={() => install.toggleSelected(sel.tool)} />
+              <span>{i18n.t("tools.defaultTarget")}</span>
             </label>
           {/if}
           {#if sel.userDest}
             <button class="ghost" onclick={() => reveal(sel.userDest)} title={sel.userDest}>
-              <FolderOpen size={15} /><span>Reveal</span>
+              <FolderOpen size={15} /><span>{i18n.t("common.reveal")}</span>
             </button>
           {/if}
         </div>
@@ -417,52 +419,52 @@
           <div class="legend">
             {#each ORDER as s (s)}
               {#if selHealth[s] > 0}
-                <span class="leg"><span class="dot" style="background:{STATE_COLOR[s]}"></span>{selHealth[s]} {STATE_LABEL[s]}</span>
+                <span class="leg"><span class="dot" style="background:{STATE_COLOR[s]}"></span>{i18n.number(selHealth[s])} {i18n.t(STATE_LABEL[s])}</span>
               {/if}
             {/each}
           </div>
         {/if}
 
         <div class="actions">
-          <button class="act" disabled={busy || !canSync} title={canSync ? "Update every drifted agent to the catalog version (backs up yours)" : "Everything here is in sync"} onclick={() => runToolBulk("update", "Synced")}>
-            <RefreshIcon size={14} /> Sync to catalog
+          <button class="act" disabled={busy || !canSync} title={canSync ? i18n.t("tools.syncTitle") : i18n.t("tools.everythingInSync")} onclick={() => runToolBulk("update", i18n.t("activity.action.sync"))}>
+            <RefreshIcon size={14} /> {i18n.t("tools.syncToCatalog")}
           </button>
-          <button class="act" disabled={busy || !canTrack} title={canTrack ? "Adopt the untracked agents (no files changed)" : "Nothing untracked here"} onclick={() => runToolBulk("track", "Tracked")}>
-            <PlusIcon size={14} /> Track all
+          <button class="act" disabled={busy || !canTrack} title={canTrack ? i18n.t("tools.trackTitle") : i18n.t("tools.nothingUntracked")} onclick={() => runToolBulk("track", i18n.t("activity.action.track"))}>
+            <PlusIcon size={14} /> {i18n.t("tools.trackAll")}
           </button>
           <button class="act danger" disabled={busy || selRows.length === 0} onclick={() => (confirmRemove = true)}>
-            <TrashIcon size={14} /> Remove all
+            <TrashIcon size={14} /> {i18n.t("tools.removeAll")}
           </button>
         </div>
 
         {#if selProjects.length > 0}
           <div class="projects">
-            <h3 class="sub">Projects</h3>
+            <h3 class="sub">{i18n.t("common.projects")}</h3>
             {#each selProjects as p (p.path)}
               <div class="proj">
                 <FolderOpen size={14} />
                 <span class="proj-name" title={p.path}>{p.path.split("/").pop()}</span>
-                <span class="proj-count">{p.count}</span>
-                <button class="mini" onclick={() => reveal(p.path)} title="Reveal in file manager"><FolderOpen size={13} /></button>
+                <span class="proj-count">{i18n.number(p.count)}</span>
+                <button class="mini" onclick={() => reveal(p.path)} title={i18n.t("tools.revealFileManager")}><FolderOpen size={13} /></button>
               </div>
             {/each}
           </div>
         {/if}
 
         {#if selRows.length === 0}
-          <p class="empty">No agents deployed in {sel.label} yet. Open an agent and use the <strong>Use with</strong> switch to deploy it here.</p>
+          <p class="empty">{i18n.t("tools.noAgentsDeployed", { tool: sel.label })}</p>
         {:else}
           <div class="list-head">
             <h3 class="sub">
-              {selRows.length} agent{selRows.length === 1 ? "" : "s"}{#if selGroups.length > 1} · {selGroups.length} divisions{/if}
+              {i18n.number(selRows.length)} {i18n.agents(selRows.length)}{#if selGroups.length > 1} · {i18n.number(selGroups.length)} {i18n.plural(selGroups.length, "division", "divisions", "раздел", "раздела", "разделов")}{/if}
             </h3>
             {#if selGroups.length > 1}
-              <button class="ghost sm" onclick={toggleAllGroups}>{allCollapsed ? "Expand all" : "Collapse all"}</button>
+              <button class="ghost sm" onclick={toggleAllGroups}>{allCollapsed ? i18n.t("common.expandAll") : i18n.t("common.collapseAll")}</button>
             {/if}
-            <div class="filter"><Input bind:value={agentFilter} variant="search" placeholder="Filter…" ariaLabel="Filter agents" /></div>
+            <div class="filter"><Input bind:value={agentFilter} variant="search" placeholder={i18n.t("tools.filterPlaceholder")} ariaLabel={i18n.t("tools.filterAgents")} /></div>
           </div>
           {#if selVisible.length === 0}
-            <p class="empty">No agents match “{agentFilter.trim()}”.</p>
+            <p class="empty">{i18n.t("tools.noAgentMatch", { query: agentFilter.trim() })}</p>
           {:else}
             <div class="groups">
               {#each selGroups as g (g.slug)}
@@ -481,20 +483,20 @@
                         {@const isBusy = install.busy === `${r.slug}:${r.tool}`}
                         <li class="agent">
                           <span class="a-emoji" aria-hidden="true">{emoji(r.slug)}</span>
-                          <span class="a-dot" style="background:{STATE_COLOR[r.state]}" title={STATE_LABEL[r.state]}></span>
+                          <span class="a-dot" style="background:{STATE_COLOR[r.state]}" title={i18n.t(STATE_LABEL[r.state])}></span>
                           <span class="a-name">{r.name}</span>
                           {#if r.projectPath}<span class="a-proj" title={r.projectPath}>{r.projectPath.split("/").pop()}</span>{/if}
                           <span class="a-acts">
                             {#if DIFFABLE.includes(r.state)}
-                              <button class="mini" title="See what differs" onclick={() => (diffTarget = r)}><DiffIcon size={13} /></button>
+                              <button class="mini" title={i18n.t("tools.seeDiff")} onclick={() => (diffTarget = r)}><DiffIcon size={13} /></button>
                             {/if}
                             {#if r.state === "foreign"}
-                              <button class="mini" title="Track" disabled={isBusy} onclick={() => quick(() => install.track(r.slug, r.tool, r.projectPath), `Tracking ${r.name}`)}><PlusIcon size={13} /></button>
+                              <button class="mini" title={i18n.t("common.track")} disabled={isBusy} onclick={() => quick(() => install.track(r.slug, r.tool, r.projectPath), `${i18n.t("activity.action.track")} ${r.name}`)}><PlusIcon size={13} /></button>
                             {/if}
                             {#if r.state !== "current"}
-                              <button class="mini" title="Update from catalog" disabled={isBusy} onclick={() => quick(() => install.update(r.slug, r.tool, r.projectPath), `Updated ${r.name}`)}><RefreshIcon size={13} /></button>
+                              <button class="mini" title={i18n.t("tools.updateFromCatalog")} disabled={isBusy} onclick={() => quick(() => install.update(r.slug, r.tool, r.projectPath), `${i18n.t("activity.action.update")} ${r.name}`)}><RefreshIcon size={13} /></button>
                             {/if}
-                            <button class="mini danger" title="Remove" disabled={isBusy} onclick={() => quick(() => install.uninstall(r.slug, r.tool, r.projectPath), `Removed ${r.name}`)}><XIcon size={13} /></button>
+                            <button class="mini danger" title={i18n.t("common.remove")} disabled={isBusy} onclick={() => quick(() => install.uninstall(r.slug, r.tool, r.projectPath), `${i18n.t("activity.action.uninstall")} ${r.name}`)}><XIcon size={13} /></button>
                           </span>
                         </li>
                       {/each}
@@ -507,19 +509,15 @@
         {/if}
         {:else}
           <div class="recognized-detail">
-            <span class="rd-badge">Recognized</span>
-            <p>
-              This tool is in the catalog, but the app can't install agents to it
-              yet — there's no native renderer for its output format. It'll show
-              up here for management once support lands.
-            </p>
+            <span class="rd-badge">{i18n.t("tools.recognized")}</span>
+            <p>{i18n.t("tools.recognizedDetail")}</p>
           </div>
         {/if}
       </div>
     {:else}
       <div class="d-empty">
         <WrenchIcon size={40} />
-        <p>Select a tool to manage the agents deployed in it.</p>
+        <p>{i18n.t("tools.selectTool")}</p>
       </div>
     {/if}
   </div>
@@ -530,14 +528,14 @@
 {/if}
 
 {#if confirmRemove && sel}
-  <button class="cd-scrim" aria-label="Cancel" onclick={() => (confirmRemove = false)}></button>
-  <div class="cd-box" role="alertdialog" aria-modal="true" aria-label="Confirm remove all">
-    <div class="cd-head"><AlertTriangle size={20} /><h2>Remove all from {sel.label}?</h2></div>
-    <p class="cd-body">This <strong>deletes {selRows.length} agent file{selRows.length === 1 ? "" : "s"} from disk</strong> — including any installed outside this app. Modified files are backed up before removal; catalog-identical files can be installed again.</p>
+  <button class="cd-scrim" aria-label={i18n.t("common.cancel")} onclick={() => (confirmRemove = false)}></button>
+  <div class="cd-box" role="alertdialog" aria-modal="true" aria-label={i18n.t("tools.confirmRemoveAll")}>
+    <div class="cd-head"><AlertTriangle size={20} /><h2>{i18n.t("tools.removeAllTitle", { tool: sel.label })}</h2></div>
+    <p class="cd-body">{i18n.t("tools.removeAllBody", { count: i18n.number(selRows.length), files: i18n.files(selRows.length) })}</p>
     <div class="cd-actions">
-      <button class="cd-cancel" onclick={() => (confirmRemove = false)}>Cancel</button>
-      <button class="cd-delete" disabled={busy} onclick={() => { confirmRemove = false; runToolBulk("uninstall", "Removed"); }}>
-        <TrashIcon size={14} /> Remove {selRows.length}
+      <button class="cd-cancel" onclick={() => (confirmRemove = false)}>{i18n.t("common.cancel")}</button>
+      <button class="cd-delete" disabled={busy} onclick={() => { confirmRemove = false; runToolBulk("uninstall", i18n.t("activity.action.uninstall")); }}>
+        <TrashIcon size={14} /> {i18n.t("tools.removeCount", { count: i18n.number(selRows.length) })}
       </button>
     </div>
   </div>

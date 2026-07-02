@@ -9,12 +9,13 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
   import { install } from "$lib/stores/install.svelte";
+  import { i18n, type TranslationKey } from "$lib/i18n.svelte";
   import { shortcut } from "$lib/util/platform";
   import type { SidebarSection } from "$lib/types";
 
   interface NavItem {
     id: SidebarSection;
-    label: string;
+    labelKey: TranslationKey;
     shortcut: string;
     icon: typeof Bot;
   }
@@ -24,12 +25,12 @@
   // filter, not a separate section. Shortcut glyphs adapt per platform
   // (⌘ on macOS, Ctrl elsewhere) since the app ships on macOS/Linux/Windows.
   const nav: NavItem[] = [
-    { id: "dashboard", label: "Dashboard", shortcut: shortcut("0"), icon: LayoutDashboard },
-    { id: "personas",  label: "Agents",    shortcut: shortcut("1"), icon: Bot },
-    { id: "tools",     label: "Tools",     shortcut: shortcut("2"), icon: Wrench },
-    { id: "teams",     label: "Teams",     shortcut: shortcut("3"), icon: Users },
-    { id: "projects",  label: "Projects",  shortcut: shortcut("4"), icon: FolderGit2 },
-    { id: "activity",  label: "Activity",  shortcut: shortcut("5"), icon: Activity },
+    { id: "dashboard", labelKey: "nav.dashboard", shortcut: shortcut("0"), icon: LayoutDashboard },
+    { id: "personas",  labelKey: "nav.agents",    shortcut: shortcut("1"), icon: Bot },
+    { id: "tools",     labelKey: "nav.tools",     shortcut: shortcut("2"), icon: Wrench },
+    { id: "teams",     labelKey: "nav.teams",     shortcut: shortcut("3"), icon: Users },
+    { id: "projects",  labelKey: "nav.projects",  shortcut: shortcut("4"), icon: FolderGit2 },
+    { id: "activity",  labelKey: "nav.activity",  shortcut: shortcut("5"), icon: Activity },
   ];
 
   function badge(id: SidebarSection): string | null {
@@ -49,9 +50,9 @@
   class="sidebar"
   class:collapsed={ui.sidebarCollapsed}
   style="width: {ui.sidebarCollapsed ? 56 : ui.sidebarWidth}px"
-  aria-label="Primary navigation"
+  aria-label={i18n.t("nav.primary")}
 >
-  <button class="brand" onclick={() => ui.setSection("personas")} title="Agency Agents — Home">
+  <button class="brand" onclick={() => ui.setSection("personas")} title={i18n.t("nav.homeTitle")}>
     <span class="brand-mark" aria-hidden="true">🤖</span>
     <span class="brand-name">Agency Agents</span>
   </button>
@@ -67,10 +68,10 @@
             class:active={isActive}
             aria-current={isActive ? "page" : undefined}
             onclick={() => ui.setSection(item.id)}
-            title={`${item.label} (${item.shortcut})`}
+            title={`${i18n.t(item.labelKey)} (${item.shortcut})`}
           >
             <span class="ico" aria-hidden="true"><item.icon size={16} /></span>
-            <span class="label">{item.label}</span>
+            <span class="label">{i18n.t(item.labelKey)}</span>
             {#if b}<span class="badge">{b}</span>{/if}
           </button>
         </li>
@@ -79,9 +80,9 @@
   </nav>
 
   <footer class="foot">
-    <div class="status status-ready" title="{agentCount} agents in the catalog">
+    <div class="status status-ready" title={i18n.t("nav.catalogAgentsTitle", { count: agentCount, agents: i18n.agents(agentCount) })}>
       <span class="dot" aria-hidden="true"></span>
-      <span class="status-label">{agentCount} agents</span>
+      <span class="status-label">{i18n.t("nav.catalogAgents", { count: agentCount, agents: i18n.agents(agentCount) })}</span>
     </div>
   </footer>
 </aside>
