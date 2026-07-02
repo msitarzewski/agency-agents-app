@@ -10,6 +10,7 @@
    * the diff so you can see how the on-disk file departs from the catalog.
    */
   import { install } from "$lib/stores/install.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
   import type { Agent, InstallState, Tool } from "$lib/types";
 
   let {
@@ -37,6 +38,17 @@
   function basename(p: string): string {
     return p.replace(/\/+$/, "").split("/").pop() || p;
   }
+  function stateLabel(state: InstallState): string {
+    if (state === "current") return i18n.t("state.current");
+    if (state === "outdated") return i18n.t("state.outdated");
+    if (state === "modified") return i18n.t("state.modified");
+    if (state === "foreign") return i18n.t("state.foreign");
+    return i18n.t("state.removed");
+  }
+  function pillTitle(tool: string, project: string | null, state: InstallState, diffable: boolean): string {
+    const target = `${tool}${project ? " · " + basename(project) : ""} · ${stateLabel(state)}`;
+    return diffable ? i18n.t("deployment.diffTitle", { target }) : target;
+  }
 </script>
 
 {#if rows.length > 0}
@@ -48,7 +60,7 @@
         class:link={diffable}
         data-tone={tone(r.state)}
         disabled={!diffable}
-        title={`${install.toolLabel(r.tool)}${r.projectPath ? " · " + basename(r.projectPath) : ""} · ${r.state}${diffable ? " — click to see changes" : ""}`}
+        title={pillTitle(install.toolLabel(r.tool), r.projectPath, r.state, diffable)}
         onclick={() => diffable && onDiff({ slug: r.slug, tool: r.tool, projectPath: r.projectPath, name: agent.name })}
       >
         <span class="pdot" data-tone={tone(r.state)}></span>
@@ -57,7 +69,7 @@
     {/each}
   </div>
 {:else}
-  <p class="none">Not deployed anywhere yet</p>
+  <p class="none">{i18n.t("deployment.notDeployed")}</p>
 {/if}
 
 <style>

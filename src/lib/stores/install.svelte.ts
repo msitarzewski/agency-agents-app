@@ -12,6 +12,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import { activity } from "$lib/stores/activity.svelte";
+import { i18n } from "$lib/stores/i18n.svelte";
 import { corpus } from "$lib/stores/corpus.svelte";
 import { wiredTools } from "$lib/data/toolRegistry";
 import type { AgentDiff, InstalledAgent, InstallRecord, InstallState, Tool, ToolInfo, ToolVersion } from "$lib/types";
@@ -391,19 +392,18 @@ class InstallStore {
     // "update" sweep is a Sync; install/track/uninstall sweeps are generic Bulk
     // ops. `detail` is a self-contained verb phrase so the row reads naturally;
     // no single `tool` since a batch can span tools.
-    const plural = (n: number) => `${n} agent${n === 1 ? "" : "s"}`;
-    const verb =
+    const summary =
       action === "install"
-        ? "Installed"
+        ? `${i18n.t("activity.action.install")} ${i18n.count(ok, "common.agent.one", "common.agent.many")}`
         : action === "update"
-          ? "Updated"
+          ? `${i18n.t("activity.action.update")} ${i18n.count(ok, "common.agent.one", "common.agent.many")}`
           : action === "track"
-            ? "Tracked"
-            : "Removed";
+            ? `${i18n.t("activity.action.track")} ${i18n.count(ok, "common.agent.one", "common.agent.many")}`
+            : `${i18n.t("activity.action.uninstall")} ${i18n.count(ok, "common.agent.one", "common.agent.many")}`;
     activity.log({
       action: action === "update" ? "sync" : "bulk",
       outcome: fail > 0 ? "error" : "ok",
-      detail: fail > 0 ? `${verb} ${plural(ok)}, ${fail} failed` : `${verb} ${plural(ok)}`,
+      detail: fail > 0 ? i18n.t("activity.bulkFailed", { summary, fail }) : summary,
     });
     return { ok, fail };
   }

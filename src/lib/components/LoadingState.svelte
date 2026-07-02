@@ -1,13 +1,16 @@
 <script lang="ts">
+  import { i18n } from "$lib/stores/i18n.svelte";
+
   interface Props {
     rows?: number;
     label?: string;
   }
-  let { rows = 6, label = "Loading…" }: Props = $props();
+  let { rows = 6, label }: Props = $props();
+  const statusLabel = $derived(label ?? i18n.t("common.loading"));
 </script>
 
 <div class="loading" role="status" aria-live="polite">
-  <span class="sr-only">{label}</span>
+  <span class="sr-only">{statusLabel}</span>
   {#each Array.from({ length: rows }) as _, i (i)}
     <div class="skeleton-row"></div>
   {/each}

@@ -33,25 +33,34 @@
   import SettingsSectionGitHub from "./SettingsSectionGitHub.svelte";
   import SettingsSectionActivity from "./SettingsSectionActivity.svelte";
   import SettingsSectionAbout from "./SettingsSectionAbout.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
   import type { SettingsSection } from "$lib/types";
 
   interface NavEntry {
     id: SettingsSection;
-    label: string;
     icon: typeof Paintbrush;
   }
 
   const NAV: NavEntry[] = [
-    { id: "appearance", label: "Appearance", icon: Paintbrush },
-    { id: "catalog",    label: "Catalog",    icon: Library },
-    { id: "network",    label: "Network",    icon: Globe },
-    { id: "github",     label: "GitHub",     icon: Github },
-    { id: "activity",   label: "Activity",   icon: Activity },
-    { id: "about",      label: "About",      icon: Info },
+    { id: "appearance", icon: Paintbrush },
+    { id: "catalog",    icon: Library },
+    { id: "network",    icon: Globe },
+    { id: "github",     icon: Github },
+    { id: "activity",   icon: Activity },
+    { id: "about",      icon: Info },
   ];
 
   let activeSection: SettingsSection = $state("appearance");
   let modalEl: HTMLDivElement | undefined = $state();
+
+  function sectionLabel(id: SettingsSection): string {
+    if (id === "appearance") return i18n.t("settings.appearance.title");
+    if (id === "catalog") return i18n.t("settings.catalog");
+    if (id === "network") return i18n.t("settings.network");
+    if (id === "github") return i18n.t("settings.github");
+    if (id === "activity") return i18n.t("settings.activity");
+    return i18n.t("settings.about");
+  }
 
   /** Reset the section pick whenever the modal is reopened. Honors
       `ui.settingsInitialSection` when the caller deep-linked
@@ -109,15 +118,15 @@
     class="settings-wrap"
     role="dialog"
     aria-modal="true"
-    aria-label="Settings"
+    aria-label={i18n.t("settings.title")}
   >
     <div
       class="settings"
       bind:this={modalEl}
       data-tauri-drag-region="false"
     >
-      <div class="nav" role="tablist" aria-label="Settings sections">
-        <h1 class="nav-title">Settings</h1>
+      <div class="nav" role="tablist" aria-label={i18n.t("settings.sections")}>
+        <h1 class="nav-title">{i18n.t("settings.title")}</h1>
         <ul>
           {#each NAV as entry (entry.id)}
             {@const isActive = activeSection === entry.id}
@@ -132,7 +141,7 @@
                 onclick={() => (activeSection = entry.id)}
               >
                 <span class="nav-icon" aria-hidden="true"><entry.icon size={14} /></span>
-                <span>{entry.label}</span>
+                <span>{sectionLabel(entry.id)}</span>
               </button>
             </li>
           {/each}
@@ -143,12 +152,12 @@
         class="pane"
         id="settings-pane"
         role="tabpanel"
-        aria-label={`Settings — ${activeSection}`}
+        aria-label={i18n.t("settings.paneLabel", { section: sectionLabel(activeSection) })}
       >
         <button
           type="button"
           class="close"
-          aria-label="Close Settings"
+          aria-label={i18n.t("settings.close")}
           onclick={() => ui.closeSettings()}
         >
           <X size={16} />

@@ -12,22 +12,30 @@
   import Monitor from "@lucide/svelte/icons/monitor";
 
   import { ui, VIBRANCY_MATERIALS, type VibrancyMaterial } from "$lib/stores/ui.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
+  import { LOCALES, localeLabels, type Locale } from "$lib/i18n/messages";
   import type { SidebarSection, ThemePreference } from "$lib/types";
 
   /** Sections the user can pick as their default landing page. Mirrors the
       sidebar nav order, plus Dashboard which lives in the brand button. */
-  const SECTIONS: { value: SidebarSection; label: string }[] = [
-    { value: "dashboard", label: "Dashboard" },
-    { value: "personas", label: "Agents" },
-    { value: "tools", label: "Tools" },
-    { value: "teams", label: "Teams" },
-    { value: "projects", label: "Projects" },
-    { value: "activity", label: "Activity" },
-  ];
+  const SECTIONS: SidebarSection[] = ["dashboard", "personas", "tools", "teams", "projects", "activity"];
+
+  function sectionLabel(value: SidebarSection): string {
+    if (value === "dashboard") return i18n.t("nav.dashboard");
+    if (value === "personas") return i18n.t("nav.agents");
+    if (value === "tools") return i18n.t("nav.tools");
+    if (value === "teams") return i18n.t("nav.teams");
+    if (value === "projects") return i18n.t("nav.projects");
+    return i18n.t("nav.activity");
+  }
 
   function onSectionChange(e: Event) {
     const value = (e.currentTarget as HTMLSelectElement).value as SidebarSection;
     ui.setDefaultSection(value);
+  }
+  function onLocaleChange(e: Event) {
+    const value = (e.currentTarget as HTMLSelectElement).value as Locale;
+    i18n.setLocale(value);
   }
   function onVibrancyChange(e: Event) {
     const value = (e.currentTarget as HTMLSelectElement).value as VibrancyMaterial;
@@ -37,11 +45,11 @@
 </script>
 
 <div class="section">
-  <h2>Appearance</h2>
+  <h2>{i18n.t("settings.appearance.title")}</h2>
 
   <div class="field">
-    <label for="theme-group">Theme</label>
-    <div id="theme-group" class="radio-row" role="radiogroup" aria-label="Theme">
+    <label for="theme-group">{i18n.t("settings.appearance.theme")}</label>
+    <div id="theme-group" class="radio-row" role="radiogroup" aria-label={i18n.t("settings.appearance.theme")}>
       <button
         type="button"
         class="radio-btn"
@@ -50,7 +58,7 @@
         aria-checked={ui.theme === "light"}
         onclick={() => pickTheme("light")}
       >
-        <Sun size={14} /> Light
+        <Sun size={14} /> {i18n.t("app.theme.light")}
       </button>
       <button
         type="button"
@@ -60,7 +68,7 @@
         aria-checked={ui.theme === "dark"}
         onclick={() => pickTheme("dark")}
       >
-        <Moon size={14} /> Dark
+        <Moon size={14} /> {i18n.t("app.theme.dark")}
       </button>
       <button
         type="button"
@@ -70,29 +78,44 @@
         aria-checked={ui.theme === "system"}
         onclick={() => pickTheme("system")}
       >
-        <Monitor size={14} /> System
+        <Monitor size={14} /> {i18n.t("app.theme.system")}
       </button>
     </div>
-    <p class="hint">Follows the macOS theme when set to System.</p>
+    <p class="hint">{i18n.t("settings.appearance.themeHint")}</p>
   </div>
 
   <div class="field">
-    <label for="default-section">Default landing</label>
+    <label for="default-section">{i18n.t("settings.appearance.defaultLanding")}</label>
     <select
       id="default-section"
       class="select"
       value={ui.defaultSection}
       onchange={onSectionChange}
     >
-      {#each SECTIONS as opt (opt.value)}
-        <option value={opt.value}>{opt.label}</option>
+      {#each SECTIONS as opt (opt)}
+        <option value={opt}>{sectionLabel(opt)}</option>
       {/each}
     </select>
-    <p class="hint">Which section opens when you launch Agency Agents.</p>
+    <p class="hint">{i18n.t("settings.appearance.defaultLandingHint")}</p>
   </div>
 
   <div class="field">
-    <label for="vibrancy-material">Window vibrancy</label>
+    <label for="locale">{i18n.t("settings.appearance.language")}</label>
+    <select
+      id="locale"
+      class="select"
+      value={i18n.locale}
+      onchange={onLocaleChange}
+    >
+      {#each LOCALES as locale (locale)}
+        <option value={locale}>{localeLabels[locale]}</option>
+      {/each}
+    </select>
+    <p class="hint">{i18n.t("settings.appearance.languageHint")}</p>
+  </div>
+
+  <div class="field">
+    <label for="vibrancy-material">{i18n.t("settings.appearance.vibrancy")}</label>
     <select
       id="vibrancy-material"
       class="select"
@@ -103,8 +126,7 @@
         <option value={m}>{m}</option>
       {/each}
     </select>
-    <p class="hint">Requires app restart to take effect. The default
-      (HudWindow) matches the rest of macOS.</p>
+    <p class="hint">{i18n.t("settings.appearance.vibrancyHint")}</p>
   </div>
 
 </div>

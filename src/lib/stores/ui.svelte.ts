@@ -85,18 +85,6 @@ export function clampDetailPaneWidth(w: number, windowWidth?: number): number {
   return Math.min(Math.max(Math.round(w), DETAIL_PANE_MIN_WIDTH), max);
 }
 
-/** Human-readable titles shown in the window title bar for each section.
-    Kept here (not in Sidebar) so the title bar can read them without
-    importing the navigation array. */
-const SECTION_TITLES: Record<SidebarSection, string> = {
-  dashboard: "Dashboard",
-  personas:  "Agents",
-  tools:     "Tools",
-  teams:     "Teams",
-  projects:  "Projects",
-  activity:  "Activity",
-};
-
 /** The hardcoded first-launch section, before any saved default-landing or
     navigation is applied. `loadDefaultSectionFromStorage` uses this as the
     "untouched" sentinel: it only applies the saved default when `section` is
@@ -112,9 +100,6 @@ class UiStore {
       sidebar brand returns here. */
   section: SidebarSection = $state(INITIAL_SECTION);
 
-  /** The active section's display name — shown in the window title bar
-      (the panel-head `<h1>` was removed in favour of the title bar). */
-  pageTitle = $derived(SECTION_TITLES[this.section]);
   drawerOpen: boolean = $state(false);
   drawerMinimized: boolean = $state(false);
   paletteOpen: boolean = $state(false);

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { i18n } from "$lib/stores/i18n.svelte";
+
   /**
    * ResizeHandle — vertical drag handle for resizing a sibling pane horizontally.
    *
@@ -48,8 +50,10 @@
     direction = "left",
     onChange,
     onCommit,
-    label = "Resize panel",
+    label,
   }: Props = $props();
+
+  const displayLabel = $derived(label ?? i18n.t("common.resizePanel"));
 
   // Drag state — `dragging` is reactive (`class:dragging` styles the hairline);
   // the rest are imperative-only (set in pointerdown, read in pointermove).
@@ -131,7 +135,7 @@
   class:dragging
   role="separator"
   aria-orientation="vertical"
-  aria-label={label}
+  aria-label={displayLabel}
   aria-valuemin={min}
   aria-valuemax={max ?? undefined}
   aria-valuenow={Math.round(width)}
@@ -142,7 +146,7 @@
   onpointercancel={endDrag}
   onkeydown={onKeyDown}
   ondblclick={onDblClick}
-  title="Drag to resize · double-click to reset"
+  title={i18n.t("common.dragResizeTitle")}
 ></div>
 
 <style>

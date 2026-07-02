@@ -2,6 +2,7 @@
   import type { Snippet } from "svelte";
   import Modal from "./Modal.svelte";
   import Button from "./Button.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
 
   interface Props {
     open: boolean;
@@ -19,14 +20,17 @@
   let {
     open,
     title,
-    confirmLabel = "Confirm",
-    cancelLabel = "Cancel",
+    confirmLabel,
+    cancelLabel,
     confirmVariant = "danger",
     confirmDisabled = false,
     onConfirm,
     onCancel,
     children,
   }: Props = $props();
+
+  const confirmText = $derived(confirmLabel ?? i18n.t("common.confirm"));
+  const cancelText = $derived(cancelLabel ?? i18n.t("common.cancel"));
 </script>
 
 <Modal {open} {title} defaultFocus="cancel" onClose={onCancel}>
@@ -34,7 +38,7 @@
     {@render children()}
   {/if}
   {#snippet actions()}
-    <Button variant="secondary" modalAction="cancel" onclick={onCancel}>{cancelLabel}</Button>
-    <Button variant={confirmVariant} modalAction="confirm" disabled={confirmDisabled} onclick={onConfirm}>{confirmLabel}</Button>
+    <Button variant="secondary" modalAction="cancel" onclick={onCancel}>{cancelText}</Button>
+    <Button variant={confirmVariant} modalAction="confirm" disabled={confirmDisabled} onclick={onConfirm}>{confirmText}</Button>
   {/snippet}
 </Modal>

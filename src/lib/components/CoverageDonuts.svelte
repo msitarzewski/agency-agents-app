@@ -16,6 +16,7 @@
   import EmptyState from "./EmptyState.svelte";
   import LayersIcon from "@lucide/svelte/icons/layers";
   import { corpus } from "$lib/stores/corpus.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
   import { install, SUPPORTED_TOOLS } from "$lib/stores/install.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { toolAccent, toolMark, toolIcon } from "$lib/util/toolBadge";
@@ -83,7 +84,7 @@
 </script>
 
 {#if donuts.length === 0}
-  <EmptyState title="No coverage yet" body="Install agents across your tools to see the per-tool division mix here.">
+  <EmptyState title={i18n.t("coverage.emptyTitle")} body={i18n.t("coverage.donutsEmptyBody")}>
     {#snippet icon()}<LayersIcon size={40} />{/snippet}
   </EmptyState>
 {:else}
@@ -94,7 +95,7 @@
         {@const hot = hovered ? countIn(d.tool, hovered) : 0}
         <div class="cd-cell">
           <div class="cd-chart">
-            <svg width="132" height="132" viewBox="0 0 120 120" role="img" aria-label={`${d.label}: ${d.total} agents across ${d.segs.length} divisions`}>
+            <svg width="132" height="132" viewBox="0 0 120 120" role="img" aria-label={i18n.t("coverage.donutAria", { tool: d.label, count: d.total, divisions: d.segs.length })}>
               <g transform="rotate(-90 60 60)">
                 <circle cx="60" cy="60" r={R} fill="none" style="stroke: var(--color-surface-sunken)" stroke-width={STROKE} />
                 {#each arcs as a (a.slug)}
@@ -110,19 +111,19 @@
                     class="seg"
                     class:dim={hovered !== null && hovered !== a.slug}
                     role="img"
-                    aria-label={`${a.label}: ${a.value} in ${d.label}`}
+                    aria-label={i18n.t("coverage.sliceAria", { division: a.label, count: a.value, tool: d.label })}
                     onmouseenter={() => (hovered = a.slug)}
                     onmouseleave={() => (hovered = null)}
                     onclick={() => ui.openDivision(a.slug)}
-                  ><title>{a.label}: {a.value} in {d.label}</title></circle>
+                  ><title>{i18n.t("coverage.sliceAria", { division: a.label, count: a.value, tool: d.label })}</title></circle>
                 {/each}
               </g>
             </svg>
             <button
               class="cd-badge"
               style="--accent:{toolAccent(d.tool)}"
-              title={`Open ${d.label} in Tools`}
-              aria-label={`Open ${d.label} in Tools`}
+              title={i18n.t("coverage.openTool", { tool: d.label })}
+              aria-label={i18n.t("coverage.openTool", { tool: d.label })}
               onclick={() => ui.openTools(d.tool)}
             >{#if toolIcon(d.tool)}<span class="glyph">{@html toolIcon(d.tool)}</span>{:else}{toolMark(d.label)}{/if}</button>
           </div>
@@ -131,7 +132,7 @@
             {#if hovered && hot > 0}
               <span class="cd-sub">{hot} {hoveredLabel}</span>
             {:else}
-              <span class="cd-sub">{d.total} agent{d.total === 1 ? "" : "s"}</span>
+              <span class="cd-sub">{i18n.count(d.total, "common.agent.one", "common.agent.many")}</span>
             {/if}
           </div>
         </div>

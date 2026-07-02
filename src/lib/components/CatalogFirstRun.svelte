@@ -20,6 +20,7 @@
   import Check from "@lucide/svelte/icons/check";
 
   import { catalog } from "$lib/stores/catalog.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import type { CatalogCandidate } from "$lib/types";
 
@@ -33,30 +34,27 @@
       await fn();
       toast.success(ok);
     } catch (e) {
-      toast.error("Couldn't set catalog source", String(e));
+      toast.error(i18n.t("firstRun.error"), String(e));
     }
   }
 
   async function pickFolder() {
-    const picked = await openDialog({ directory: true, multiple: false, title: "Choose your agency-agents clone" });
+    const picked = await openDialog({ directory: true, multiple: false, title: i18n.t("catalog.chooseCloneTitle") });
     if (typeof picked === "string") {
-      await choose(() => catalog.useClone(picked, manage), "Using your clone");
+      await choose(() => catalog.useClone(picked, manage), i18n.t("firstRun.usingClone"));
     }
   }
 
   function useCandidate(c: CatalogCandidate) {
-    void choose(() => catalog.useClone(c.path, manage), `Using ${c.path}`);
+    void choose(() => catalog.useClone(c.path, manage), i18n.t("firstRun.usingPath", { path: c.path }));
   }
 </script>
 
 <div class="scrim">
-  <div class="box" role="dialog" aria-modal="true" aria-label="Choose your agent catalog">
+  <div class="box" role="dialog" aria-modal="true" aria-label={i18n.t("firstRun.dialogAria")}>
     <header>
-      <h1>Where should your agents live?</h1>
-      <p class="lede">
-        Agency Agents keeps a copy of the catalog it installs from. Pick how to
-        manage it — you can change this anytime in Settings → Catalog.
-      </p>
+      <h1>{i18n.t("firstRun.title")}</h1>
+      <p class="lede">{i18n.t("firstRun.lede")}</p>
     </header>
 
     <div class="cards">
@@ -65,8 +63,8 @@
         <button class="card-head" onclick={() => (expanded = expanded === "clone" ? null : "clone")}>
           <FolderGit2 size={22} />
           <div class="ct">
-            <span class="t">Use my own clone</span>
-            <span class="d">Point at an existing agency-agents checkout — shared with the CLI.</span>
+            <span class="t">{i18n.t("firstRun.useClone")}</span>
+            <span class="d">{i18n.t("firstRun.useCloneDesc")}</span>
           </div>
         </button>
 
@@ -80,7 +78,7 @@
                       <div class="cand-main">
                         <span class="cand-path">{c.path}</span>
                         <span class="cand-meta">
-                          {c.agentCount} agents{c.hasGit ? " · git" : ""} · {c.kind === "managed" ? "~/.agency-agents" : "found"}
+                          {i18n.count(c.agentCount, "common.agent.one", "common.agent.many")}{c.hasGit ? " · git" : ""} · {c.kind === "managed" ? "~/.agency-agents" : i18n.t("common.detected")}
                         </span>
                       </div>
                       <Check size={15} />
@@ -89,39 +87,39 @@
                 {/each}
               </ul>
             {:else}
-              <p class="empty">No clone found yet in <code>~/.agency-agents</code>. Scan your dev folders or choose one manually.</p>
+              <p class="empty">{i18n.t("firstRun.noClone")}</p>
             {/if}
 
             <label class="manage">
               <input type="checkbox" bind:checked={manage} />
-              Let the app keep it updated (<code>git pull</code> / refresh). Off = read-only.
+              {i18n.t("firstRun.manage")}
             </label>
 
             <div class="row-actions">
               <button class="ghost" disabled={catalog.scanning} onclick={() => catalog.detect(true)}>
-                <Search size={14} /><span>{catalog.scanning ? "Searching…" : "Find Agency Agents"}</span>
+                <Search size={14} /><span>{catalog.scanning ? i18n.t("common.searching") : i18n.t("catalog.find")}</span>
               </button>
-              <button class="ghost" disabled={catalog.busy} onclick={pickFolder}>Choose folder…</button>
+              <button class="ghost" disabled={catalog.busy} onclick={pickFolder}>{i18n.t("catalog.chooseFolder")}</button>
             </div>
           </div>
         {/if}
       </div>
 
       <!-- 2. Set one up for me -->
-      <button class="card simple" disabled={catalog.busy} onclick={() => choose(() => catalog.provisionManaged(), "Set up ~/.agency-agents")}>
+      <button class="card simple" disabled={catalog.busy} onclick={() => choose(() => catalog.provisionManaged(), i18n.t("catalog.setupManaged"))}>
         <Sparkles size={22} />
         <div class="ct">
-          <span class="t">Set one up for me</span>
-          <span class="d">Create <code>~/.agency-agents</code> (git clone if available, else a snapshot). Needs network.</span>
+          <span class="t">{i18n.t("firstRun.setup")}</span>
+          <span class="d">{i18n.t("firstRun.setupDesc")}</span>
         </div>
       </button>
 
       <!-- 3. Bundled snapshot -->
-      <button class="card simple" disabled={catalog.busy} onclick={() => choose(() => catalog.useBundled(), "Using the bundled snapshot")}>
+      <button class="card simple" disabled={catalog.busy} onclick={() => choose(() => catalog.useBundled(), i18n.t("catalog.usingBundled"))}>
         <Package size={22} />
         <div class="ct">
-          <span class="t">Just use the bundled snapshot</span>
-          <span class="d">Works offline, updates with the app. You can switch later.</span>
+          <span class="t">{i18n.t("firstRun.bundled")}</span>
+          <span class="d">{i18n.t("firstRun.bundledDesc")}</span>
         </div>
       </button>
     </div>
@@ -187,6 +185,5 @@
   }
   .ghost:hover:not(:disabled) { color: var(--color-text-primary); background: var(--color-surface-sunken); }
   .ghost:disabled { opacity: 0.5; cursor: default; }
-  code { font-family: var(--font-mono); font-size: 0.92em; }
   .err { font-size: var(--text-body-sm); color: var(--color-danger); }
 </style>

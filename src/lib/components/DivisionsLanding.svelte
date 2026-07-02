@@ -20,6 +20,7 @@
   import { install } from "$lib/stores/install.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { resolveCategoryIcon } from "$lib/util/categoryIcon";
+  import { i18n } from "$lib/stores/i18n.svelte";
 
   // ── Division-level select mode (separate from the agent list's own) ──
   let selectMode = $state(false);
@@ -82,18 +83,18 @@
         checked={allSelected}
         indeterminate={someSelected}
         onchange={toggleAll}
-        aria-label="Select all divisions"
+        aria-label={i18n.t("divisions.selectAll")}
       />
-      <span class="count">{selected.size} selected</span>
+      <span class="count">{i18n.t("common.selected", { count: selected.size })}</span>
       <button class="ghost cta" disabled={selected.size === 0} onclick={() => (modalOpen = true)}>
-        Install Selected
+        {i18n.t("divisions.installSelected")}
       </button>
-      <button class="ghost" onclick={exitSelect}>Done</button>
+      <button class="ghost" onclick={exitSelect}>{i18n.t("common.done")}</button>
     {:else}
-      <span class="lead"><LayersIcon size={14} /> Divisions</span>
+      <span class="lead"><LayersIcon size={14} /> {i18n.t("divisions.title")}</span>
       <span class="spacer"></span>
       {#if tiles.length > 0}
-        <button class="ghost" onclick={enterSelect}>Select</button>
+        <button class="ghost" onclick={enterSelect}>{i18n.t("common.select")}</button>
       {/if}
     {/if}
   </div>
@@ -109,14 +110,14 @@
             class="check"
             checked={selected.has(c.slug)}
             onchange={() => toggleRow(c.slug)}
-            aria-label={`Select ${c.label}`}
+            aria-label={`${i18n.t("common.select")} ${c.label}`}
           />
         {/if}
         <button class="row-main" onclick={() => onRow(c.slug)}>
           <span class="ic" style="color:{corpus.colorOf(c.slug)}"><Icon size={18} /></span>
           <span class="text">
             <span class="name truncate">{c.label}</span>
-            <span class="meta">{c.count} agent{c.count === 1 ? "" : "s"}{#if deployed > 0} · {deployed} deployed{/if}</span>
+            <span class="meta">{i18n.count(c.count, "common.agent.one", "common.agent.many")}{#if deployed > 0} · {i18n.t("common.detectedCount", { count: deployed })}{/if}</span>
           </span>
           {#if !selectMode}<span class="chev" aria-hidden="true"><ChevronRight size={16} /></span>{/if}
         </button>
@@ -127,7 +128,7 @@
 
 {#if modalOpen}
   {@const slugs = corpus.agents.filter((a) => selected.has(a.category)).map((a) => a.slug)}
-  {@const dTitle = selected.size === 1 ? `Deploy ${corpus.labelOf([...selected][0])}` : `Deploy ${selected.size} divisions`}
+  {@const dTitle = selected.size === 1 ? i18n.t("divisions.deployOneTitle", { division: corpus.labelOf([...selected][0]) }) : i18n.t("divisions.deployManyTitle", { count: selected.size })}
   <InstallModal title={dTitle} agentSlugs={slugs} onClose={() => (modalOpen = false)} />
 {/if}
 

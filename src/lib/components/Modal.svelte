@@ -2,6 +2,7 @@
   import type { Snippet } from "svelte";
   import { onMount } from "svelte";
   import X from "@lucide/svelte/icons/x";
+  import { i18n } from "$lib/stores/i18n.svelte";
 
   interface Props {
     open: boolean;
@@ -113,7 +114,7 @@
       <header>
         <h1 id="modal-title">{title}</h1>
         {#if dismissible}
-          <button class="close" aria-label="Close" onclick={() => onClose?.()}>
+          <button class="close" aria-label={i18n.t("common.close")} onclick={() => onClose?.()}>
             <X size={16} />
           </button>
         {/if}

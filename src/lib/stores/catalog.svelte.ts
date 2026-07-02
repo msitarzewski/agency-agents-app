@@ -156,18 +156,6 @@ class CatalogStore {
     }
   }
 
-  /** Human label for the active source (for headers/badges). */
-  get sourceLabel(): string {
-    switch (this.source.kind) {
-      case "bundled":
-        return "Bundled snapshot";
-      case "managed":
-        return "Managed clone";
-      case "userClone":
-        return this.source.manage ? "Your clone (managed)" : "Your clone (read-only)";
-    }
-  }
-
   /** Active source path, or null for the bundled snapshot. */
   get sourcePath(): string | null {
     return this.source.kind === "bundled" ? null : this.source.path;

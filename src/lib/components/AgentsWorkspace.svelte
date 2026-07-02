@@ -44,6 +44,8 @@
     clampDetailPaneWidth,
   } from "$lib/stores/ui.svelte";
   import { resolveCategoryIcon } from "$lib/util/categoryIcon";
+  import { i18n } from "$lib/stores/i18n.svelte";
+  import type { MessageKey } from "$lib/i18n/messages";
   import type { Agent, InstalledAgent, InstallState, Tool } from "$lib/types";
 
   onMount(() => corpus.ensureLoaded());
@@ -131,14 +133,14 @@
   });
 
   // Lens definitions paired with the row dot tones so the color story matches.
-  const LENSES: { id: Lens; label: string; tone: string }[] = [
-    { id: "all", label: "All", tone: "" },
-    { id: "attention", label: "Needs attention", tone: "warn" },
-    { id: "current", label: "In sync", tone: "ok" },
-    { id: "outdated", label: "Outdated", tone: "warn" },
-    { id: "foreign", label: "Untracked", tone: "info" },
-    { id: "removed", label: "Missing", tone: "danger" },
-    { id: "none", label: "Not installed", tone: "none" },
+  const LENSES: { id: Lens; key: MessageKey; tone: string }[] = [
+    { id: "all", key: "state.all", tone: "" },
+    { id: "attention", key: "state.attention", tone: "warn" },
+    { id: "current", key: "state.current", tone: "ok" },
+    { id: "outdated", key: "state.outdated", tone: "warn" },
+    { id: "foreign", key: "state.foreign", tone: "info" },
+    { id: "removed", key: "state.removed", tone: "danger" },
+    { id: "none", key: "state.none", tone: "none" },
   ];
   // Show "All" plus any bucket present in the current view (zero-count lenses hide).
   const visibleLenses = $derived(LENSES.filter((f) => f.id === "all" || lensCounts[f.id] > 0));
@@ -173,7 +175,7 @@
     ui.setAgentsCategory(slug);
     catMenuOpen = false;
   }
-  const categoryLabel = $derived(ui.agentsCategory ? corpus.labelOf(ui.agentsCategory) : "All divisions");
+  const categoryLabel = $derived(ui.agentsCategory ? corpus.labelOf(ui.agentsCategory) : i18n.t("agents.allDivisions"));
 
   // ── Division overview banner — shown atop a division's agent list (not while
   //    searching or selecting): what the division is for + deploy-the-whole-
@@ -184,7 +186,9 @@
     const slugs = corpus.agents.filter((a) => a.category === slug).map((a) => a.slug);
     if (slugs.length === 0) return null;
     const label = corpus.labelOf(slug);
-    return { slug, label, color: corpus.colorOf(slug), icon: corpus.iconOf(slug), slugs, prompt: divisionPrompt(slug, label) };
+    const fallback = divisionPrompt(slug, label);
+    const prompt = i18n.optional(`divisionPrompt.${slug}`, fallback, { division: label });
+    return { slug, label, color: corpus.colorOf(slug), icon: corpus.iconOf(slug), slugs, prompt };
   });
   let divisionInstallOpen = $state(false);
 
@@ -280,7 +284,7 @@
   // uninstall (catalog agents re-install; any edits are backed up first).
   const selHasForeign = $derived(selInstalls.some((i) => i.state === "foreign"));
 
-  async function runBulk(action: "update" | "track" | "uninstall", verb: string) {
+  async function runBulk(action: "update" | "track" | "uninstall", verbKey: MessageKey) {
     let picked = selInstalls;
     if (action === "update") picked = selInstalls.filter((i) => i.state !== "current");
     else if (action === "track") picked = selInstalls.filter((i) => i.state === "foreign");
@@ -290,8 +294,9 @@
     bulkBusy = true;
     try {
       const { ok, fail } = await install.bulk(action, targets);
-      if (fail === 0) toast.success(`${verb} ${ok} install${ok === 1 ? "" : "s"}`);
-      else toast.error(`${verb}: ${ok} ok, ${fail} failed`);
+      const verb = i18n.t(verbKey);
+      if (fail === 0) toast.success(i18n.t("agents.bulkSuccess", { verb, count: ok }));
+      else toast.error(i18n.t("agents.bulkError", { verb, ok, fail }));
       selected = new Set();
     } finally {
       bulkBusy = false;
@@ -313,7 +318,7 @@
           {#if catMenuOpen}
             <div class="cat-menu" role="menu" bind:this={catMenu}>
               <button class="cat-opt" role="menuitem" class:on={!ui.agentsCategory} onclick={() => pickCategory(null)}>
-                <LayersIcon size={14} /><span class="truncate">All divisions</span><span class="cat-c">{corpus.agents.length}</span>
+                <LayersIcon size={14} /><span class="truncate">{i18n.t("agents.allDivisions")}</span><span class="cat-c">{corpus.agents.length}</span>
               </button>
               {#each corpus.tiles as c (c.slug)}
                 {@const Icon = resolveCategoryIcon(c.icon)}
@@ -324,21 +329,21 @@
             </div>
           {/if}
         </div>
-        <Input bind:value={query} variant="search" placeholder="Search agents by name, role, or vibe…" ariaLabel="Search agents" />
+        <Input bind:value={query} variant="search" placeholder={i18n.t("agents.searchPlaceholder")} ariaLabel={i18n.t("agents.searchLabel")} />
         {#if visible.length > 0 && !showDivisions}
           {#if selectMode}
-            <button class="ghost" onclick={exitSelect}>Done</button>
+            <button class="ghost" onclick={exitSelect}>{i18n.t("common.done")}</button>
           {:else}
-            <button class="ghost" onclick={enterSelect}>Select</button>
+            <button class="ghost" onclick={enterSelect}>{i18n.t("common.select")}</button>
           {/if}
         {/if}
-        <button class="ghost icon" title="Rescan tools + installs" aria-label="Rescan" onclick={() => install.reconcile()}>
+        <button class="ghost icon" title={i18n.t("agents.rescanTitle")} aria-label={i18n.t("agents.rescanTitle")} onclick={() => install.reconcile()}>
           <RefreshIcon size={15} />
         </button>
       </div>
 
       {#if !showDivisions && !selectMode && base.length > 0}
-        <div class="seg" role="tablist" aria-label="Filter by install state">
+        <div class="seg" role="tablist" aria-label={i18n.t("agents.filterByInstallState")}>
           {#each visibleLenses as f (f.id)}
             <button
               class="seg-btn"
@@ -348,7 +353,7 @@
               onclick={() => setLens(f.id)}
             >
               {#if f.tone}<span class="seg-dot" data-tone={f.tone}></span>{/if}
-              {f.label}
+              {i18n.t(f.key)}
               <span class="seg-c">{lensCounts[f.id]}</span>
             </button>
           {/each}
@@ -363,28 +368,28 @@
             checked={allVisibleSelected}
             indeterminate={someSelected}
             onchange={toggleAll}
-            aria-label="Select all visible"
+            aria-label={i18n.t("agents.selectAllVisible")}
           />
-          <span class="bulk-count">{selected.size} selected</span>
+          <span class="bulk-count">{i18n.t("common.selected", { count: selected.size })}</span>
           {#if selected.size > 0}
             <div class="bulk-menu-wrap">
               <button class="ghost" bind:this={bulkBtn} disabled={bulkBusy} onclick={() => (menuOpen = !menuOpen)}>
-                {bulkBusy ? "Working…" : "With selected"}<ChevronDown size={14} />
+                {bulkBusy ? i18n.t("common.working") : i18n.t("agents.withSelected")}<ChevronDown size={14} />
               </button>
               {#if menuOpen}
                 <div class="bulk-menu" role="menu" bind:this={bulkMenu}>
                   <button class="bulk-opt" role="menuitem" onclick={() => { menuOpen = false; bulkInstallOpen = true; }}>
-                    <DownloadIcon size={14} /><span>Install… — deploy to tools &amp; projects</span>
+                    <DownloadIcon size={14} /><span>{i18n.t("agents.installSelected")}</span>
                   </button>
                   <div class="bulk-div"></div>
-                  <button class="bulk-opt" role="menuitem" disabled={!canBulkUpdate} title={canBulkUpdate ? "" : "All selected are in sync"} onclick={() => runBulk("update", "Updated")}>
-                    <RefreshIcon size={14} /><span>Update — replace with catalog version</span>
+                  <button class="bulk-opt" role="menuitem" disabled={!canBulkUpdate} title={canBulkUpdate ? "" : i18n.t("agents.allSelectedInSync")} onclick={() => runBulk("update", "agents.updatedVerb")}>
+                    <RefreshIcon size={14} /><span>{i18n.t("agents.updateSelected")}</span>
                   </button>
-                  <button class="bulk-opt" role="menuitem" disabled={!canBulkTrack} title={canBulkTrack ? "" : "Nothing untracked in the selection"} onclick={() => runBulk("track", "Tracked")}>
-                    <PlusIcon size={14} /><span>Track — keep file, start managing</span>
+                  <button class="bulk-opt" role="menuitem" disabled={!canBulkTrack} title={canBulkTrack ? "" : i18n.t("agents.nothingUntrackedSelection")} onclick={() => runBulk("track", "agents.trackedVerb")}>
+                    <PlusIcon size={14} /><span>{i18n.t("agents.trackSelected")}</span>
                   </button>
                   <button class="bulk-opt" class:danger={selHasForeign} role="menuitem" onclick={() => { menuOpen = false; confirmDelete = true; }}>
-                    <TrashIcon size={14} /><span>{selHasForeign ? "Delete — remove files from disk" : "Uninstall — remove from disk (re-installable)"}</span>
+                    <TrashIcon size={14} /><span>{i18n.t(selHasForeign ? "agents.deleteSelected" : "agents.uninstallSelected")}</span>
                   </button>
                 </div>
               {/if}
@@ -402,17 +407,17 @@
             <span class="dov-ic" style="color:{divisionMeta.color}"><Icon size={18} /></span>
             <div class="dov-id">
               <span class="dov-name">{divisionMeta.label}</span>
-              <span class="dov-sub">{divisionMeta.slugs.length} agents · deploy the whole division, or open one to install just that specialist.</span>
+              <span class="dov-sub">{i18n.t("agents.divisionOverview", { count: divisionMeta.slugs.length })}</span>
             </div>
-            <button class="dov-deploy" onclick={() => (divisionInstallOpen = true)}><DownloadIcon size={14} /> Deploy division…</button>
+            <button class="dov-deploy" onclick={() => (divisionInstallOpen = true)}><DownloadIcon size={14} /> {i18n.t("agents.deployDivision")}</button>
           </div>
           <StarterPrompt template={divisionMeta.prompt} />
         </div>
       {/if}
       {#if corpus.loading && corpus.agents.length === 0}
-        <LoadingState rows={6} label="Loading agents…" />
+        <LoadingState rows={6} label={i18n.t("agents.loading")} />
       {:else if corpus.error && corpus.agents.length === 0}
-        <EmptyState title="Corpus unavailable" body="The agent catalog isn't ready yet.">
+        <EmptyState title={i18n.t("agents.corpusUnavailableTitle")} body={i18n.t("agents.corpusUnavailableBody")}>
           {#snippet icon()}<SearchIcon size={48} />{/snippet}
         </EmptyState>
       {:else if showDivisions}
@@ -420,11 +425,11 @@
       {:else if visible.length === 0}
         <EmptyState
           title={lens !== "all"
-            ? `No agents are ${(LENSES.find((l) => l.id === lens)?.label ?? "").toLowerCase()} here.`
+            ? i18n.t("agents.emptyStateLens", { state: i18n.t(LENSES.find((l) => l.id === lens)?.key ?? "state.all").toLowerCase() })
             : query.trim()
-              ? `Nothing matches “${query.trim()}”.`
-              : "No agents in this division."}
-          body={lens !== "all" ? "Try a different filter, search, or division." : "Try a different search or division."}
+              ? i18n.t("agents.emptySearch", { query: query.trim() })
+              : i18n.t("agents.emptyDivision")}
+          body={lens !== "all" ? i18n.t("agents.emptyFilteredBody") : i18n.t("agents.emptyBody")}
         >
           {#snippet icon()}<SearchIcon size={48} />{/snippet}
         </EmptyState>
@@ -435,7 +440,7 @@
             {@const isSel = panelAgent?.slug === a.slug}
             <li class="row" class:active={isSel} class:picked={selectMode && selected.has(a.slug)}>
               {#if selectMode}
-                <input type="checkbox" class="check" checked={selected.has(a.slug)} onchange={() => toggleRow(a.slug)} aria-label={`Select ${a.name}`} />
+                <input type="checkbox" class="check" checked={selected.has(a.slug)} onchange={() => toggleRow(a.slug)} aria-label={`${i18n.t("common.select")} ${a.name}`} />
               {/if}
               <button class="row-main" onclick={() => openAgent(a)} aria-current={isSel ? "true" : undefined}>
                 <span class="row-emoji" aria-hidden="true">{a.emoji ?? "🧩"}</span>
@@ -467,23 +472,23 @@
         max={900}
         defaultWidth={DETAIL_PANE_DEFAULT_WIDTH}
         direction="left"
-        label="Resize detail pane"
+        label={i18n.t("common.resizeDetailPane")}
         onChange={(w) => (ui.detailPaneWidth = clampDetailPaneWidth(w))}
         onCommit={(w) => ui.setDetailPaneWidth(w)}
       />
     </div>
 
     <!-- ── Detail pane (only when an agent is selected) ── -->
-    <aside class="detail-pane" style="width: {ui.detailPaneWidth}px" aria-label="Agent detail">
+    <aside class="detail-pane" style="width: {ui.detailPaneWidth}px" aria-label={i18n.t("agents.agentDetail")}>
       <div class="dp-bar">
-        <button class="dp-close" onclick={closeDetail} aria-label="Close detail" title="Close detail"><XIcon size={16} /></button>
+        <button class="dp-close" onclick={closeDetail} aria-label={i18n.t("agents.closeDetail")} title={i18n.t("agents.closeDetail")}><XIcon size={16} /></button>
       </div>
       <div class="dp-scroll">
         <PersonaBody agent={panelAgent} loading={detailLoading} onCategory={(slug) => ui.openDivision(slug)}>
           {#snippet headerAction()}
             {#if panelAgent}
               <button class="dp-install" onclick={() => (installOpen = true)}>
-                <DownloadIcon size={14} /> Install…
+                <DownloadIcon size={14} /> {i18n.t("agents.installAgent")}
               </button>
             {/if}
           {/snippet}
@@ -497,7 +502,7 @@
     </aside>
 
     <!-- Narrow-window overlay scrim: clicking dismisses the overlaid detail pane. -->
-    <button class="ws-scrim" aria-label="Close detail" onclick={closeDetail}></button>
+    <button class="ws-scrim" aria-label={i18n.t("agents.closeDetail")} onclick={closeDetail}></button>
   {/if}
 </section>
 
@@ -512,12 +517,12 @@
 {/if}
 
 {#if installOpen && panelAgent}
-  <InstallModal title={`Install ${panelAgent.name}`} agentSlugs={[panelAgent.slug]} onClose={() => (installOpen = false)} />
+  <InstallModal title={i18n.t("agents.installAgentTitle", { name: panelAgent.name })} agentSlugs={[panelAgent.slug]} onClose={() => (installOpen = false)} />
 {/if}
 
 {#if bulkInstallOpen && selected.size > 0}
   <InstallModal
-    title={`Install ${selected.size} agent${selected.size === 1 ? "" : "s"}`}
+    title={i18n.t("agents.installSelectedTitle", { count: selected.size })}
     agentSlugs={[...selected]}
     onClose={() => (bulkInstallOpen = false)}
   />
@@ -525,32 +530,28 @@
 
 {#if divisionInstallOpen && divisionMeta}
   <InstallModal
-    title={`Install ${divisionMeta.label} division`}
+    title={i18n.t("agents.installDivisionTitle", { division: divisionMeta.label })}
     agentSlugs={divisionMeta.slugs}
     onClose={() => (divisionInstallOpen = false)}
   />
 {/if}
 
 {#if confirmDelete}
-  <button class="cd-scrim" aria-label="Cancel" onclick={() => (confirmDelete = false)}></button>
-  <div class="cd-box" role="alertdialog" aria-modal="true" aria-label="Confirm delete">
-    <div class="cd-head"><AlertTriangle size={20} /><h2>{selHasForeign ? "Delete" : "Uninstall"} {selected.size} agent{selected.size === 1 ? "" : "s"}?</h2></div>
+  <button class="cd-scrim" aria-label={i18n.t("common.cancel")} onclick={() => (confirmDelete = false)}></button>
+  <div class="cd-box" role="alertdialog" aria-modal="true" aria-label={i18n.t("agents.confirmDeleteAria")}>
+    <div class="cd-head"><AlertTriangle size={20} /><h2>{i18n.t(selHasForeign ? "agents.confirmDelete" : "agents.confirmUninstall", { count: selected.size })}</h2></div>
     <p class="cd-body">
       {#if selHasForeign}
-        This <strong>permanently removes {selInstalls.length} file{selInstalls.length === 1 ? "" : "s"} from disk</strong>
-        (every tool these agents are installed in) — <strong>including files installed outside this app</strong>.
-        Modified files are backed up before removal; catalog-identical files can be installed again.
+        {i18n.t("agents.deleteBody", { count: selInstalls.length })}
       {:else}
-        Removes {selInstalls.length} file{selInstalls.length === 1 ? "" : "s"} from disk (every tool these agents
-        are installed in). Catalog-identical agents can be <strong>installed again in a click</strong>; any edits
-        you made are backed up first.
+        {i18n.t("agents.uninstallBody", { count: selInstalls.length })}
       {/if}
     </p>
-    <p class="cd-note">Tip: to swap in the catalog version instead, use <strong>Update</strong> — it backs your copy up first.</p>
+    <p class="cd-note">{i18n.t("agents.confirmTip")}</p>
     <div class="cd-actions">
-      <button class="cd-cancel" onclick={() => (confirmDelete = false)}>Cancel</button>
-      <button class="cd-delete" disabled={bulkBusy} onclick={() => { confirmDelete = false; runBulk("uninstall", selHasForeign ? "Deleted" : "Uninstalled"); }}>
-        <TrashIcon size={14} /> {selHasForeign ? "Delete" : "Uninstall"} {selInstalls.length}
+      <button class="cd-cancel" onclick={() => (confirmDelete = false)}>{i18n.t("common.cancel")}</button>
+      <button class="cd-delete" disabled={bulkBusy} onclick={() => { confirmDelete = false; runBulk("uninstall", selHasForeign ? "agents.deletedVerb" : "agents.uninstalledVerb"); }}>
+        <TrashIcon size={14} /> {i18n.t(selHasForeign ? "common.delete" : "common.uninstall")} {selInstalls.length}
       </button>
     </div>
   </div>

@@ -13,6 +13,7 @@
  * so every future caller picks up the same defense automatically.
  */
 import { toast } from "$lib/stores/toast.svelte";
+import { i18n } from "$lib/stores/i18n.svelte";
 
 /** Schemes we will actually pass to the opener. Intentionally narrow. */
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
@@ -29,10 +30,10 @@ export function classifyUrl(url: string): { ok: true; url: string } | { ok: fals
   try {
     parsed = new URL(url);
   } catch {
-    return { ok: false, reason: "Invalid URL" };
+    return { ok: false, reason: i18n.t("common.invalidUrl") };
   }
   if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
-    return { ok: false, reason: `Refusing to open ${parsed.protocol} URL` };
+    return { ok: false, reason: i18n.t("common.refuseUrl", { protocol: parsed.protocol }) };
   }
   return { ok: true, url: parsed.toString() };
 }

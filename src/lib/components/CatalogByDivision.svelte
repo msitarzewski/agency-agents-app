@@ -20,6 +20,7 @@
    * element is exactly H px tall, so y maps 1:1 while x maps percent → width.
    */
   import { corpus } from "$lib/stores/corpus.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
   import { ui } from "$lib/stores/ui.svelte";
 
   // Lane geometry (px; the SVG viewBox y-space matches these 1:1).
@@ -94,11 +95,11 @@
 </script>
 
 {#if model.total === 0}
-  <p class="cbd-empty">No agents in the catalog yet.</p>
+  <p class="cbd-empty">{i18n.t("catalog.empty")}</p>
 {:else}
   <div class="cbd">
     <div class="cbd-head">
-      <span class="cbd-total">{model.total} agents</span>
+      <span class="cbd-total">{i18n.count(model.total, "common.agent.one", "common.agent.many")}</span>
       <span class="cbd-pct">100%</span>
     </div>
 
@@ -128,8 +129,8 @@
           <button
             class="cbd-seg" class:dim={dim(s.slug)}
             style="width:{s.pct}%; background:{s.color}"
-            title={`${s.label}: ${s.count} agents (${s.pct.toFixed(1)}%)`}
-            aria-label={`${s.label}: ${s.count} agents`}
+            title={`${s.label}: ${i18n.count(s.count, "common.agent.one", "common.agent.many")} (${s.pct.toFixed(1)}%)`}
+            aria-label={`${s.label}: ${i18n.count(s.count, "common.agent.one", "common.agent.many")}`}
             onmouseenter={() => (hovered = s.slug)}
             onmouseleave={() => (hovered = null)}
             onclick={() => ui.openDivision(s.slug)}
@@ -159,7 +160,7 @@
           onmouseenter={() => (hovered = f.slug)}
           onmouseleave={() => (hovered = null)}
           onclick={() => ui.openDivision(f.slug)}
-          title={`${f.label}: ${f.count} agents`}
+          title={`${f.label}: ${i18n.count(f.count, "common.agent.one", "common.agent.many", { count: f.count })}`}
         >
           <span class="cbd-swatch" style="background:{f.color}"></span>
           <span class="cbd-name truncate">{f.label}</span>
