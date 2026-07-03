@@ -7,6 +7,7 @@
  */
 
 export interface Practice {
+  id: string;
   title: string;
   body: string;
 }
@@ -14,22 +15,27 @@ export interface Practice {
 /** The five habits that turn a pile of agents into shipped, tested work. */
 export const PLAYBOOK_PRACTICES: Practice[] = [
   {
+    id: "outcome",
     title: "Name the outcome, not the steps",
     body: "Tell the team what “done” looks like — the work product and how you'll know it's finished — then let them plan the path. The more concrete the done-bar, the better the result.",
   },
   {
+    id: "team",
     title: "Cast a team, not a soloist",
     body: "One agent is a contractor; a team is a studio. Deploy a Team (or a whole Division) so a builder and a critic work together — pair a maker with a Code Reviewer and a Reality Checker so nothing gets rubber-stamped.",
   },
   {
+    id: "tested",
     title: "Loop until it's tested",
     body: "“It compiles” isn't done. Make the loop exit on evidence: browser-driven, functional, unit, and a pen-test pass where it applies. Ask for the proof, not the promise.",
   },
   {
+    id: "context",
     title: "Feed it context",
     body: "Garbage in, garbage out. Point at the repo, the constraints, and the success criteria up front. Five minutes of context beats fifty prompts of correction.",
   },
   {
+    id: "scale",
     title: "Start with one, then scale",
     body: "New to this? Install one agent into one project and give it one task. Watch it work — then graduate to a team and the loop.",
   },

@@ -29,6 +29,7 @@ import {
   githubWatch,
 } from "$lib/api";
 import { safeOpenUrl } from "$lib/util/url";
+import { i18n } from "$lib/stores/i18n.svelte";
 import { toast } from "./toast.svelte";
 import {
   appErrorMessage,
@@ -283,7 +284,7 @@ class GithubStore {
         // reactivity scheduler (see issue #1 root cause; this app
         // exhibited 300+ effect re-runs per single signinState write).
         // The toast belongs at the call site of the transition.
-        toast.success(username ? `Signed in as @${username}` : "Signed in to GitHub");
+        toast.success(username ? i18n.t("github.toast.signedInAs", { username }) : i18n.t("github.toast.signedIn"));
         // Auto-close the modal 1.5s after success so the user reads
         // the "Signed in as …" panel before it dismisses.
         setTimeout(() => this.cancelSignin(), 1500);
@@ -291,13 +292,13 @@ class GithubStore {
       }
       if (result.kind === "denied") {
         this._setSignin("poll-denied", { kind: "denied" });
-        toast.error("GitHub sign-in denied");
+        toast.error(i18n.t("github.toast.denied"));
         setTimeout(() => this.cancelSignin(), 2000);
         return;
       }
       if (result.kind === "expired") {
         this._setSignin("poll-expired", { kind: "expired" });
-        toast.error("Sign-in code expired", "Try again.");
+        toast.error(i18n.t("github.toast.expired"), i18n.t("github.toast.tryAgain"));
         setTimeout(() => this.cancelSignin(), 2000);
         return;
       }

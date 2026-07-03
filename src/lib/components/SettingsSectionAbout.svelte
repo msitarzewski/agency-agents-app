@@ -12,6 +12,7 @@
 
   import { appVersion } from "$lib/api";
   import { safeOpenUrl } from "$lib/util/url";
+  import { i18n } from "$lib/stores/i18n.svelte";
 
   const REPO_URL = "https://github.com/msitarzewski/agency-agents-app";
   const CATALOG_URL = "https://github.com/msitarzewski/agency-agents";
@@ -27,21 +28,21 @@
 </script>
 
 <div class="section">
-  <h2>About</h2>
+  <h2>{i18n.t("settings.about.title")}</h2>
 
   <dl class="meta">
     <div class="row">
-      <dt>App version</dt>
+      <dt>{i18n.t("settings.about.appVersion")}</dt>
       <dd class="mono">
         {#if version}{version}{:else if versionError}—{:else}…{/if}
       </dd>
     </div>
     <div class="row">
-      <dt>License</dt>
+      <dt>{i18n.t("settings.about.license")}</dt>
       <dd>MIT</dd>
     </div>
     <div class="row">
-      <dt>App</dt>
+      <dt>{i18n.t("settings.about.app")}</dt>
       <dd>
         <button class="link" type="button" onclick={() => void safeOpenUrl(REPO_URL)}>
           <code>github.com/msitarzewski/agency-agents-app</code>
@@ -50,7 +51,7 @@
       </dd>
     </div>
     <div class="row">
-      <dt>Catalog</dt>
+      <dt>{i18n.t("settings.about.catalog")}</dt>
       <dd>
         <button class="link" type="button" onclick={() => void safeOpenUrl(CATALOG_URL)}>
           <code>github.com/msitarzewski/agency-agents</code>
@@ -61,13 +62,8 @@
   </dl>
 
   <div class="affirm">
-    <h3>Zero telemetry. Zero accounts.</h3>
-    <p>
-      Agency Agents does not collect telemetry. It does not phone home. It does
-      not require an account. Every outbound network request is documented in
-      Settings → Network and only fires when you take an action that needs it —
-      pulling the catalog, reading repo stats, or checking for app updates.
-    </p>
+    <h3>{i18n.t("settings.about.privacyTitle")}</h3>
+    <p>{i18n.t("settings.about.privacyBody")}</p>
   </div>
 </div>
 

@@ -13,6 +13,7 @@
   import Pill from "./Pill.svelte";
   import LoadingState from "./LoadingState.svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
   import { resolveCategoryIcon } from "$lib/util/categoryIcon";
   import { renderMarkdown } from "$lib/util/markdown";
   import type { Agent } from "$lib/types";
@@ -48,7 +49,7 @@
       <h2 class="pb-name">{agent.name}</h2>
       <span class="pb-cat">
         {#if onCategory}
-          <button class="pb-cat-btn" onclick={() => onCategory(agent.category)} title={`See all ${corpus.labelOf(agent.category)} agents`}>
+          <button class="pb-cat-btn" onclick={() => onCategory(agent.category)} title={i18n.t("coverage.seeDivision", { division: corpus.labelOf(agent.category) })}>
             <Pill tone="brand">
               <span class="pb-cat-ic" style="color:{corpus.colorOf(agent.category)}"><DivIcon size={12} /></span>{corpus.labelOf(agent.category)}
             </Pill>
@@ -77,14 +78,14 @@
 
     <div class="pb-persona">
       {#if loading}
-        <LoadingState rows={5} label="Loading persona…" />
+        <LoadingState rows={5} label={i18n.t("persona.loading")} />
       {:else if bodyHtml}
         <!-- Markdown rendered by our deterministic, escaping renderer
              (util/markdown.ts) — the sole source of this HTML, so {@html}
              is safe here. -->
         <div class="markdown">{@html bodyHtml}</div>
       {:else}
-        <p class="text-muted">No persona body available.</p>
+        <p class="text-muted">{i18n.t("persona.emptyBody")}</p>
       {/if}
     </div>
   </div>

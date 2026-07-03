@@ -29,14 +29,22 @@
     SIDEBAR_DEFAULT_WIDTH,
   } from "$lib/stores/ui.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
   import { isMac, shortcut } from "$lib/util/platform";
   import type { SidebarSection, ThemePreference } from "$lib/types";
 
-  const themeLabel: Record<ThemePreference, string> = {
-    light: "Light",
-    dark: "Dark",
-    system: "System",
-  };
+  function themeLabel(t: ThemePreference): string {
+    return i18n.t(t === "light" ? "app.theme.light" : t === "dark" ? "app.theme.dark" : "app.theme.system");
+  }
+
+  function sectionTitle(s: SidebarSection): string {
+    if (s === "dashboard") return i18n.t("nav.dashboard");
+    if (s === "personas") return i18n.t("nav.agents");
+    if (s === "tools") return i18n.t("nav.tools");
+    if (s === "teams") return i18n.t("nav.teams");
+    if (s === "projects") return i18n.t("nav.projects");
+    return i18n.t("nav.activity");
+  }
 
   function isTextInput(el: EventTarget | null): boolean {
     if (!(el instanceof HTMLElement)) return false;
@@ -66,7 +74,7 @@
       const order = ["light", "dark", "system"] as const;
       const next = order[(order.indexOf(ui.theme) + 1) % order.length];
       ui.setTheme(next);
-      toast.info(`Theme: ${themeLabel[next]}`);
+      toast.info(i18n.t("toast.theme", { theme: themeLabel(next) }));
       return;
     }
 
@@ -155,8 +163,8 @@
       type="button"
       class="titlebar-btn"
       data-tauri-drag-region="false"
-      title={ui.sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-      aria-label={ui.sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+      title={ui.sidebarCollapsed ? i18n.t("titlebar.showSidebar") : i18n.t("titlebar.hideSidebar")}
+      aria-label={ui.sidebarCollapsed ? i18n.t("titlebar.showSidebar") : i18n.t("titlebar.hideSidebar")}
       aria-pressed={ui.sidebarCollapsed}
       onclick={() => ui.toggleSidebarCollapsed()}
     >
@@ -170,8 +178,8 @@
       <button
         type="button"
         class="titlebar-btn nav"
-        title={`Back (${shortcut("[")})`}
-        aria-label="Back"
+        title={`${i18n.t("titlebar.back")} (${shortcut("[")})`}
+        aria-label={i18n.t("titlebar.back")}
         disabled={!ui.canBack}
         onclick={() => ui.back()}
       >
@@ -180,15 +188,15 @@
       <button
         type="button"
         class="titlebar-btn nav"
-        title={`Forward (${shortcut("]")})`}
-        aria-label="Forward"
+        title={`${i18n.t("titlebar.forward")} (${shortcut("]")})`}
+        aria-label={i18n.t("titlebar.forward")}
         disabled={!ui.canForward}
         onclick={() => ui.forward()}
       >
         <ArrowRight size={16} />
       </button>
     </div>
-    <h1 class="titlebar-title">{ui.pageTitle}</h1>
+    <h1 class="titlebar-title">{sectionTitle(ui.section)}</h1>
     <div class="titlebar-right">
       <UpdateIndicator />
       <TitlebarControls />
@@ -203,7 +211,7 @@
         max={SIDEBAR_MAX_WIDTH}
         defaultWidth={SIDEBAR_DEFAULT_WIDTH}
         direction="right"
-        label="Resize sidebar"
+        label={i18n.t("titlebar.resizeSidebar")}
         onChange={(w) => (ui.sidebarWidth = w)}
         onCommit={(w) => ui.setSidebarWidth(w)}
       />

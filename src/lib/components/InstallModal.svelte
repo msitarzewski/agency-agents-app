@@ -24,6 +24,7 @@
   import { install, SUPPORTED_TOOLS, type ToolDef } from "$lib/stores/install.svelte";
   import { projects } from "$lib/stores/projects.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
   import type { Tool, Agent, InstalledAgent } from "$lib/types";
 
   interface Props {
@@ -108,9 +109,9 @@
         "install",
         missing.map((a) => ({ slug: a.slug, tool, projectPath: target })),
       );
-      const where = target ? labelOf(target) : "Global";
-      if (fail === 0) toast.success(`Installed ${ok} → ${install.toolLabel(tool)} · ${where}`);
-      else toast.error(`${install.toolLabel(tool)}: ${ok} installed, ${fail} failed`);
+      const where = target ? labelOf(target) : i18n.t("common.global");
+      if (fail === 0) toast.success(i18n.t("install.installedToast", { count: ok, tool: install.toolLabel(tool), where }));
+      else toast.error(i18n.t("install.installFailedToast", { tool: install.toolLabel(tool), ok, fail }));
     } finally {
       busy = null;
     }
@@ -123,8 +124,8 @@
         "uninstall",
         rs.map((r) => ({ slug: r.slug, tool: r.tool, projectPath: r.projectPath })),
       );
-      if (fail === 0) toast.success(`Removed ${ok} from ${install.toolLabel(tool)}`);
-      else toast.error(`${install.toolLabel(tool)}: ${ok} removed, ${fail} failed`);
+      if (fail === 0) toast.success(i18n.t("install.removedToast", { count: ok, tool: install.toolLabel(tool) }));
+      else toast.error(i18n.t("install.removeFailedToast", { tool: install.toolLabel(tool), ok, fail }));
     } finally {
       busy = null;
     }
@@ -177,10 +178,10 @@
 </script>
 
 <Modal open {title} size="wide" onClose={onClose}>
-  <p class="sub">{total} agent{total === 1 ? "" : "s"} · toggle a cell to install into that tool, globally or per project.</p>
+  <p class="sub">{i18n.t("install.sub", { count: total })}</p>
 
   {#if cols.length === 0}
-    <p class="no-tools">No supported tools detected on this device. Open <strong>Tools</strong> to check what's installed.</p>
+    <p class="no-tools">{i18n.t("install.noTools")}</p>
   {:else}
   <div class="grid-wrap">
   <div class="grid" style="--cols: {cols.length}">
@@ -194,7 +195,7 @@
       <div class="cell dest" class:flash={flashPath !== null && targetOf(row) === flashPath} use:regDest={targetOf(row)}>
         {#if row.kind === "global"}
           <span class="d-ic"><GlobeIcon size={15} /></span>
-          <span class="d-body"><span class="d-label">Global</span><span class="d-path">Every machine</span></span>
+          <span class="d-body"><span class="d-label">{i18n.t("common.global")}</span><span class="d-path">{i18n.t("common.everyMachine")}</span></span>
         {:else}
           <span class="d-ic"><FolderIcon size={15} /></span>
           <span class="d-body"><span class="d-label">{row.label}</span><span class="d-path" title={row.path}>{row.path}</span></span>
@@ -209,8 +210,8 @@
             class:on={cov.all}
             class:partial={cov.some}
             disabled={isBusy || total === 0}
-            title={`${t.label} · ${row.kind === "global" ? "Global" : row.label}`}
-            aria-label={`${cov.all ? "Remove from" : "Install into"} ${t.label} ${row.kind === "global" ? "globally" : "in " + row.label}`}
+            title={i18n.t("install.cellTitle", { tool: t.label, target: row.kind === "global" ? i18n.t("common.global") : row.label })}
+            aria-label={i18n.t(cov.all ? "install.removeFromAria" : "install.installIntoAria", { tool: t.label, target: row.kind === "global" ? i18n.t("install.globally") : i18n.t("install.inProject", { project: row.label }) })}
             onclick={() => toggle(t.id, targetOf(row))}
           >
             {#if isBusy}<span class="dot busy"></span>
@@ -229,13 +230,13 @@
 
   <div class="add-wrap">
     <button class="addrow" onclick={() => (addOpen = !addOpen)} aria-haspopup="menu" aria-expanded={addOpen}>
-      <FolderPlus size={14} /> Add project…
+      <FolderPlus size={14} /> {i18n.t("install.addProject")}
     </button>
     {#if addOpen}
-      <button class="add-scrim" aria-label="Close" onclick={() => (addOpen = false)}></button>
+      <button class="add-scrim" aria-label={i18n.t("common.close")} onclick={() => (addOpen = false)}></button>
       <div class="add-menu" role="menu">
         {#if projects.list.length > 0}
-          <p class="add-head">Your projects</p>
+          <p class="add-head">{i18n.t("install.yourProjects")}</p>
           {#each projects.list as p (p.path)}
             <button class="add-opt" role="menuitem" onclick={() => jumpTo(p.path)}>
               <FolderIcon size={14} />
@@ -248,15 +249,15 @@
           <div class="add-div"></div>
         {/if}
         <button class="add-opt new" role="menuitem" onclick={newProject}>
-          <FolderPlus size={14} /> <span>New Project…</span>
+          <FolderPlus size={14} /> <span>{i18n.t("install.newProject")}</span>
         </button>
       </div>
     {/if}
   </div>
 
   {#snippet actions()}
-    <span class="legend"><span class="dot full"></span> installed <span class="dot half"></span> some <span class="dot"></span> none</span>
-    <Button variant="primary" onclick={onClose}>Done</Button>
+    <span class="legend"><span class="dot full"></span> {i18n.t("common.installed")} <span class="dot half"></span> {i18n.t("common.some")} <span class="dot"></span> {i18n.t("common.none")}</span>
+    <Button variant="primary" onclick={onClose}>{i18n.t("common.done")}</Button>
   {/snippet}
 </Modal>
 
@@ -265,14 +266,14 @@
   {@const label = install.toolLabel(confirm.tool)}
   <DestructiveConfirm
     open
-    title="Delete {n} file{n === 1 ? '' : 's'} from {label}?"
-    confirmLabel="Delete {n}"
+    title={i18n.t("install.deleteTitle", { count: n, label })}
+    confirmLabel={i18n.t("install.deleteConfirm", { count: n })}
+    cancelLabel={i18n.t("common.cancel")}
     onConfirm={confirmRemove}
     onCancel={() => (confirm = null)}
   >
     <p>
-      This <strong>permanently removes {n} file{n === 1 ? "" : "s"} from disk</strong>,
-      <strong>including files installed outside this app</strong>. Any edits you made are backed up first.
+      {i18n.t("install.deleteBody", { count: n })}
     </p>
   </DestructiveConfirm>
 {/if}

@@ -28,6 +28,7 @@
 
   import { settings } from "$lib/stores/settings.svelte";
   import { github } from "$lib/stores/github.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
 
   onMount(() => {
     void github.loadStatus();
@@ -53,7 +54,7 @@
 </script>
 
 <div class="section">
-  <h2>GitHub</h2>
+  <h2>{i18n.t("settings.github")}</h2>
 
   <!-- Stats opt-in toggle -->
   <div class="field">
@@ -65,32 +66,28 @@
         disabled={toggleDisabled}
       />
       <span class="toggle-track" aria-hidden="true"></span>
-      <span class="toggle-label">Show GitHub repository stats</span>
+      <span class="toggle-label">{i18n.t("github.showStats")}</span>
     </label>
-    <p class="hint">
-      Show stars, forks, and the latest release for the agency-agents catalog
-      repo (in Settings → Catalog). Agency Agents fetches public repo metadata
-      from <code>api.github.com</code>.
-    </p>
+    <p class="hint">{i18n.t("github.statsHint")}</p>
   </div>
 
   <!-- Sign-in block -->
   <div class="field signin">
     {#if github.status === null}
-      <p class="hint">Loading sign-in status…</p>
+      <p class="hint">{i18n.t("github.loadingStatus")}</p>
     {:else if github.status.signedIn}
       <div class="signed-in">
         <div class="user">
           <ShieldCheck size={18} />
           <div>
-            <div class="username">Signed in as @{github.status.username ?? "github user"}</div>
+            <div class="username">{i18n.t("github.signedInAs", { username: github.status.username ?? i18n.t("github.userFallback") })}</div>
             {#if github.status.scopes.length > 0}
-              <div class="scopes">Scopes: {github.status.scopes.join(", ")}</div>
+              <div class="scopes">{i18n.t("github.scopes", { scopes: github.status.scopes.join(", ") })}</div>
             {/if}
           </div>
         </div>
         <button type="button" class="btn-secondary" onclick={onSignOut} disabled={github.statusLoading}>
-          <LogOut size={14} /> Sign out
+          <LogOut size={14} /> {i18n.t("github.signOut")}
         </button>
       </div>
     {:else}
@@ -100,13 +97,9 @@
         onclick={onSignIn}
         disabled={github.statusLoading || github.signinState.kind !== "idle"}
       >
-        <LogIn size={14} /> Sign in with GitHub
+        <LogIn size={14} /> {i18n.t("github.signIn")}
       </button>
-      <p class="hint">
-        Opens GitHub's standard "Authorize app" flow in your browser. No
-        password is ever entered into Agency Agents. Signing in lifts the API
-        rate limit and lets you star, watch, and file issues on the catalog repo.
-      </p>
+      <p class="hint">{i18n.t("github.signInHint")}</p>
     {/if}
   </div>
 
@@ -114,27 +107,16 @@
   <aside class="privacy">
     <div class="privacy-head">
       <GitFork size={16} />
-      <strong>What sign-in is used for</strong>
+      <strong>{i18n.t("github.privacyTitle")}</strong>
     </div>
-    <p class="privacy-body">
-      Agency Agents stores your token in the macOS Keychain. The token is
-      <strong>never</strong> sent over IPC to the renderer,
-      <strong>never</strong> written to disk, and <strong>never</strong>
-      logged. Only the derived <code>{`{ signedIn, username, scopes }`}</code>
-      view crosses the IPC boundary.
-    </p>
-    <p class="privacy-body">
-      Sign-in is optional. The minimum scopes requested are
-      <code>read:user</code> (to display your username) and
-      <code>public_repo</code> (to enable starring + issue filing in a
-      future update). No private-repo access, no email read, no admin.
-    </p>
+    <p class="privacy-body">{i18n.t("github.privacyBody1")}</p>
+    <p class="privacy-body">{i18n.t("github.privacyBody2")}</p>
   </aside>
 
   {#if settings.corruptOnDisk}
     <div class="callout warn" role="alert">
       <TriangleAlert size={16} />
-      <span>Settings file unreadable — visit the Network section to reset.</span>
+      <span>{i18n.t("github.settingsUnreadable")}</span>
     </div>
   {/if}
 </div>
@@ -278,14 +260,6 @@
     line-height: var(--lh-snug);
     margin-top: var(--space-2);
   }
-  .privacy-body code {
-    font-family: var(--font-mono);
-    font-size: var(--text-mono);
-    padding: 1px 4px;
-    background: var(--color-surface-raised);
-    border-radius: var(--radius-sm);
-  }
-
   .callout.warn {
     display: inline-flex;
     align-items: center;

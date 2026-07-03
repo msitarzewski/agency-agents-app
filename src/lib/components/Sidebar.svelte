@@ -9,12 +9,12 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
   import { install } from "$lib/stores/install.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
   import { shortcut } from "$lib/util/platform";
   import type { SidebarSection } from "$lib/types";
 
   interface NavItem {
     id: SidebarSection;
-    label: string;
     shortcut: string;
     icon: typeof Bot;
   }
@@ -24,13 +24,22 @@
   // filter, not a separate section. Shortcut glyphs adapt per platform
   // (⌘ on macOS, Ctrl elsewhere) since the app ships on macOS/Linux/Windows.
   const nav: NavItem[] = [
-    { id: "dashboard", label: "Dashboard", shortcut: shortcut("0"), icon: LayoutDashboard },
-    { id: "personas",  label: "Agents",    shortcut: shortcut("1"), icon: Bot },
-    { id: "tools",     label: "Tools",     shortcut: shortcut("2"), icon: Wrench },
-    { id: "teams",     label: "Teams",     shortcut: shortcut("3"), icon: Users },
-    { id: "projects",  label: "Projects",  shortcut: shortcut("4"), icon: FolderGit2 },
-    { id: "activity",  label: "Activity",  shortcut: shortcut("5"), icon: Activity },
+    { id: "dashboard", shortcut: shortcut("0"), icon: LayoutDashboard },
+    { id: "personas",  shortcut: shortcut("1"), icon: Bot },
+    { id: "tools",     shortcut: shortcut("2"), icon: Wrench },
+    { id: "teams",     shortcut: shortcut("3"), icon: Users },
+    { id: "projects",  shortcut: shortcut("4"), icon: FolderGit2 },
+    { id: "activity",  shortcut: shortcut("5"), icon: Activity },
   ];
+
+  function label(id: SidebarSection): string {
+    if (id === "dashboard") return i18n.t("nav.dashboard");
+    if (id === "personas") return i18n.t("nav.agents");
+    if (id === "tools") return i18n.t("nav.tools");
+    if (id === "teams") return i18n.t("nav.teams");
+    if (id === "projects") return i18n.t("nav.projects");
+    return i18n.t("nav.activity");
+  }
 
   function badge(id: SidebarSection): string | null {
     if (id === "personas") {
@@ -49,9 +58,9 @@
   class="sidebar"
   class:collapsed={ui.sidebarCollapsed}
   style="width: {ui.sidebarCollapsed ? 56 : ui.sidebarWidth}px"
-  aria-label="Primary navigation"
+  aria-label={i18n.t("nav.primary")}
 >
-  <button class="brand" onclick={() => ui.setSection("personas")} title="Agency Agents — Home">
+  <button class="brand" onclick={() => ui.setSection("personas")} title={i18n.t("nav.homeTitle")}>
     <span class="brand-mark" aria-hidden="true">🤖</span>
     <span class="brand-name">Agency Agents</span>
   </button>
@@ -67,10 +76,10 @@
             class:active={isActive}
             aria-current={isActive ? "page" : undefined}
             onclick={() => ui.setSection(item.id)}
-            title={`${item.label} (${item.shortcut})`}
+            title={`${label(item.id)} (${item.shortcut})`}
           >
             <span class="ico" aria-hidden="true"><item.icon size={16} /></span>
-            <span class="label">{item.label}</span>
+            <span class="label">{label(item.id)}</span>
             {#if b}<span class="badge">{b}</span>{/if}
           </button>
         </li>
@@ -79,9 +88,9 @@
   </nav>
 
   <footer class="foot">
-    <div class="status status-ready" title="{agentCount} agents in the catalog">
+    <div class="status status-ready" title={i18n.t("nav.catalogStatus", { count: agentCount })}>
       <span class="dot" aria-hidden="true"></span>
-      <span class="status-label">{agentCount} agents</span>
+      <span class="status-label">{i18n.t("nav.catalogStatus", { count: agentCount })}</span>
     </div>
   </footer>
 </aside>

@@ -18,6 +18,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 
+import { i18n } from "$lib/stores/i18n.svelte";
 import type { Agent, Category } from "$lib/types";
 
 class CorpusStore {
@@ -121,6 +122,7 @@ class CorpusStore {
   tiles = $derived.by<Category[]>(() => {
     const out = this.categories.map((c) => ({
       ...c,
+      label: i18n.optional(`category.${c.slug}`, c.label),
       count: c.count > 0 ? c.count : (this.countsByCategory.get(c.slug) ?? 0),
     }));
     out.sort((a, b) => a.label.localeCompare(b.label));
@@ -129,7 +131,8 @@ class CorpusStore {
 
   /** Pretty label for a category slug. Falls back to the slug. */
   labelOf(slug: string): string {
-    return this.categories.find((c) => c.slug === slug)?.label ?? slug;
+    const label = this.categories.find((c) => c.slug === slug)?.label ?? slug;
+    return i18n.optional(`category.${slug}`, label);
   }
 
   /** Brand color (hex) for a division slug, from the catalog metadata. Falls

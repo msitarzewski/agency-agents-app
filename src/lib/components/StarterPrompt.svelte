@@ -8,6 +8,7 @@
   import CopyIcon from "@lucide/svelte/icons/copy";
   import CheckIcon from "@lucide/svelte/icons/check";
   import { toast } from "$lib/stores/toast.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
 
   interface Props {
     /** The prompt text that gets copied. */
@@ -26,11 +27,11 @@
     try {
       await navigator.clipboard.writeText(template);
       copied = true;
-      toast.success("Prompt copied to clipboard");
+      toast.success(i18n.t("common.promptCopied"));
       clearTimeout(resetTimer);
       resetTimer = setTimeout(() => (copied = false), 1600);
     } catch {
-      toast.error("Couldn't copy", "Clipboard unavailable");
+      toast.error(i18n.t("common.copyFailed"), i18n.t("common.clipboardUnavailable"));
     }
   }
 
@@ -50,9 +51,9 @@
       class:done={copied}
       onclick={copy}
       aria-live="polite"
-      aria-label={copied ? "Prompt copied" : label ? `Copy “${label}” prompt` : "Copy prompt"}
+      aria-label={copied ? i18n.t("starter.copiedAria") : label ? i18n.t("starter.copyLabelAria", { label }) : i18n.t("starter.copyAria")}
     >
-      {#if copied}<CheckIcon size={13} /> Copied{:else}<CopyIcon size={13} /> Copy{/if}
+      {#if copied}<CheckIcon size={13} /> {i18n.t("common.copied")}{:else}<CopyIcon size={13} /> {i18n.t("common.copy")}{/if}
     </button>
   </div>
   <p class="sp-template">{template}</p>

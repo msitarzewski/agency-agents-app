@@ -17,6 +17,7 @@
  */
 
 import { appVersion } from "$lib/api";
+import { i18n } from "$lib/stores/i18n.svelte";
 import { toast } from "$lib/stores/toast.svelte";
 import {
   appErrorMessage,
@@ -132,7 +133,7 @@ export function reportableToastError(title: string, e: unknown): void {
   if (isAppError(e)) {
     const ctx = reportContextFromError(e, title);
     toast.error(title, appErrorMessage(e), {
-      label: "Report to Agency Agents",
+      label: i18n.t("common.reportToApp"),
       onClick: () => {
         void openReportIssue(ctx);
       },
@@ -141,7 +142,7 @@ export function reportableToastError(title: string, e: unknown): void {
   }
   const stringified = String(e);
   toast.error(title, stringified, {
-    label: "Report to Agency Agents",
+    label: i18n.t("common.reportToApp"),
     onClick: () => {
       void openReportIssue({
         summary: title,

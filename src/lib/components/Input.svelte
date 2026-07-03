@@ -2,6 +2,7 @@
   import type { Snippet } from "svelte";
   import Search from "@lucide/svelte/icons/search";
   import X from "@lucide/svelte/icons/x";
+  import { i18n } from "$lib/stores/i18n.svelte";
 
   type Size = "sm" | "md";
   type Variant = "default" | "search";
@@ -66,7 +67,7 @@
   />
 
   {#if variant === "search" && value}
-    <button type="button" class="ico trailing clear" aria-label="Clear" onclick={clear}>
+    <button type="button" class="ico trailing clear" aria-label={i18n.t("common.clear")} onclick={clear}>
       <X size={14} />
     </button>
   {:else if trailing}

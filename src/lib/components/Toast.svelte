@@ -6,6 +6,7 @@
   import X from "@lucide/svelte/icons/x";
 
   import { toast } from "$lib/stores/toast.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
 </script>
 
 <div class="toast-stack" aria-live="polite" aria-relevant="additions">
@@ -35,7 +36,7 @@
           </button>
         {/if}
       </div>
-      <button class="close" aria-label="Dismiss" onclick={() => toast.dismiss(t.id)}>
+      <button class="close" aria-label={i18n.t("common.dismiss")} onclick={() => toast.dismiss(t.id)}>
         <X size={14} />
       </button>
     </div>
