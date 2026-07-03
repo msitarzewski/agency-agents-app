@@ -687,7 +687,6 @@
   .loc-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
   .loc-label { font-size: var(--text-body-sm); font-weight: var(--fw-semibold); color: var(--color-text-secondary); }
   .loc-hint { font-size: var(--text-caption); color: var(--color-text-muted); line-height: var(--lh-normal); }
-  .loc-hint code { font-family: var(--font-mono, monospace); }
   .loc-actions { display: flex; gap: var(--space-2); }
   .act.subtle { background: transparent; color: var(--color-text-secondary); }
   .def-target { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-body-sm); color: var(--color-text-secondary); cursor: pointer; }
