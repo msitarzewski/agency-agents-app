@@ -612,6 +612,15 @@ const ja = {
   "teamExample.product-discovery.2": "競合が [problem] に対して何を提供しているかを調査し、次に作るべきものを提案してください。前提とリスクも明示します。",
   "teamExample.ai-builders.1": "堅実なデータとプロンプト基盤の上に [AI feature] を設計・実装してください。スキーマ、検索、プロンプト、評価を整え、保留データセットで評価が通るまで反復します。",
   "teamExample.ai-builders.2": "[use case] 向けのプロンプトを強化してください。テストケースを書き、合格率を測定し、信頼できる状態になるまで反復します。",
+  "tools.location": "場所",
+  "tools.locationTitle": "{tool} のカスタムインストール先を設定",
+  "tools.customLocation": "カスタム場所",
+  "tools.installLocation": "インストール先",
+  "tools.locationDefault": "デフォルト (~)",
+  "tools.locationDefaultTitle": "デフォルト（ホームディレクトリ）",
+  "tools.locationHint": "{tool} をカスタムのベースディレクトリに向けます——例えば Windows アプリから WSL のホーム（{wsl}）へ。検出とユーザーグローバルのインストールがそこに従います。プロジェクトのインストールには影響しません。",
+  "tools.locationChoose": "フォルダーを選択…",
+  "tools.locationReset": "デフォルトに戻す",
 } satisfies Partial<Messages>;
 
 export default ja;

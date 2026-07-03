@@ -612,6 +612,15 @@ const ko = {
   "teamExample.product-discovery.2": "경쟁사가 [problem]에 대해 무엇을 제공하는지 조사하고, 우리가 다음에 무엇을 만들어야 하는지 추천하세요. 가정과 위험도 함께 명시합니다.",
   "teamExample.ai-builders.1": "탄탄한 데이터와 프롬프트 기반 위에 [AI feature]를 설계하고 구축하세요. 스키마, 검색, 프롬프트, 평가를 갖추고 보류 데이터셋에서 평가가 통과할 때까지 반복합니다.",
   "teamExample.ai-builders.2": "[use case]용 프롬프트를 강화하세요. 테스트 케이스를 작성하고 통과율을 측정한 뒤, 신뢰할 수 있는 수준이 될 때까지 반복합니다.",
+  "tools.location": "위치",
+  "tools.locationTitle": "{tool}의 사용자 지정 설치 위치 설정",
+  "tools.customLocation": "사용자 지정 위치",
+  "tools.installLocation": "설치 위치",
+  "tools.locationDefault": "기본값 (~)",
+  "tools.locationDefaultTitle": "기본값(홈 디렉터리)",
+  "tools.locationHint": "{tool}을(를) 사용자 지정 기본 디렉터리로 지정합니다 — 예: Windows 앱에서 WSL 홈({wsl}). 감지와 사용자 전역 설치가 이를 따릅니다. 프로젝트 설치에는 영향을 주지 않습니다.",
+  "tools.locationChoose": "폴더 선택…",
+  "tools.locationReset": "기본값으로 재설정",
 } satisfies Partial<Messages>;
 
 export default ko;

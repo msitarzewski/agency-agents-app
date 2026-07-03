@@ -612,6 +612,15 @@ const es = {
   "teamExample.product-discovery.2": "Investiga qué envían los competidores para [problem] y recomienda qué construir después, con supuestos y riesgos explícitos.",
   "teamExample.ai-builders.1": "Diseña y construye [AI feature] sobre una base sólida de datos y prompts: schema, retrieval, prompts y evals; itera hasta que las evals pasen en un set reservado.",
   "teamExample.ai-builders.2": "Endurece nuestros prompts para [use case]: escribe casos de prueba, mide la tasa de aprobación e itera hasta que sea fiable.",
+  "tools.location": "Ubicación",
+  "tools.locationTitle": "Establecer una ubicación de instalación personalizada para {tool}",
+  "tools.customLocation": "ubicación personalizada",
+  "tools.installLocation": "Ubicación de instalación",
+  "tools.locationDefault": "Predeterminada (~)",
+  "tools.locationDefaultTitle": "Predeterminada (directorio de inicio)",
+  "tools.locationHint": "Apunta {tool} a un directorio base personalizado — por ejemplo, un directorio de inicio de WSL ({wsl}) desde la app de Windows. La detección y las instalaciones globales de usuario lo siguen; las instalaciones de proyecto no se ven afectadas.",
+  "tools.locationChoose": "Elegir carpeta…",
+  "tools.locationReset": "Restablecer a predeterminada",
 } satisfies Partial<Messages>;
 
 export default es;
