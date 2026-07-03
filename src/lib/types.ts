@@ -54,6 +54,10 @@ export interface Settings {
   /** Legacy live-enrichment toggle inherited from the source app. Agency
       Agents currently reads metadata from the active AA catalog. */
   liveEnrichmentEnabled: boolean;
+  /** Per-tool custom install base path (tool id → absolute base dir). When set,
+      user-scope installs + detection resolve against it instead of the OS home
+      (e.g. pointing Claude Code at a WSL home). Absent/empty = OS home. */
+  toolPaths: Record<string, string>;
 }
 
 /** Defaults matching the Rust `Settings::default()`. Used when seeding
@@ -80,6 +84,8 @@ export const SETTINGS_DEFAULTS: Settings = {
   // Opt-in live refresh of categories + descriptions. Off by default; same
   // legacy live enrichment path.
   liveEnrichmentEnabled: false,
+  // Per-tool custom install base paths. Empty by default (all tools use ~).
+  toolPaths: {},
 };
 
 // =========================================================
@@ -492,6 +498,9 @@ export interface ToolInfo {
   scope: Scope;
   userDest: string | null;
   installedCount: number;
+  /** Per-tool custom install base path the user set (else null = OS home).
+      Detection + userDest already reflect this base. */
+  customPath: string | null;
 }
 
 /** Best-effort detected version for a tool (`<bin> --version`); null when the
