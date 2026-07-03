@@ -612,6 +612,15 @@ const zhCN = {
   "teamExample.product-discovery.2": "研究竞品如何解决 [problem]，提出我们下一步该构建什么，并说明假设和风险。",
   "teamExample.ai-builders.1": "基于扎实的数据和提示词基础设计并构建 [AI feature]：schema、检索、提示词和评测都要到位，循环到留出集评测通过。",
   "teamExample.ai-builders.2": "加固 [use case] 的提示词：编写测试用例，衡量通过率，并迭代到稳定可靠。",
+  "tools.location": "位置",
+  "tools.locationTitle": "为 {tool} 设置自定义安装位置",
+  "tools.customLocation": "自定义位置",
+  "tools.installLocation": "安装位置",
+  "tools.locationDefault": "默认 (~)",
+  "tools.locationDefaultTitle": "默认（主目录）",
+  "tools.locationHint": "将 {tool} 指向自定义的基础目录——例如从 Windows 应用指向 WSL 主目录（{wsl}）。检测和用户全局安装都会使用该目录；项目安装不受影响。",
+  "tools.locationChoose": "选择文件夹…",
+  "tools.locationReset": "恢复默认",
 } satisfies Partial<Messages>;
 
 export default zhCN;

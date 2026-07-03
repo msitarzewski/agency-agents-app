@@ -612,6 +612,15 @@ const ptBR = {
   "teamExample.product-discovery.2": "Pesquise o que concorrentes entregam para [problem] e recomende o que construir em seguida, com suposições e riscos destacados.",
   "teamExample.ai-builders.1": "Projete e construa [AI feature] sobre base sólida de dados e prompts: schema, retrieval, prompts e evals; itere até as evals passarem em um conjunto reservado.",
   "teamExample.ai-builders.2": "Reforce nossos prompts para [use case]: escreva casos de teste, meça a taxa de aprovação e itere até ficar confiável.",
+  "tools.location": "Local",
+  "tools.locationTitle": "Definir um local de instalação personalizado para {tool}",
+  "tools.customLocation": "local personalizado",
+  "tools.installLocation": "Local de instalação",
+  "tools.locationDefault": "Padrão (~)",
+  "tools.locationDefaultTitle": "Padrão (diretório inicial)",
+  "tools.locationHint": "Aponte {tool} para um diretório base personalizado — por exemplo, um diretório inicial do WSL ({wsl}) a partir do app do Windows. A detecção e as instalações globais do usuário seguem esse local; instalações de projeto não são afetadas.",
+  "tools.locationChoose": "Escolher pasta…",
+  "tools.locationReset": "Redefinir para o padrão",
 } satisfies Partial<Messages>;
 
 export default ptBR;

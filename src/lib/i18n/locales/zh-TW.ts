@@ -612,6 +612,15 @@ const zhTW = {
   "teamExample.product-discovery.2": "研究競品如何解決 [problem]，提出我們下一步該建構什麼，並說明假設和風險。",
   "teamExample.ai-builders.1": "基於紮實的資料和提示詞基礎設計並建構 [AI feature]：schema、檢索、提示詞和評測都要到位，循環到保留集評測通過。",
   "teamExample.ai-builders.2": "加固 [use case] 的提示詞：撰寫測試案例，衡量通過率，並迭代到穩定可靠。",
+  "tools.location": "位置",
+  "tools.locationTitle": "為 {tool} 設定自訂安裝位置",
+  "tools.customLocation": "自訂位置",
+  "tools.installLocation": "安裝位置",
+  "tools.locationDefault": "預設 (~)",
+  "tools.locationDefaultTitle": "預設（主目錄）",
+  "tools.locationHint": "將 {tool} 指向自訂的基礎目錄——例如從 Windows 應用程式指向 WSL 主目錄（{wsl}）。偵測與使用者全域安裝都會使用該目錄；專案安裝不受影響。",
+  "tools.locationChoose": "選擇資料夾…",
+  "tools.locationReset": "還原預設值",
 } satisfies Partial<Messages>;
 
 export default zhTW;

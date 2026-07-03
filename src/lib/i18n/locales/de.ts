@@ -612,6 +612,15 @@ const de = {
   "teamExample.product-discovery.2": "Recherchiere, was Wettbewerber für [problem] liefern, und empfehle, was wir als Nächstes bauen sollten, inklusive Annahmen und Risiken.",
   "teamExample.ai-builders.1": "Entwirf und baue [AI feature] auf einer soliden Daten- und Prompt-Grundlage: Schema, Retrieval, Prompts und Evals; iteriere, bis die Evals auf einem Holdout-Set bestehen.",
   "teamExample.ai-builders.2": "Härte unsere Prompts für [use case]: schreibe Testfälle, miss die Erfolgsrate und iteriere, bis sie zuverlässig sind.",
+  "tools.location": "Speicherort",
+  "tools.locationTitle": "Benutzerdefinierten Installationsort für {tool} festlegen",
+  "tools.customLocation": "benutzerdefinierter Ort",
+  "tools.installLocation": "Installationsort",
+  "tools.locationDefault": "Standard (~)",
+  "tools.locationDefaultTitle": "Standard (Home-Verzeichnis)",
+  "tools.locationHint": "Richten Sie {tool} auf ein benutzerdefiniertes Basisverzeichnis aus — z. B. ein WSL-Home ({wsl}) aus der Windows-App. Erkennung und benutzerglobale Installationen folgen ihm; Projektinstallationen sind nicht betroffen.",
+  "tools.locationChoose": "Ordner wählen…",
+  "tools.locationReset": "Auf Standard zurücksetzen",
 } satisfies Partial<Messages>;
 
 export default de;
