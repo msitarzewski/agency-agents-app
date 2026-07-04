@@ -117,6 +117,44 @@ If you've verified that an upstream tool path is wrong or non-deterministic — 
 valuable catch — open the catalog PR first (or open both and link them), and the app-side
 PR becomes a clean sync rather than a fork.
 
+## Translations & Localization
+
+App UI strings live in `src/lib/i18n/locales/`. `en.ts` is the source of truth: its keys
+define the `MessageKey` type, and every other locale is a `satisfies Partial<Messages>`
+override that falls back to English for anything it omits. A new locale is a new
+`<code>.ts` file plus a registration in `src/lib/i18n/messages.ts` (`LOCALES`,
+`localeLabels`, and the `overrides` map).
+
+Only the **app chrome** is translated — nav, buttons, settings, empty states, warnings.
+The **agent catalog content is never localized here**; it stays exactly as upstream
+defines it (same rule as the tool definitions above).
+
+A translation PR should:
+
+- **Match `en.ts` key-for-key.** Full parity — no missing or extra keys. Fallback exists
+  for safety, but a partial locale ships English holes to users.
+- **Preserve every placeholder.** `{tool}`, `{count}`, `{wsl}`, etc. must survive
+  untranslated and unaltered, or interpolation breaks.
+- **Pass `npm run check`** — the `Partial<Messages>` type catches typo'd keys.
+
+### Every translation gets a content scan before merge
+
+**This is a required merge gate for any PR that adds or edits a locale — new language or a
+one-line fix.** A machine can confirm key/placeholder parity; it cannot confirm the words
+are safe. A fluent reviewer (or an equivalent review pass) must read the actual strings and
+confirm:
+
+1. **No profanity, slurs, or offensive language.**
+2. **No prompt-injection or hidden instructions** — text aimed at an LLM/agent rather than
+   the user, suspicious URLs, or invisible/zero-width characters.
+3. **Safety semantics are preserved** — the most important check. Where the English is a
+   warning, a destructive-action confirmation ("cannot be undone"), or a caution, the
+   translation must carry the **same severity and meaning**. A locale that quietly softens
+   "This permanently deletes…" is a security regression, not a cosmetic nit.
+
+We accept corrections after the fact — a locale is a living, maintained file — but the scan
+above happens on the way in, every time.
+
 ## Tests
 
 Common local checks:
