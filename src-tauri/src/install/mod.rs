@@ -667,9 +667,16 @@ pub async fn project_forget(
     project_path: String,
 ) -> Result<(), AppError> {
     let mut ledger = load_ledger(&app).await?;
-    ledger.retain(|r| r.project_path.as_deref() != Some(project_path.as_str()));
+    prune_project_rows(&mut ledger, &project_path);
     save_ledger(&app, &ledger).await?;
     Ok(())
+}
+
+/// Drop every ledger row whose `project_path` matches, keeping all others
+/// (other projects AND user-global rows). Pure so it's unit-testable without an
+/// AppHandle; the command just wraps it with load/save.
+fn prune_project_rows(records: &mut Vec<InstallRecord>, project_path: &str) {
+    records.retain(|r| r.project_path.as_deref() != Some(project_path));
 }
 
 /// The reconciled Library view — every ledger row resolved against disk +
@@ -1088,6 +1095,44 @@ mod tests {
         let back: Agentfile = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(back.installs.len(), 2);
         assert_eq!(back.installs[1].tool, "cursor");
+    }
+
+    /// A minimal ledger row for the prune test.
+    fn row(slug: &str, tool: &str, project: Option<&str>) -> InstallRecord {
+        InstallRecord {
+            slug: slug.into(),
+            tool: tool.to_string(),
+            scope: render::scope_for(project.map(Path::new)),
+            project_path: project.map(String::from),
+            dest: format!("/dest/{slug}"),
+            source_hash: String::new(),
+            body_hash: String::new(),
+            rendered_hash: String::new(),
+            installed_at: String::new(),
+            corpus_version: String::new(),
+        }
+    }
+
+    #[test]
+    fn prune_project_rows_drops_only_that_project() {
+        let mut ledger = vec![
+            row("a", "claudeCode", Some("/p1")),
+            row("b", "cursor", Some("/p1")),
+            row("c", "claudeCode", Some("/p2")),
+            row("d", "claudeCode", None), // user-global
+        ];
+        prune_project_rows(&mut ledger, "/p1");
+        // Both /p1 rows gone; the other project + the global row survive.
+        assert_eq!(ledger.len(), 2);
+        assert!(ledger.iter().all(|r| r.project_path.as_deref() != Some("/p1")));
+        assert!(ledger
+            .iter()
+            .any(|r| r.slug == "c" && r.project_path.as_deref() == Some("/p2")));
+        assert!(ledger.iter().any(|r| r.slug == "d" && r.project_path.is_none()));
+
+        // Forgetting an unknown project changes nothing.
+        prune_project_rows(&mut ledger, "/nope");
+        assert_eq!(ledger.len(), 2);
     }
 
     #[test]
