@@ -485,24 +485,6 @@ fn bytes_match_render(agent: &crate::types::Agent, raw: &str, tool: &str, file_b
     }
 }
 
-/// I/O wrapper for [`bytes_match_render`]: reads the agent's canonical source +
-/// the on-disk file and compares. Returns `false` on any read/render failure
-/// (can't prove identity ⇒ don't auto-claim it).
-async fn is_canonical_on_disk(
-    app: &AppHandle,
-    agent: &crate::types::Agent,
-    tool: &str,
-    path: &Path,
-) -> bool {
-    let Ok(raw) = corpus::read_source(app, &agent.category, &agent.slug).await else {
-        return false;
-    };
-    let Ok(bytes) = read_capped(path, MAX_INSTALLED_BYTES).await else {
-        return false;
-    };
-    bytes_match_render(agent, &raw, tool, &bytes)
-}
-
 // ---------- Tool detection ----------
 
 fn detect(tool: &str, home: &Path) -> (bool, Option<String>) {
@@ -685,9 +667,10 @@ fn prune_project_rows(records: &mut Vec<InstallRecord>, project_path: &str) {
 pub async fn installs_reconcile(
     app: AppHandle,
     state: State<'_, AppState>,
+    project_roots: Vec<String>,
 ) -> Result<Vec<InstalledAgent>, AppError> {
     let corpus = corpus::ensure_corpus(&app, &state).await?;
-    let ledger = load_ledger(&app).await?;
+    let mut ledger = load_ledger(&app).await?;
     let mut out = Vec::with_capacity(ledger.len());
     for r in &ledger {
         let dest = PathBuf::from(&r.dest);
@@ -739,13 +722,23 @@ pub async fn installs_reconcile(
         .iter()
         .map(|r| (r.slug.clone(), r.tool.clone(), r.project_path.clone()))
         .collect();
+    // Every project root we know about: ledger dirs UNION the caller's registered
+    // project roots. The latter is why a just-added folder (or one whose rows were
+    // dropped by "Remove from app only") re-surfaces its on-disk agents instead of
+    // staying invisible until something new is installed into it.
     let project_dirs: Vec<PathBuf> = ledger
         .iter()
-        .filter_map(|r| r.project_path.as_ref())
-        .collect::<std::collections::BTreeSet<_>>()
+        .filter_map(|r| r.project_path.clone())
+        .chain(project_roots)
+        .collect::<std::collections::BTreeSet<String>>()
         .into_iter()
         .map(PathBuf::from)
         .collect();
+    // Byte-perfect foreign matches are adopted into the ledger (see below) —
+    // collect the new rows here and persist them once after the sweep.
+    let mut adopted: Vec<InstallRecord> = Vec::new();
+    let mut adopted_seen: std::collections::HashSet<(String, Tool, Option<String>)> =
+        std::collections::HashSet::new();
     for tool in supported() {
         // Resolve each tool against its own base (honors a per-tool custom
         // path, e.g. a WSL home), so the sweep looks where the tool lives.
@@ -799,9 +792,40 @@ pub async fn installs_reconcile(
                 if ledger_keys.contains(&(slug.clone(), tool.to_string(), proj.clone())) {
                     continue; // already in the ledger
                 }
-                // Byte-identical to the catalog ⇒ in sync ⇒ Current. Otherwise a
-                // recognized-but-divergent file ⇒ Foreign (worth a look).
-                let state = if is_canonical_on_disk(&app, &agent, tool, &byte_path).await {
+                // Read the on-disk bytes + canonical source once. A byte-perfect
+                // match is unambiguously our render, so ADOPT it into the ledger
+                // (tracked) — the app then manages it like any install, whether
+                // the CLI or the app wrote it. Only agency-catalog agents ever get
+                // here (recognized above), so we never claim unrelated files. A
+                // recognized-but-DIVERGENT file stays Foreign + untracked.
+                let raw = corpus::read_source(&app, &agent.category, &slug).await.ok();
+                let disk = read_capped(&byte_path, MAX_INSTALLED_BYTES).await.ok();
+                let canonical = matches!(
+                    (raw.as_deref(), disk.as_deref()),
+                    (Some(rw), Some(db)) if bytes_match_render(&agent, rw, tool, db)
+                );
+                let mut tracked = false;
+                let state = if canonical {
+                    if let (Some(rw), Some(entry)) = (raw.as_deref(), corpus.entry(&slug)) {
+                        let key = (slug.clone(), tool.to_string(), proj.clone());
+                        if !adopted_seen.contains(&key) {
+                            if let Ok(rec) = track_agent_record(
+                                &agent,
+                                rw,
+                                tool,
+                                &home,
+                                proj.as_deref().map(std::path::Path::new),
+                                &entry.source_hash,
+                                &entry.body_hash,
+                                &corpus.version(),
+                                &now_iso(),
+                            ) {
+                                adopted.push(rec);
+                                adopted_seen.insert(key);
+                            }
+                        }
+                        tracked = true;
+                    }
                     InstallState::Current
                 } else {
                     InstallState::Foreign
@@ -815,10 +839,17 @@ pub async fn installs_reconcile(
                     dest: byte_path.to_string_lossy().to_string(),
                     state,
                     update_kind: None,
-                    tracked: false,
+                    tracked,
                 });
             }
         }
+    }
+
+    // Persist the byte-perfect adoptions in one write. Idempotent: next reconcile
+    // finds them in the ledger (skipped by the sweep), so steady state is no write.
+    if !adopted.is_empty() {
+        ledger.extend(adopted);
+        save_ledger(&app, &ledger).await?;
     }
 
     // Collapse to one row per LOGICAL install (slug, tool, project). Copilot

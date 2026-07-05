@@ -125,7 +125,23 @@ class InstallStore {
     this.reconciling = true;
     reconcileInflight = (async () => {
       try {
-        const result = await invoke<InstalledAgent[]>("installs_reconcile");
+        // Feed the registered project roots to the backend so its Foreign sweep
+        // scans them too — that's how a just-added folder (or one dropped by
+        // "Remove from app only") re-surfaces its on-disk agents. Read straight
+        // from the projects store's localStorage key so EVERY reconcile caller
+        // includes them (not just the Projects view). Keep in sync with
+        // `STORAGE_KEY` in `projects.svelte.ts`.
+        let projectRoots: string[] = [];
+        try {
+          const raw = localStorage.getItem("agency-agents:projects:v1");
+          if (raw) {
+            const arr = JSON.parse(raw) as unknown;
+            if (Array.isArray(arr)) projectRoots = arr.filter((x): x is string => typeof x === "string");
+          }
+        } catch {
+          /* private mode / corrupt entry → no extra roots */
+        }
+        const result = await invoke<InstalledAgent[]>("installs_reconcile", { projectRoots });
         this.installed = result;
         this.reconciled = true;
       } catch {
