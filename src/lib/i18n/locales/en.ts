@@ -360,6 +360,8 @@ const en = {
   "deploy.cellAll": "all {count}",
   "deploy.cellPartial": "{count}/{total}",
   "deploy.cellNone": "none",
+  "deploy.cellInstall": "Install",
+  "deploy.pickTool": "Pick a tool above to deploy these agents into it — agents install as tool-specific files, so there's no install without a target.",
   "deploy.pickLeft": "Pick something on the left to deploy.",
   "activity.action.install": "Installed",
   "activity.action.uninstall": "Removed",

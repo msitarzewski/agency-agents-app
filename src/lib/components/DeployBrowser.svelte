@@ -340,11 +340,12 @@
                   {:else if cov.all}<span class="dot full"></span>
                   {:else if cov.some}<span class="dot half"></span>
                   {:else}<span class="dot"></span>{/if}
-                  <span class="t-count">{#if cov.all}{i18n.t("deploy.cellAll", { count: setTotal })}{:else if cov.some}{i18n.t("deploy.cellPartial", { count: cov.count, total: setTotal })}{:else}{i18n.t("deploy.cellNone")}{/if}</span>
+                  <span class="t-count" class:cta={!cov.all && !cov.some}>{#if cov.all}{i18n.t("deploy.cellAll", { count: setTotal })}{:else if cov.some}{i18n.t("deploy.cellPartial", { count: cov.count, total: setTotal })}{:else}{i18n.t("deploy.cellInstall")}{/if}</span>
                 </button>
               {/each}
             </div>
           </div>
+          <p class="grid-hint">{i18n.t("deploy.pickTool")}</p>
         {/if}
 
         <p class="d-section">{i18n.count(setTotal, "common.agent.one", "common.agent.many")}{#if agentGroups.length > 1} · {i18n.count(agentGroups.length, "common.division.one", "common.division.many")}{/if}</p>
@@ -461,6 +462,10 @@
   .cell.toggle:hover:not(:disabled) { background: var(--color-surface-sunken); }
   .cell.toggle:disabled { cursor: default; }
   .t-count { font-size: 10px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; line-height: 1; }
+  .t-count.cta { color: var(--color-brand); font-weight: var(--fw-semibold); }
+  .cell.toggle:disabled .t-count.cta { color: var(--color-text-muted); }
+
+  .grid-hint { margin: var(--space-2) 0 0; font-size: var(--text-caption); color: var(--color-text-muted); line-height: 1.4; }
 
   .dot { width: 16px; height: 16px; border-radius: 999px; border: 1.5px solid var(--color-border-strong, var(--color-text-muted)); box-sizing: border-box; }
   .dot.full { background: var(--color-brand); border-color: var(--color-brand); }
