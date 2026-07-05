@@ -7,6 +7,7 @@
   import Modal from "./Modal.svelte";
   import Button from "./Button.svelte";
   import StarterPrompt from "./StarterPrompt.svelte";
+  import Runbooks from "./Runbooks.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { i18n } from "$lib/stores/i18n.svelte";
   import { PLAYBOOK_PRACTICES, STARTER_PROMPTS } from "$lib/data/playbook";
@@ -27,6 +28,10 @@
         </li>
       {/each}
     </ol>
+
+    <h2 class="sec">{i18n.t("playbook.runbooks")}</h2>
+    <p class="sec-sub">{i18n.t("playbook.runbooksHint")}</p>
+    <Runbooks />
 
     <h2 class="sec">{i18n.t("playbook.starterPrompts")}</h2>
     <p class="sec-sub">{i18n.t("playbook.starterHint")}</p>
@@ -62,7 +67,8 @@
   .p-body .p-title { display: block; font-size: var(--text-body); font-weight: var(--fw-semibold); color: var(--color-text-primary); margin-bottom: 2px; }
   .p-body p { font-size: var(--text-body-sm); color: var(--color-text-secondary); line-height: var(--lh-normal); }
 
-  .sec { font-size: var(--text-body-sm); font-weight: var(--fw-semibold); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+  .sec { font-size: var(--text-body-sm); font-weight: var(--fw-semibold); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: var(--space-5) 0 2px; }
+  .pb > .sec:first-of-type { margin-top: 0; }
   .sec-sub { font-size: var(--text-body-sm); color: var(--color-text-secondary); margin-bottom: var(--space-3); }
   .starters { display: flex; flex-direction: column; gap: var(--space-2); }
 </style>

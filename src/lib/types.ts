@@ -393,6 +393,25 @@ export interface CatalogStatus {
 }
 
 /** Result of checking the active catalog for upstream updates (diff stats). */
+/** A named sub-team within a runbook (e.g. "Core Team"), its activation timing,
+    and its member agents BY SLUG (the corpus id). */
+export interface RunbookGroup {
+  group: string;
+  activation: string;
+  agents: string[];
+}
+
+/** One NEXUS scenario runbook from the catalog's `strategy/runbooks.json`. */
+export interface Runbook {
+  slug: string;
+  title: string;
+  mode: string;
+  duration: string;
+  summary: string;
+  doc: string;
+  roster: RunbookGroup[];
+}
+
 export interface CatalogUpdateCheck {
   isGit: boolean;
   behind: number;
