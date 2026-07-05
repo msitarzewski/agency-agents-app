@@ -7,9 +7,13 @@
    * the Tools view. All charts are dependency-free (SVG + CSS).
    */
   import { onMount } from "svelte";
+  import RefreshCw from "@lucide/svelte/icons/refresh-cw";
+  import RepoIcon from "@lucide/svelte/icons/git-branch";
   import { corpus } from "$lib/stores/corpus.svelte";
   import { install, SUPPORTED_TOOLS } from "$lib/stores/install.svelte";
   import { projects } from "$lib/stores/projects.svelte";
+  import { catalog } from "$lib/stores/catalog.svelte";
+  import { toast } from "$lib/stores/toast.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { toolAccent, toolLabel } from "$lib/data/toolRegistry";
   import HealthDonut from "./HealthDonut.svelte";
@@ -23,7 +27,29 @@
   onMount(() => {
     corpus.ensureLoaded();
     projects.refresh();
+    // Local-only reads (no network): learn whether the active catalog is a
+    // git clone we maintain, so the "Update from GitHub" control can appear.
+    void catalog.load().then(() => catalog.loadStatus());
   });
+
+  // ── "Update from GitHub" — only when the active catalog is a git clone we're
+  //    allowed to pull (managed ~/.agency-agents, or a user clone with manage
+  //    permission). Bundled/snapshot and read-only clones show nothing. ──
+  const catalogReadOnly = $derived(
+    catalog.source.kind === "userClone" && !catalog.source.manage,
+  );
+  const showCatalogUpdate = $derived(!!catalog.status?.isGit && !catalogReadOnly);
+  const catalogRepo = $derived(catalog.status?.repoSlug ?? null);
+
+  async function updateCatalog() {
+    if (catalog.busy) return;
+    try {
+      await catalog.pull();
+      toast.success(i18n.t("dashboard.catalogUpdated"));
+    } catch (e) {
+      toast.error(i18n.t("common.actionFailed"), String(e));
+    }
+  }
 
   const available = $derived(corpus.agents.length);
   const managed = $derived(install.installed.filter((i) => i.state !== "foreign").length);
@@ -126,6 +152,26 @@
 </script>
 
 <section class="dash">
+  {#if showCatalogUpdate}
+    <div class="cat-bar">
+      <span class="cat-info">
+        <RepoIcon size={15} />
+        <span class="cat-repo">{catalogRepo ?? i18n.t("dashboard.catalogGitHub")}</span>
+        {#if catalog.updateCheck && !catalog.updateCheck.upToDate && catalog.updateCheck.behind > 0}
+          <span class="cat-behind">{i18n.t("dashboard.catalogBehind", { count: catalog.updateCheck.behind })}</span>
+        {/if}
+      </span>
+      <button
+        class="cat-btn"
+        disabled={catalog.busy}
+        onclick={updateCatalog}
+        title={catalogRepo ? i18n.t("dashboard.catalogManagedFrom", { repo: catalogRepo }) : undefined}
+      >
+        <RefreshCw size={14} class={catalog.busy ? "cat-spin" : ""} />
+        <span>{catalog.busy ? i18n.t("common.working") : i18n.t("dashboard.updateFromGitHub")}</span>
+      </button>
+    </div>
+  {/if}
   <div class="stats">
     <button class="stat" onclick={() => ui.openAgents()}>
       <span class="s-num">{available}</span>
@@ -249,6 +295,29 @@
 
 <style>
   .dash { height: 100%; overflow-y: auto; padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-4); }
+
+  /* ── "Update from GitHub" bar (only when the catalog is a managed git clone) ── */
+  .cat-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    background: var(--color-surface-raised);
+  }
+  .cat-info { display: flex; align-items: center; gap: var(--space-2); min-width: 0; color: var(--color-text-secondary); font-size: var(--text-body-sm); }
+  .cat-repo { font-family: var(--font-mono, ui-monospace, monospace); color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cat-behind { flex: none; font-size: var(--text-caption); font-weight: var(--fw-semibold); color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 15%, transparent); padding: 1px 7px; border-radius: var(--radius-full); }
+  .cat-btn {
+    display: inline-flex; align-items: center; gap: 6px; flex: none;
+    height: 30px; padding: 0 var(--space-3);
+    border: 1px solid transparent; border-radius: var(--radius-md);
+    background: var(--color-brand); color: var(--color-text-inverse);
+    font-size: var(--text-body-sm); cursor: pointer;
+  }
+  .cat-btn:hover:not(:disabled) { filter: brightness(1.08); }
+  .cat-btn:disabled { opacity: 0.6; cursor: default; }
+  :global(.cat-spin) { animation: cat-spin 0.7s linear infinite; }
+  @keyframes cat-spin { to { transform: rotate(360deg); } }
+
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-3); }
   .stat {
     display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
