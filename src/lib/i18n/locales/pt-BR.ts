@@ -314,7 +314,7 @@ const ptBR = {
   "install.addProject": "Adicionar projeto…",
   "install.yourProjects": "Seus projetos",
   "install.newProject": "Novo projeto…",
-  "install.legend": "instalei alguns nenhum",
+  "install.legend": "instalado   parcial   nenhum",
   "install.cellTitle": "{tool} · {target}",
   "install.removeFromAria": "Remover de {tool} {target}",
   "install.installIntoAria": "Instale em {tool} {target}",
