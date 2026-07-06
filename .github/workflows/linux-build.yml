@@ -74,6 +74,39 @@ jobs:
       - name: Build Tauri app
         run: npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":false}}'
 
+      # Un-bundle the Wayland client libs from the AppImage (#57).
+      #
+      # linuxdeploy bundles libwebkit2gtk's transitive libwayland-* into the
+      # AppImage. Those are built against an older Mesa than the *host* is
+      # running, so when libEGL_mesa initializes the Wayland platform it hits a
+      # protocol/ABI mismatch and aborts with "Could not create default EGL
+      # display: EGL_BAD_PARAMETER" — the webview never appears. The failure is
+      # in EGL display init, BEFORE WebKit reads WEBKIT_DISABLE_DMABUF_RENDERER
+      # (our lib.rs runtime lever, #641/#36), which is why no env var can fix it.
+      #
+      # libwayland (like libGL/libEGL/libgbm/libdrm, which linuxdeploy already
+      # excludes) MUST come from the running system to match the loaded EGL
+      # stack. So strip the four bundled copies and repack — the host's copies
+      # then load. Only the AppImage bundles libs; .deb/.rpm link system libwayland.
+      - name: "Un-bundle host Wayland libs from AppImage (fixes EGL crash, #57)"
+        run: |
+          set -euo pipefail
+          cd src-tauri/target/release/bundle/appimage
+          APP="$(ls *.AppImage)"
+          echo "Repacking $APP without bundled libwayland-*"
+          ./"$APP" --appimage-extract >/dev/null
+          find squashfs-root -type f \( \
+              -name 'libwayland-client.so.*' -o \
+              -name 'libwayland-cursor.so.*' -o \
+              -name 'libwayland-egl.so.*' -o \
+              -name 'libwayland-server.so.*' \) -print -delete
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          chmod +x appimagetool
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run squashfs-root "$APP.new"
+          mv -f "$APP.new" "$APP"
+          rm -rf squashfs-root appimagetool
+          echo "Done — $APP now defers libwayland to the host."
+
       - name: Upload .deb
         uses: actions/upload-artifact@v4
         with:
