@@ -45,6 +45,19 @@
   function resolve(slugs: string[]): { slug: string; agent: Agent | undefined }[] {
     return slugs.map((slug) => ({ slug, agent: bySlug.get(slug) }));
   }
+  function keyPart(value: string): string {
+    return value
+      .toLowerCase()
+      .replace(/&/g, " and ")
+      .replace(/\+/g, " plus ")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+  const runbookTitle = (rb: Runbook) => i18n.optional(`runbooks.item.${rb.slug}.title`, rb.title);
+  const runbookDuration = (rb: Runbook) => i18n.optional(`runbooks.item.${rb.slug}.duration`, rb.duration);
+  const runbookSummary = (rb: Runbook) => i18n.optional(`runbooks.item.${rb.slug}.summary`, rb.summary);
+  const runbookGroup = (group: string) => i18n.optional(`runbooks.group.${keyPart(group)}`, group);
+  const runbookActivation = (activation: string) => i18n.optional(`runbooks.activation.${keyPart(activation)}`, activation);
 
   let openSlug = $state<string | null>(null);
   function toggle(slug: string) {
@@ -59,24 +72,28 @@
     const roster = rb.roster
       .map((g) => {
         const names = g.agents.map((s) => bySlug.get(s)?.name ?? s).join(", ");
-        return `- ${g.group} (${g.activation}): ${names}`;
+        return `- ${runbookGroup(g.group)} (${runbookActivation(g.activation)}): ${names}`;
       })
       .join("\n");
-    return [
-      `Activate the "${rb.title}" runbook in ${rb.mode} mode.`,
-      rb.summary,
-      "",
-      "Roster:",
-      roster,
-      "",
-      "Coordinate this team through the runbook's phases. At each phase, verify the work with evidence before advancing to the next.",
-    ].join("\n");
+    return i18n.optional(
+      "runbooks.activationPrompt",
+      [
+        `Activate the "${rb.title}" runbook in ${rb.mode} mode.`,
+        rb.summary,
+        "",
+        "Roster:",
+        roster,
+        "",
+        "Coordinate this team through the runbook's phases. At each phase, verify the work with evidence before advancing to the next.",
+      ].join("\n"),
+      { title: runbookTitle(rb), mode: rb.mode, summary: runbookSummary(rb), roster },
+    );
   }
 
   async function copyPrompt(rb: Runbook) {
     try {
       await navigator.clipboard.writeText(activationPrompt(rb));
-      toast.success(i18n.t("runbooks.promptCopied", { runbook: rb.title }));
+      toast.success(i18n.t("runbooks.promptCopied", { runbook: runbookTitle(rb) }));
     } catch (e) {
       toast.error(i18n.t("common.copyFailed"), String(e));
     }
@@ -107,17 +124,18 @@
         {#each runbooks.list as rb (rb.slug)}
           {@const c = counts(rb)}
           {@const open = openSlug === rb.slug}
+          {@const title = runbookTitle(rb)}
           <li class="rb-item" class:open>
             <div class="rb-top">
               <button class="rb-expand" onclick={() => toggle(rb.slug)} aria-expanded={open}>
                 <ChevronDown size={16} class={open ? "rbv-chev open" : "rbv-chev"} />
                 <span class="rb-id">
                   <span class="rb-title-row">
-                    <span class="rb-title">{rb.title}</span>
+                    <span class="rb-title">{title}</span>
                     <span class="rb-mode">{rb.mode}</span>
-                    <span class="rb-dur">{rb.duration}</span>
+                    <span class="rb-dur">{runbookDuration(rb)}</span>
                   </span>
-                  <span class="rb-sum">{rb.summary}</span>
+                  <span class="rb-sum">{runbookSummary(rb)}</span>
                 </span>
               </button>
               <span class="rb-actions">
@@ -136,8 +154,8 @@
                 {#each rb.roster as g (g.group)}
                   <div class="rb-grp">
                     <div class="rb-grp-head">
-                      <span class="rb-grp-name">{g.group}</span>
-                      <span class="rb-grp-act">{g.activation}</span>
+                      <span class="rb-grp-name">{runbookGroup(g.group)}</span>
+                      <span class="rb-grp-act">{runbookActivation(g.activation)}</span>
                     </div>
                     <ul class="rb-agents">
                       {#each resolve(g.agents) as r (r.slug)}
@@ -161,7 +179,7 @@
 
 {#if deployRb}
   <InstallModal
-    title={i18n.t("runbooks.deployTitle", { runbook: deployRb.title })}
+    title={i18n.t("runbooks.deployTitle", { runbook: runbookTitle(deployRb) })}
     agentSlugs={resolvedSlugs(deployRb)}
     onClose={() => (deployRb = null)}
   />
@@ -187,7 +205,7 @@
   :global(.rbv-chev.open) { transform: rotate(0deg); }
   .rb-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .rb-title-row { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
-  .rb-title { font-weight: var(--fw-semibold); color: var(--color-text-primary); white-space: nowrap; }
+  .rb-title { min-width: 0; font-weight: var(--fw-semibold); color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rb-mode { font-family: var(--font-mono, ui-monospace, monospace); font-size: 10px; letter-spacing: 0.03em; color: var(--color-brand); background: color-mix(in srgb, var(--color-brand) 12%, transparent); padding: 2px 7px; border-radius: var(--radius-full); white-space: nowrap; }
   .rb-dur { font-size: var(--text-caption); color: var(--color-text-muted); white-space: nowrap; }
   .rb-sum { font-size: var(--text-body-sm); color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
