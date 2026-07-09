@@ -1844,10 +1844,11 @@ mod tests {
 
         let corpus = build_from_dir(dir, "baseline-test", &categories).await.unwrap();
 
-        // 209 = 210 prior minus the lone `integrations/` artifact
+        // 224 = 209 prior + 13 gis + 2 healthcare personas re-vendored into the
+        // baseline (#51). Still excludes the lone `integrations/` artifact
         // (backend-architect-with-memory), which is convert.sh output, not a
         // catalog persona.
-        assert_eq!(corpus.count(), 209, "all bundled agent personas indexed (integrations excluded)");
+        assert_eq!(corpus.count(), 224, "all bundled agent personas indexed (integrations excluded)");
 
         // Every agent parsed real frontmatter: non-empty name + slug, real category.
         for a in &corpus.agents {
@@ -1874,9 +1875,10 @@ mod tests {
         // strategy is NOT a division (playbooks/runbooks, no agent frontmatter),
         // so it never appears as one — regardless of what's on disk.
         assert!(!cats.iter().any(|c| c.slug == "strategy"), "strategy is not a division");
-        // healthcare IS a declared division; the bundled baseline predates its
-        // agents, so it's present but empty (count 0) until a sync brings them in.
-        assert_eq!(count_of("healthcare"), 0, "healthcare present but empty in the stale baseline");
+        // gis + healthcare were re-vendored into the baseline (#51) so fresh
+        // installs show them populated instead of empty divisions.
+        assert_eq!(count_of("gis"), 13, "gis agents bundled in the baseline");
+        assert_eq!(count_of("healthcare"), 2, "healthcare agents bundled in the baseline");
     }
 
     #[test]
@@ -2023,5 +2025,41 @@ echo done
         // An absent `runbooks` key (bundled / no strategy/) parses to empty, not an error.
         let empty: RunbooksFile = serde_json::from_str("{}").unwrap();
         assert!(empty.runbooks.is_empty());
+    }
+
+    // #51: strategy/runbooks.json (+ gis/healthcare) are vendored into the
+    // baseline so Runbooks unlock on a fresh install with every roster slug
+    // resolving to a bundled persona — no "not in catalog" flags, no "sync to
+    // unlock" nudge. Guards against a roster slug drifting out of the bundle.
+    #[tokio::test]
+    async fn bundled_runbooks_unlock_and_rosters_resolve() {
+        let dir = Path::new("resources/corpus-baseline");
+        if !dir.exists() {
+            return;
+        }
+        let raw = std::fs::read_to_string(dir.join("strategy").join("runbooks.json"))
+            .expect("bundled strategy/runbooks.json is present");
+        let file: RunbooksFile = serde_json::from_str(&raw).unwrap();
+        assert_eq!(file.runbooks.len(), 4, "four NEXUS runbooks bundled");
+
+        let categories = discover_categories(dir);
+        let corpus = build_from_dir(dir, "baseline-test", &categories)
+            .await
+            .unwrap();
+        let slugs: std::collections::HashSet<&str> =
+            corpus.agents.iter().map(|a| a.slug.as_str()).collect();
+
+        for rb in &file.runbooks {
+            for g in &rb.roster {
+                for a in &g.agents {
+                    assert!(
+                        slugs.contains(a.as_str()),
+                        "runbook {} roster slug {} resolves against the bundled corpus",
+                        rb.slug,
+                        a
+                    );
+                }
+            }
+        }
     }
 }
