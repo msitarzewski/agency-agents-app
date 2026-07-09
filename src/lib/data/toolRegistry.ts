@@ -48,6 +48,7 @@ const IMPLEMENTED_FORMATS = new Set([
   "codex-toml",
   "gemini-md",
   "qwen-md",
+  "zcode-md",
   "cursor-mdc",
   "opencode-md",
   "skill-md",
