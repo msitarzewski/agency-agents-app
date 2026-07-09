@@ -1844,11 +1844,11 @@ mod tests {
 
         let corpus = build_from_dir(dir, "baseline-test", &categories).await.unwrap();
 
-        // 224 = 209 prior + 13 gis + 2 healthcare personas re-vendored into the
+        // 225 = 209 prior + 13 gis + 3 healthcare personas re-vendored into the
         // baseline (#51). Still excludes the lone `integrations/` artifact
         // (backend-architect-with-memory), which is convert.sh output, not a
         // catalog persona.
-        assert_eq!(corpus.count(), 224, "all bundled agent personas indexed (integrations excluded)");
+        assert_eq!(corpus.count(), 225, "all bundled agent personas indexed (integrations excluded)");
 
         // Every agent parsed real frontmatter: non-empty name + slug, real category.
         for a in &corpus.agents {
@@ -1878,7 +1878,7 @@ mod tests {
         // gis + healthcare were re-vendored into the baseline (#51) so fresh
         // installs show them populated instead of empty divisions.
         assert_eq!(count_of("gis"), 13, "gis agents bundled in the baseline");
-        assert_eq!(count_of("healthcare"), 2, "healthcare agents bundled in the baseline");
+        assert_eq!(count_of("healthcare"), 3, "healthcare agents bundled in the baseline");
     }
 
     #[test]
