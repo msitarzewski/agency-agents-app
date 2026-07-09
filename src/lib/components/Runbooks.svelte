@@ -26,7 +26,8 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { i18n } from "$lib/stores/i18n.svelte";
-  import type { Agent, Runbook } from "$lib/types";
+  import { renderMarkdown } from "$lib/util/markdown";
+  import type { Agent, Runbook, RunbookGroup } from "$lib/types";
 
   onMount(() => {
     corpus.ensureLoaded();
@@ -62,6 +63,52 @@
   let openSlug = $state<string | null>(null);
   function toggle(slug: string) {
     openSlug = openSlug === slug ? null : slug;
+    // Collapsing (or switching) a runbook resets its scenario-doc panel.
+    docSlug = null;
+    docHtml = "";
+  }
+
+  // ── Scenario doc: lazy-loaded prose, rendered through our deterministic,
+  // escaping markdown renderer (same one PersonaBody uses). One open at a time.
+  let docSlug = $state<string | null>(null);
+  let docHtml = $state("");
+  let docLoading = $state(false);
+  async function toggleDoc(rb: Runbook) {
+    if (docSlug === rb.slug) {
+      docSlug = null;
+      docHtml = "";
+      return;
+    }
+    docSlug = rb.slug;
+    docHtml = "";
+    docLoading = true;
+    const md = await runbooks.doc(rb.slug);
+    if (docSlug === rb.slug) {
+      // still the active runbook (guard against a fast re-toggle mid-await)
+      docHtml = renderMarkdown(md);
+      docLoading = false;
+    }
+  }
+
+  // ── Staged activation: a prompt for just one phase's team, so you bring each
+  // group in when its activation window arrives (Core now, Growth at week 3+, …)
+  // rather than spinning up the whole roster at once.
+  function phasePrompt(rb: Runbook, g: RunbookGroup): string {
+    const names = g.agents.map((s) => bySlug.get(s)?.name ?? s).join(", ");
+    return i18n.t("runbooks.phaseActivationPrompt", {
+      group: runbookGroup(g.group),
+      title: runbookTitle(rb),
+      activation: runbookActivation(g.activation),
+      names,
+    });
+  }
+  async function copyPhase(rb: Runbook, g: RunbookGroup) {
+    try {
+      await navigator.clipboard.writeText(phasePrompt(rb, g));
+      toast.success(i18n.t("runbooks.phaseCopied", { group: runbookGroup(g.group) }));
+    } catch (e) {
+      toast.error(i18n.t("common.copyFailed"), String(e));
+    }
   }
 
   // Deploy: the shared InstallModal, preloaded with the runbook's resolved roster.
@@ -156,6 +203,14 @@
                     <div class="rb-grp-head">
                       <span class="rb-grp-name">{runbookGroup(g.group)}</span>
                       <span class="rb-grp-act">{runbookActivation(g.activation)}</span>
+                      <button
+                        class="rb-phase-copy"
+                        title={i18n.t("runbooks.copyPhase")}
+                        aria-label={i18n.t("runbooks.copyPhase")}
+                        onclick={() => copyPhase(rb, g)}
+                      >
+                        <CopyIcon size={12} />
+                      </button>
                     </div>
                     <ul class="rb-agents">
                       {#each resolve(g.agents) as r (r.slug)}
@@ -168,6 +223,24 @@
                     </ul>
                   </div>
                 {/each}
+
+                <div class="rb-doc-wrap">
+                  <button class="rb-doc-toggle" onclick={() => toggleDoc(rb)} aria-expanded={docSlug === rb.slug}>
+                    <ChevronDown size={14} class={docSlug === rb.slug ? "rbv-chev open" : "rbv-chev"} />
+                    <span>{docSlug === rb.slug ? i18n.t("runbooks.hideScenario") : i18n.t("runbooks.showScenario")}</span>
+                  </button>
+                  {#if docSlug === rb.slug}
+                    {#if docLoading}
+                      <p class="rb-doc-status">{i18n.t("common.loading")}</p>
+                    {:else if docHtml}
+                      <!-- HTML is produced solely by renderMarkdown (util/markdown.ts),
+                           which escapes all text before adding its own tags — safe {@html}. -->
+                      <div class="rb-doc">{@html docHtml}</div>
+                    {:else}
+                      <p class="rb-doc-status">{i18n.t("runbooks.noScenario")}</p>
+                    {/if}
+                  {/if}
+                </div>
               </div>
             {/if}
           </li>
@@ -228,4 +301,34 @@
   .rb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rb-agent.missing .rb-name { color: var(--color-text-muted); text-decoration: line-through; text-decoration-color: var(--color-text-muted); }
   .rb-flag { flex: none; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 14%, transparent); padding: 1px 5px; border-radius: var(--radius-full); }
+
+  /* Per-phase "copy activation prompt" — appears on the group header, quiet
+     until hover so it doesn't compete with the roster. */
+  .rb-phase-copy { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-muted); cursor: pointer; opacity: 0; transition: opacity var(--motion-duration-fast, 120ms) ease, color var(--motion-duration-fast, 120ms) ease; }
+  .rb-grp:hover .rb-phase-copy, .rb-phase-copy:focus-visible { opacity: 1; }
+  .rb-phase-copy:hover { color: var(--color-text-primary); background: var(--color-surface-sunken); }
+
+  /* Scenario doc: toggle + rendered prose. */
+  .rb-doc-wrap { display: flex; flex-direction: column; gap: var(--space-2); }
+  .rb-doc-toggle { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--color-text-secondary); font-size: var(--text-body-sm); cursor: pointer; padding: 2px 0; }
+  .rb-doc-toggle:hover { color: var(--color-text-primary); }
+  .rb-doc-status { font-size: var(--text-body-sm); color: var(--color-text-muted); }
+
+  .rb-doc { font-size: var(--text-body-sm); color: var(--color-text-secondary); line-height: 1.6; max-width: 72ch; }
+  .rb-doc :global(h1), .rb-doc :global(h2), .rb-doc :global(h3), .rb-doc :global(h4) { color: var(--color-text-primary); font-weight: var(--fw-semibold); margin: var(--space-3) 0 var(--space-2); line-height: 1.3; }
+  .rb-doc :global(h1) { font-size: var(--text-body); }
+  .rb-doc :global(h2) { font-size: var(--text-body); }
+  .rb-doc :global(h3) { font-size: var(--text-body-sm); }
+  .rb-doc :global(p) { margin: var(--space-2) 0; }
+  .rb-doc :global(ul), .rb-doc :global(ol) { margin: var(--space-2) 0; padding-left: var(--space-4); }
+  .rb-doc :global(li) { margin: 2px 0; }
+  .rb-doc :global(a) { color: var(--color-brand); }
+  .rb-doc :global(hr) { border: none; border-top: 1px solid var(--color-border); margin: var(--space-3) 0; }
+  .rb-doc :global(blockquote) { margin: var(--space-2) 0; padding: 4px var(--space-3); border-left: 3px solid var(--color-border-strong, var(--color-text-muted)); color: var(--color-text-muted); }
+  .rb-doc :global(code) { font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.92em; background: var(--color-surface-sunken); padding: 1px 4px; border-radius: var(--radius-sm); }
+  .rb-doc :global(pre) { margin: var(--space-2) 0; padding: var(--space-3); background: var(--color-surface-sunken); border-radius: var(--radius-md); overflow-x: auto; }
+  .rb-doc :global(pre code) { background: transparent; padding: 0; }
+  .rb-doc :global(table) { border-collapse: collapse; margin: var(--space-2) 0; font-size: var(--text-caption); display: block; overflow-x: auto; }
+  .rb-doc :global(th), .rb-doc :global(td) { border: 1px solid var(--color-border); padding: 4px var(--space-2); text-align: left; }
+  .rb-doc :global(th) { color: var(--color-text-primary); font-weight: var(--fw-semibold); background: var(--color-surface-sunken); }
 </style>

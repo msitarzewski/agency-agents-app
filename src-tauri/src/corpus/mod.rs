@@ -1560,6 +1560,50 @@ pub async fn runbooks_list(app: AppHandle) -> Result<Vec<Runbook>, AppError> {
     Ok(file.runbooks)
 }
 
+/// `runbook_doc(slug)` — the prose scenario doc (markdown) for one runbook,
+/// resolved from its manifest `doc` pointer within the active catalog. Empty
+/// string when the runbook, its doc, or `strategy/` is absent — the UI treats
+/// that as "no doc yet", not an error. Local-only (no network).
+///
+/// The manifest is catalog-authored (a synced clone can be anything on disk), so
+/// `doc` is treated as untrusted: it must be a relative `.md` path with no `..`
+/// escape, resolved strictly under the catalog root.
+#[tauri::command]
+pub async fn runbook_doc(app: AppHandle, slug: String) -> Result<String, AppError> {
+    let adir = app_data_dir(&app)?;
+    let source = load_catalog_source(&adir).await;
+    let root = catalog_root(&adir, &source);
+    let manifest = root.join("strategy").join("runbooks.json");
+    let raw = match tokio::fs::read_to_string(&manifest).await {
+        Ok(r) => r,
+        Err(_) => return Ok(String::new()),
+    };
+    let file: RunbooksFile = serde_json::from_str(&raw).map_err(|e| AppError::Io {
+        message: format!("parse strategy/runbooks.json: {e}"),
+    })?;
+    let Some(rb) = file.runbooks.into_iter().find(|r| r.slug == slug) else {
+        return Ok(String::new());
+    };
+    if !doc_path_is_safe(&rb.doc) {
+        return Ok(String::new());
+    }
+    let path = root.join(&rb.doc);
+    Ok(tokio::fs::read_to_string(&path).await.unwrap_or_default())
+}
+
+/// A manifest `doc` pointer is safe iff it's a non-empty, relative `.md` path
+/// with no parent-dir (`..`) components — so it can only ever resolve to a file
+/// *inside* the catalog root, never escape it.
+fn doc_path_is_safe(doc: &str) -> bool {
+    let p = Path::new(doc);
+    !doc.is_empty()
+        && p.is_relative()
+        && p.extension().and_then(|e| e.to_str()) == Some("md")
+        && !p
+            .components()
+            .any(|c| matches!(c, std::path::Component::ParentDir))
+}
+
 /// Heuristic: does `root` hold an agency-agents catalog? True if it has the
 /// repo tooling or at least one of the canonical category dirs with agents.
 fn looks_like_catalog(root: &Path) -> bool {
@@ -2023,5 +2067,19 @@ echo done
         // An absent `runbooks` key (bundled / no strategy/) parses to empty, not an error.
         let empty: RunbooksFile = serde_json::from_str("{}").unwrap();
         assert!(empty.runbooks.is_empty());
+    }
+
+    #[test]
+    fn runbook_doc_path_guard_rejects_escapes() {
+        // Legit manifest pointers.
+        assert!(doc_path_is_safe("strategy/runbooks/scenario-startup-mvp.md"));
+        assert!(doc_path_is_safe("strategy/runbooks/x.md"));
+        // Traversal, absolute, wrong extension, empty — all refused so a
+        // hostile synced manifest can't read outside the catalog root.
+        assert!(!doc_path_is_safe("../../../etc/passwd"));
+        assert!(!doc_path_is_safe("strategy/../../secrets.md"));
+        assert!(!doc_path_is_safe("/etc/passwd"));
+        assert!(!doc_path_is_safe("strategy/runbooks/scenario.txt"));
+        assert!(!doc_path_is_safe(""));
     }
 }
