@@ -3,19 +3,20 @@
    * CatalogFirstRun.svelte — first-launch catalog-source picker (#1).
    *
    * Shown once, before anything else, when the user hasn't chosen where the
-   * agent catalog lives (`catalog.configured === false`). Three paths:
-   *   1. Use my own clone  — detect/Find + folder picker (manage-with-permission)
-   *   2. Set one up for me  — provision ~/.agency-agents (git clone or snapshot)
-   *   3. Bundled snapshot   — the always-works default
+   * agent catalog lives (`catalog.configured === false`). Two paths:
+   *   1. Download from GitHub — provision ~/.agency-agents (git clone or codeload
+   *      tarball). The recommended default; needs network on first run.
+   *   2. Use my own clone     — detect/Find + folder picker (manage-with-permission),
+   *      the offline / existing-clone escape hatch.
    *
-   * Posture: nothing is written until the user picks. Choosing any option
-   * persists the choice (configured → true), which dismisses this modal.
+   * There is no bundled snapshot — the app downloads the live catalog so it's
+   * never stale. Nothing is written until the user picks; choosing an option
+   * persists it (configured → true), which dismisses this (blocking) modal.
    */
   import { onMount } from "svelte";
   import { open as openDialog } from "@tauri-apps/plugin-dialog";
   import FolderGit2 from "@lucide/svelte/icons/folder-git-2";
   import Sparkles from "@lucide/svelte/icons/sparkles";
-  import Package from "@lucide/svelte/icons/package";
   import Search from "@lucide/svelte/icons/search";
   import Check from "@lucide/svelte/icons/check";
 
@@ -58,7 +59,16 @@
     </header>
 
     <div class="cards">
-      <!-- 1. Use my own clone -->
+      <!-- 1. Download from GitHub (recommended) -->
+      <button class="card simple primary" disabled={catalog.busy} onclick={() => choose(() => catalog.provisionManaged(), i18n.t("catalog.setupManaged"))}>
+        <Sparkles size={22} />
+        <div class="ct">
+          <span class="t">{i18n.t("firstRun.setup")}</span>
+          <span class="d">{i18n.t("firstRun.setupDesc")}</span>
+        </div>
+      </button>
+
+      <!-- 2. Use my own clone / local folder -->
       <div class="card" class:open={expanded === "clone"}>
         <button class="card-head" onclick={() => (expanded = expanded === "clone" ? null : "clone")}>
           <FolderGit2 size={22} />
@@ -105,23 +115,6 @@
         {/if}
       </div>
 
-      <!-- 2. Set one up for me -->
-      <button class="card simple" disabled={catalog.busy} onclick={() => choose(() => catalog.provisionManaged(), i18n.t("catalog.setupManaged"))}>
-        <Sparkles size={22} />
-        <div class="ct">
-          <span class="t">{i18n.t("firstRun.setup")}</span>
-          <span class="d">{i18n.t("firstRun.setupDesc")}</span>
-        </div>
-      </button>
-
-      <!-- 3. Bundled snapshot -->
-      <button class="card simple" disabled={catalog.busy} onclick={() => choose(() => catalog.useBundled(), i18n.t("catalog.usingBundled"))}>
-        <Package size={22} />
-        <div class="ct">
-          <span class="t">{i18n.t("firstRun.bundled")}</span>
-          <span class="d">{i18n.t("firstRun.bundledDesc")}</span>
-        </div>
-      </button>
     </div>
 
     {#if catalog.error}<p class="err">{catalog.error}</p>{/if}
@@ -155,6 +148,10 @@
   }
   .card.simple:hover:not(:disabled) { background: var(--color-surface-sunken); border-color: var(--color-brand); }
   .card.simple:disabled { opacity: 0.5; cursor: default; }
+  /* Recommended path — brand-tinted so it reads as the default action. */
+  .card.simple.primary { border-color: var(--color-brand); background: color-mix(in srgb, var(--color-brand) 8%, transparent); }
+  .card.simple.primary :global(svg) { color: var(--color-brand); }
+  .card.simple.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--color-brand) 14%, transparent); }
   .card-head {
     width: 100%; display: flex; align-items: flex-start; gap: var(--space-3);
     padding: var(--space-4); background: transparent; cursor: pointer; text-align: left; color: inherit;

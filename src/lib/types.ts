@@ -365,12 +365,11 @@ export interface CorpusMeta {
 
 /**
  * Where the active agent catalog lives. Discriminated on `kind`:
- * - `bundled` — app-managed copy from the bundled baseline (default).
- * - `managed` — a clone the app provisioned/owns (default `~/.agency-agents`).
+ * - `managed` — a clone the app provisioned/owns (default `~/.agency-agents`,
+ *   cloned from GitHub on first run). The default.
  * - `userClone` — the user's own clone; `manage` = permission to pull it.
  */
 export type CatalogSource =
-  | { kind: "bundled" }
   | { kind: "managed"; path: string }
   | { kind: "userClone"; path: string; manage: boolean };
 

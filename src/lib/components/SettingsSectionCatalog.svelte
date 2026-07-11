@@ -14,7 +14,6 @@
   import Search from "@lucide/svelte/icons/search";
   import FolderGit2 from "@lucide/svelte/icons/folder-git-2";
   import Sparkles from "@lucide/svelte/icons/sparkles";
-  import Package from "@lucide/svelte/icons/package";
   import GitCommitHorizontal from "@lucide/svelte/icons/git-commit-horizontal";
   import Star from "@lucide/svelte/icons/star";
   import GitFork from "@lucide/svelte/icons/git-fork";
@@ -72,8 +71,6 @@
   const uc = $derived(catalog.updateCheck);
   const sourceLabel = $derived.by(() => {
     switch (catalog.source.kind) {
-      case "bundled":
-        return i18n.t("catalog.source.bundled");
       case "managed":
         return i18n.t("catalog.source.managed");
       case "userClone":
@@ -187,13 +184,6 @@
       <div class="ct">
         <span class="t">{i18n.t("catalog.setupManaged")}</span>
         <span class="d">{i18n.t("catalog.setupManagedDesc")}</span>
-      </div>
-    </button>
-    <button class="card" disabled={catalog.busy} onclick={() => run(() => catalog.useBundled(), i18n.t("catalog.usingBundled"))}>
-      <Package size={20} />
-      <div class="ct">
-        <span class="t">{i18n.t("catalog.bundled")}</span>
-        <span class="d">{i18n.t("catalog.bundledDesc")}</span>
       </div>
     </button>
   </div>

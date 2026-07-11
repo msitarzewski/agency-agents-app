@@ -11,9 +11,10 @@
 //!     └── corpus-index.json   slug → CorpusEntry (hashes, category, version)
 //! ```
 //!
-//! - **Seed**: a baseline corpus ships inside the app bundle
-//!   (`resources/corpus-baseline/<category>/<slug>.md`). On first run it is
-//!   copied to `<app_data_dir>/corpus/` so the app works offline.
+//! - **Provision**: the app has no bundled corpus. On first run it clones the
+//!   live catalog from GitHub (`git clone`, or a codeload tarball when git is
+//!   absent) into `~/.agency-agents`, or the user points at their own clone.
+//!   Until a source is provisioned the corpus is empty ("no agents").
 //! - **Refresh** ([`corpus_refresh`]): fetch the GitHub tarball
 //!   `https://codeload.github.com/msitarzewski/agency-agents/tar.gz/refs/heads/main`,
 //!   extract the category dirs over the working copy, and rebuild
@@ -380,12 +381,6 @@ fn title_case(slug: &str) -> String {
 
 // ---------- Path helpers ----------
 
-/// The working corpus directory: `<app_data_dir>/corpus`. ALWAYS derived
-/// from `app_data_dir` — never composed from IPC input.
-pub(crate) fn corpus_dir(app_data_dir: &Path) -> PathBuf {
-    app_data_dir.join("corpus")
-}
-
 /// The state directory holding `corpus-index.json` + `corpus-meta.json` and
 /// (Phase 2) the install ledger `installs.json`.
 pub(crate) fn state_dir(app_data_dir: &Path) -> PathBuf {
@@ -406,15 +401,27 @@ fn catalog_source_path(app_data_dir: &Path) -> PathBuf {
 
 // ---------- Catalog source (where the corpus content lives) ----------
 
-/// Load the persisted [`CatalogSource`], or [`CatalogSource::Bundled`] when no
-/// choice has been made yet / the file is unreadable. The catalog SOURCE
-/// (content location) is distinct from the STATE dir (index/meta/ledger/backups
-/// always live under app data, regardless of source).
+/// The first-run default source: a managed clone at `~/.agency-agents`, empty
+/// until provisioned (the app clones the live catalog from GitHub on first run).
+/// Used when no choice has been made yet, or a persisted source can't be parsed
+/// (e.g. a pre-clone-first-run `{"kind":"bundled"}` — migrated by re-prompting).
+pub(crate) fn default_source() -> CatalogSource {
+    CatalogSource::Managed {
+        path: home_agency_dir()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+    }
+}
+
+/// Load the persisted [`CatalogSource`], or [`default_source`] when no choice has
+/// been made yet / the file is unreadable / it's a legacy variant. The catalog
+/// SOURCE (content location) is distinct from the STATE dir (index/meta/ledger/
+/// backups always live under app data, regardless of source).
 pub(crate) async fn load_catalog_source(app_data_dir: &Path) -> CatalogSource {
     let path = catalog_source_path(app_data_dir);
     match tokio::fs::read(&path).await {
-        Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
-        Err(_) => CatalogSource::default(),
+        Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_else(|_| default_source()),
+        Err(_) => default_source(),
     }
 }
 
@@ -434,11 +441,12 @@ pub(crate) async fn save_catalog_source(
 }
 
 /// Resolve the active catalog ROOT directory (where `<category>/<slug>.md` and
-/// `scripts/convert.sh` live) for a source. `Bundled` lives inside app data;
-/// `Managed`/`UserClone` point at a clone elsewhere on disk.
-pub(crate) fn catalog_root(app_data_dir: &Path, source: &CatalogSource) -> PathBuf {
+/// `scripts/convert.sh` live) for a source. Both `Managed` and `UserClone` point
+/// at a clone on disk; an unprovisioned root is simply empty (→ "no agents"
+/// until the first-run clone completes). `_app_data_dir` is retained for the
+/// signature the callers use.
+pub(crate) fn catalog_root(_app_data_dir: &Path, source: &CatalogSource) -> PathBuf {
     match source {
-        CatalogSource::Bundled => corpus_dir(app_data_dir),
         CatalogSource::Managed { path } => PathBuf::from(path),
         CatalogSource::UserClone { path, .. } => PathBuf::from(path),
     }
@@ -448,35 +456,21 @@ pub(crate) fn catalog_root(app_data_dir: &Path, source: &CatalogSource) -> PathB
 
 /// Resolve the active corpus for the current process:
 ///
-/// 1. Seed the working copy from the bundled baseline if `corpus/` is
-///    empty (first run).
-/// 2. Parse + index everything under `corpus/`.
-/// 3. Write `corpus-index.json` + `corpus-meta.json` if they are missing
+/// 1. Parse + index everything under the active catalog root.
+/// 2. Write `corpus-index.json` + `corpus-meta.json` if they are missing
 ///    or stale (so reconciliation has the index on disk too).
 ///
-/// `baseline_dir` is the bundled baseline resolved from the Tauri
-/// resource dir (`resource_dir()/resources/corpus-baseline`). `Never`
-/// panics: a fully empty or unreadable corpus yields an empty [`Corpus`]
-/// with `count == 0` so the UI degrades to "no agents" rather than
-/// failing to launch.
-pub async fn resolve_active(app_data_dir: &Path, baseline_dir: &Path) -> Corpus {
+/// The root is a clone the app provisions on first run (or the user's own).
+/// Never panics: an unprovisioned/empty/unreadable root yields an empty
+/// [`Corpus`] with `count == 0`, so a first-run user before the clone completes
+/// sees "no agents" (and the first-run picker) rather than a crash.
+pub async fn resolve_active(app_data_dir: &Path) -> Corpus {
     let source = load_catalog_source(app_data_dir).await;
     let dir = catalog_root(app_data_dir, &source);
 
-    // Only the Bundled source seeds from the baseline (into app data). Managed /
-    // UserClone roots are populated by provisioning (detect/clone/pull) — if one
-    // is empty here it just hasn't been provisioned yet, so we serve what's
-    // there (possibly empty) rather than stamping the baseline over a clone.
-    if matches!(source, CatalogSource::Bundled) && is_empty_dir(&dir) {
-        let seed_cats = discover_categories(baseline_dir);
-        if let Err(e) = seed_from_baseline(baseline_dir, &dir, &seed_cats).await {
-            tracing::warn!("corpus: seed from baseline failed: {e}");
-        }
-    }
-
-    // Categories for indexing come from the ACTIVE root's tooling — after the
-    // seed (or in a clone) `scripts/convert.sh` lives alongside the agents, so
-    // the division set always reflects the catalog actually present.
+    // Categories for indexing come from the ACTIVE root's tooling — in a clone
+    // `scripts/convert.sh` lives alongside the agents, so the division set always
+    // reflects the catalog actually present. Empty root → no categories → empty.
     let categories = discover_categories(&dir);
 
     // Determine the version to stamp the index with: keep whatever a prior
@@ -644,56 +638,6 @@ fn is_empty_dir(dir: &Path) -> bool {
         Ok(mut it) => it.next().is_none(),
         Err(_) => true,
     }
-}
-
-/// Copy `<baseline>/<category>/*.md` into `<dest>/<category>/` for each
-/// `category`, plus the repo tooling (`scripts/convert.sh`) so the seeded
-/// working copy can discover its own divisions. Anything else in the baseline
-/// is ignored. Idempotent: re-seeding overwrites file-for-file.
-async fn seed_from_baseline(baseline: &Path, dest: &Path, categories: &[String]) -> Result<(), AppError> {
-    if !baseline.exists() {
-        return Err(AppError::Io {
-            message: format!("baseline corpus not found at {}", baseline.display()),
-        });
-    }
-    let mut seeded = 0u32;
-    for category in categories.iter() {
-        let src_cat = baseline.join(category);
-        let mut read = match tokio::fs::read_dir(&src_cat).await {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
-        let dst_cat = dest.join(category);
-        tokio::fs::create_dir_all(&dst_cat)
-            .await
-            .map_err(|e| AppError::Io {
-                message: format!("create {}: {e}", dst_cat.display()),
-            })?;
-        while let Ok(Some(ent)) = read.next_entry().await {
-            let path = ent.path();
-            if path.extension().and_then(|e| e.to_str()) != Some("md") {
-                continue;
-            }
-            let Some(fname) = path.file_name() else { continue };
-            let bytes = read_capped(&path, MAX_AGENT_BYTES).await?;
-            atomic_write(&dst_cat.join(fname), &bytes).await?;
-            seeded += 1;
-        }
-    }
-
-    // Carry the tooling forward so the seeded copy is self-describing: the
-    // category list is then read from the working tree, not just the baseline.
-    let src_script = baseline.join("scripts").join("convert.sh");
-    if let Ok(bytes) = read_capped(&src_script, MAX_AGENT_BYTES).await {
-        let dst_script = dest.join("scripts").join("convert.sh");
-        if let Some(parent) = dst_script.parent() {
-            let _ = tokio::fs::create_dir_all(parent).await;
-        }
-        let _ = atomic_write(&dst_script, &bytes).await;
-    }
-
-    tracing::info!("corpus: seeded {seeded} agents from baseline");
-    Ok(())
 }
 
 // ---------- Persistence ----------
@@ -1170,16 +1114,6 @@ async fn pull_active(app_data_dir: &Path) -> Result<(), AppError> {
 use crate::state::AppState;
 use tauri::{AppHandle, Manager, State};
 
-/// Resolve the bundled baseline dir from the Tauri resource dir. In dev
-/// the resources live under the crate; in a bundled app they're inside
-/// the `.app`. Tauri's `resource_dir()` resolves both.
-fn baseline_dir(app: &AppHandle) -> Result<PathBuf, AppError> {
-    let res = app.path().resource_dir().map_err(|e| AppError::Internal {
-        message: format!("resolve resource_dir: {e}"),
-    })?;
-    Ok(res.join("resources").join("corpus-baseline"))
-}
-
 /// Resolve the per-app data dir via Tauri's path resolver (honors the
 /// bundle id `com.zerologic.agency-agents-app`).
 pub(crate) fn app_data_dir(app: &AppHandle) -> Result<PathBuf, AppError> {
@@ -1220,19 +1154,16 @@ pub(crate) async fn read_source(
 /// return the shared `Arc`. First call seeds (if needed), parses, and
 /// persists the index; subsequent calls are a cheap cache read.
 pub(crate) async fn ensure_corpus(app: &AppHandle, state: &AppState) -> Result<Arc<Corpus>, AppError> {
-    // Hold the cache lock across the ENTIRE init — check, seed, parse, store.
-    // The frontend fires corpus_list + corpus_categories (+ corpus_status)
-    // concurrently on mount; a released-lock double-check would let each run
-    // `seed_from_baseline` at once, racing on the same `<file>.tmp` paths
-    // (rename → ENOENT). Serializing the first load is correct and cheap:
+    // Hold the cache lock across the ENTIRE init — check, parse, store. The
+    // frontend fires corpus_list + corpus_categories (+ corpus_status)
+    // concurrently on mount; serializing the first load is correct and cheap:
     // it happens once, and every later call is a fast locked cache read.
     let mut cached = state.corpus_cache.lock().await;
     if let Some(c) = cached.as_ref() {
         return Ok(Arc::clone(c));
     }
     let adir = app_data_dir(app)?;
-    let bdir = baseline_dir(app)?;
-    let corpus = Arc::new(resolve_active(&adir, &bdir).await);
+    let corpus = Arc::new(resolve_active(&adir).await);
     *cached = Some(Arc::clone(&corpus));
     Ok(corpus)
 }
@@ -1273,8 +1204,7 @@ pub async fn corpus_refresh(
 
     // Rebuild the in-memory copy from the freshly-written working tree and
     // swap the memoized Arc so subsequent reads see the new corpus.
-    let bdir = baseline_dir(&app)?;
-    let fresh = Arc::new(resolve_active(&adir, &bdir).await);
+    let fresh = Arc::new(resolve_active(&adir).await);
     let meta = fresh.meta();
     {
         let mut cached = state.corpus_cache.lock().await;
@@ -1283,20 +1213,26 @@ pub async fn corpus_refresh(
     Ok(meta)
 }
 
-/// `catalog_source_get()` — the persisted [`CatalogSource`] (default Bundled).
+/// `catalog_source_get()` — the persisted [`CatalogSource`] (default: a managed clone at `~/.agency-agents`).
 #[tauri::command]
 pub async fn catalog_source_get(app: AppHandle) -> Result<CatalogSource, AppError> {
     let adir = app_data_dir(&app)?;
     Ok(load_catalog_source(&adir).await)
 }
 
-/// `catalog_configured()` — whether the user has made an explicit catalog-source
-/// choice yet (i.e. `state/catalog.json` exists). Drives the first-run prompt:
-/// `false` ⇒ show the catalog-source picker before anything else.
+/// `catalog_configured()` — whether the user has made an explicit, still-valid
+/// catalog-source choice. Drives the first-run prompt: `false` ⇒ show the
+/// catalog-source picker before anything else. True iff `state/catalog.json`
+/// exists AND parses to a current [`CatalogSource`] variant — so a pre-clone-
+/// first-run `{"kind":"bundled"}` (the removed variant) reads as unconfigured
+/// and re-prompts, rather than stranding the user in a silent empty app.
 #[tauri::command]
 pub async fn catalog_configured(app: AppHandle) -> Result<bool, AppError> {
     let adir = app_data_dir(&app)?;
-    Ok(catalog_source_path(&adir).exists())
+    match tokio::fs::read(catalog_source_path(&adir)).await {
+        Ok(bytes) => Ok(serde_json::from_slice::<CatalogSource>(&bytes).is_ok()),
+        Err(_) => Ok(false),
+    }
 }
 
 /// `catalog_source_set(source)` — switch where the catalog is read from, then
@@ -1309,21 +1245,21 @@ pub async fn catalog_source_set(
     state: State<'_, AppState>,
     source: CatalogSource,
 ) -> Result<CorpusMeta, AppError> {
-    // Validate non-bundled roots before committing to them.
-    if let CatalogSource::Managed { path } | CatalogSource::UserClone { path, .. } = &source {
-        let root = PathBuf::from(path);
-        if !root.is_dir() {
-            return Err(AppError::InvalidArgument {
-                message: format!("catalog path is not a directory: {path}"),
-            });
-        }
-        if !looks_like_catalog(&root) {
-            return Err(AppError::InvalidArgument {
-                message: format!(
-                    "{path} doesn't look like an agency-agents catalog (no scripts/convert.sh or category dirs)"
-                ),
-            });
-        }
+    // Every source carries an on-disk clone `path`; validate the root before
+    // committing to it (a set from the picker always points at a real clone).
+    let (CatalogSource::Managed { path } | CatalogSource::UserClone { path, .. }) = &source;
+    let root = PathBuf::from(path);
+    if !root.is_dir() {
+        return Err(AppError::InvalidArgument {
+            message: format!("catalog path is not a directory: {path}"),
+        });
+    }
+    if !looks_like_catalog(&root) {
+        return Err(AppError::InvalidArgument {
+            message: format!(
+                "{path} doesn't look like an agency-agents catalog (no scripts/convert.sh or category dirs)"
+            ),
+        });
     }
 
     let adir = app_data_dir(&app)?;
@@ -1336,8 +1272,7 @@ pub async fn catalog_source_set(
 /// by source switching, provisioning, and pull.
 async fn rebuild_corpus(app: &AppHandle, state: &AppState) -> Result<CorpusMeta, AppError> {
     let adir = app_data_dir(app)?;
-    let bdir = baseline_dir(app)?;
-    let fresh = Arc::new(resolve_active(&adir, &bdir).await);
+    let fresh = Arc::new(resolve_active(&adir).await);
     let meta = fresh.meta();
     {
         let mut cached = state.corpus_cache.lock().await;
@@ -1431,10 +1366,9 @@ pub async fn catalog_status(
             .map(|r| format!("{}/{}", r.owner, r.repo));
     }
 
-    let root_out = match source {
-        CatalogSource::Bundled => None,
-        _ => Some(root.to_string_lossy().to_string()),
-    };
+    // Every source is now a real on-disk clone path (no in-app-data bundle to
+    // hide), so the root is always surfaced.
+    let root_out = Some(root.to_string_lossy().to_string());
 
     Ok(CatalogStatus {
         source,
@@ -1744,18 +1678,44 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn seed_then_build_round_trips() {
-        let baseline = tempfile::tempdir().unwrap();
-        write_agent(baseline.path(), "engineering", "alpha", "Alpha", "a");
-        write_agent(baseline.path(), "design", "mid", "Mid", "m");
+    async fn resolve_active_indexes_the_clone() {
+        // A provisioned clone on disk; resolve_active reads + indexes it and
+        // persists the index/meta for the reconcile subsystem.
+        let clone = tempfile::tempdir().unwrap();
+        write_agent(clone.path(), "engineering", "alpha", "Alpha", "a");
+        write_agent(clone.path(), "design", "mid", "Mid", "m");
 
         let app_data = tempfile::tempdir().unwrap();
-        let corpus = resolve_active(app_data.path(), baseline.path()).await;
+        save_catalog_source(
+            app_data.path(),
+            &CatalogSource::Managed { path: clone.path().to_string_lossy().into_owned() },
+        )
+        .await
+        .unwrap();
+
+        let corpus = resolve_active(app_data.path()).await;
         assert_eq!(corpus.count(), 2);
-        // Working copy + index were written.
-        assert!(corpus_dir(app_data.path()).join("engineering/alpha.md").exists());
+        assert!(corpus.get("alpha").is_some());
         assert!(index_path(app_data.path()).exists());
         assert!(meta_path(app_data.path()).exists());
+    }
+
+    #[tokio::test]
+    async fn unprovisioned_source_serves_empty_corpus() {
+        // First run before the clone completes: the Managed root doesn't exist
+        // yet → empty corpus (count 0), never a panic (the UI shows "no agents"
+        // + the first-run picker).
+        let app_data = tempfile::tempdir().unwrap();
+        save_catalog_source(
+            app_data.path(),
+            &CatalogSource::Managed {
+                path: app_data.path().join("not-cloned-yet").to_string_lossy().into_owned(),
+            },
+        )
+        .await
+        .unwrap();
+        let corpus = resolve_active(app_data.path()).await;
+        assert_eq!(corpus.count(), 0);
     }
 
     #[test]
@@ -1822,62 +1782,11 @@ mod tests {
         assert_eq!(meta.get("engineering").unwrap().color, "#3B82F6");
     }
 
-    /// Parse the REAL bundled baseline corpus (not a synthetic tempdir) so a
-    /// malformed real agent (bad frontmatter fence, missing `name`) fails CI
-    /// rather than shipping. `cargo test` runs with cwd = crate root, so the
-    /// relative resource path resolves. Divisions come from the bundled floor
-    /// (`agency-categories.json`, a mirror of the catalog's `divisions.json`), so
-    /// `strategy/` (playbooks/runbooks) is NOT a division and `integrations/`
-    /// (convert.sh output) is NOT either. Counts are pinned to the agency-agents
-    /// snapshot — bump them on a corpus refresh.
-    #[tokio::test]
-    async fn real_bundled_baseline_parses_completely() {
-        let dir = Path::new("resources/corpus-baseline");
-        if !dir.exists() {
-            // Resources not present in this build context — skip rather than fail.
-            return;
-        }
-        // Divisions come from the bundled floor (no divisions.json in the baseline).
-        let categories = discover_categories(dir);
-        assert!(!categories.iter().any(|c| c == "strategy"), "strategy is not a division");
-        assert!(!categories.iter().any(|c| c == "integrations"), "integrations is convert.sh output, not a division");
-
-        let corpus = build_from_dir(dir, "baseline-test", &categories).await.unwrap();
-
-        // 209 = 210 prior minus the lone `integrations/` artifact
-        // (backend-architect-with-memory), which is convert.sh output, not a
-        // catalog persona.
-        assert_eq!(corpus.count(), 209, "all bundled agent personas indexed (integrations excluded)");
-
-        // Every agent parsed real frontmatter: non-empty name + slug, real category.
-        for a in &corpus.agents {
-            assert!(!a.name.trim().is_empty(), "agent {} has empty name", a.slug);
-            assert!(!a.slug.trim().is_empty(), "agent has empty slug");
-            assert!(
-                categories.contains(&a.category),
-                "agent {} has unknown category {}",
-                a.slug,
-                a.category
-            );
-        }
-
-        // Spot-check categories that nest agents in subdirs upstream — these are
-        // the ones a flat seeding would silently undercount.
-        let cats = corpus.categories();
-        assert_eq!(cats.len(), 17, "17 declared divisions");
-        let count_of = |slug: &str| cats.iter().find(|c| c.slug == slug).map(|c| c.count).unwrap_or(0);
-        assert_eq!(count_of("engineering"), 30);
-        assert_eq!(count_of("specialized"), 46);
-        // game-development nests agents in unity/, godot/, unreal-engine/ etc.
-        // upstream; a flat seeding would silently undercount these.
-        assert_eq!(count_of("game-development"), 20, "nested game-dev agents included");
-        // strategy is NOT a division (playbooks/runbooks, no agent frontmatter),
-        // so it never appears as one — regardless of what's on disk.
-        assert!(!cats.iter().any(|c| c.slug == "strategy"), "strategy is not a division");
-        // healthcare IS a declared division; the bundled baseline predates its
-        // agents, so it's present but empty (count 0) until a sync brings them in.
-        assert_eq!(count_of("healthcare"), 0, "healthcare present but empty in the stale baseline");
-    }
+    // (The former `real_bundled_baseline_parses_completely` test is gone with the
+    // bundled baseline — the app now clones the live catalog on first run, so
+    // there is no in-repo corpus snapshot to parse. Catalog integrity is the
+    // catalog repo's CI concern; the app validates whatever it clones at runtime
+    // via `build_from_dir`, exercised by the synthetic-corpus tests above.)
 
     #[test]
     fn parse_agent_dirs_reads_the_bash_array() {
@@ -1921,16 +1830,29 @@ echo done
     }
 
     #[tokio::test]
-    async fn catalog_source_persists_and_defaults_bundled() {
+    async fn catalog_source_persists_and_defaults_managed() {
         let app_data = tempfile::tempdir().unwrap();
-        // No file yet → default Bundled.
-        assert_eq!(load_catalog_source(app_data.path()).await, CatalogSource::Bundled);
+        // No file yet → default managed clone at ~/.agency-agents (empty until
+        // provisioned). It's a Managed variant, not the removed Bundled.
+        assert!(matches!(
+            load_catalog_source(app_data.path()).await,
+            CatalogSource::Managed { .. }
+        ));
 
         let src = CatalogSource::Managed { path: "/Users/x/.agency-agents".into() };
         save_catalog_source(app_data.path(), &src).await.unwrap();
         assert_eq!(load_catalog_source(app_data.path()).await, src);
 
+        // A pre-clone-first-run bundled source migrates to the default (re-prompt).
+        save_catalog_source(app_data.path(), &src).await.unwrap();
+        std::fs::write(catalog_source_path(app_data.path()), br#"{"kind":"bundled"}"#).unwrap();
+        assert!(matches!(
+            load_catalog_source(app_data.path()).await,
+            CatalogSource::Managed { .. }
+        ));
+
         // catalog.json is valid camelCase-tagged JSON.
+        save_catalog_source(app_data.path(), &src).await.unwrap();
         let bytes = std::fs::read(catalog_source_path(app_data.path())).unwrap();
         let text = String::from_utf8_lossy(&bytes);
         assert!(text.contains("\"kind\": \"managed\""), "tagged on kind: {text}");
@@ -1939,10 +1861,6 @@ echo done
     #[test]
     fn catalog_root_resolves_per_source() {
         let app_data = Path::new("/app/data");
-        assert_eq!(
-            catalog_root(app_data, &CatalogSource::Bundled),
-            corpus_dir(app_data)
-        );
         assert_eq!(
             catalog_root(app_data, &CatalogSource::Managed { path: "/home/x/.agency-agents".into() }),
             PathBuf::from("/home/x/.agency-agents")
