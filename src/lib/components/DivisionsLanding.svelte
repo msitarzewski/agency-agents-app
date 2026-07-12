@@ -14,8 +14,10 @@
    */
   import LayersIcon from "@lucide/svelte/icons/layers";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
+  import ArrowUpCircle from "@lucide/svelte/icons/arrow-up-circle";
 
   import InstallModal from "./InstallModal.svelte";
+  import UpdatesModal from "./UpdatesModal.svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
   import { install } from "$lib/stores/install.svelte";
   import { ui } from "$lib/stores/ui.svelte";
@@ -65,6 +67,10 @@
     return m;
   });
 
+  // Installed agents with a newer catalog version (reconcile state "outdated").
+  const outdatedCount = $derived(install.installed.filter((r) => r.state === "outdated").length);
+  let updatesOpen = $state(false);
+
   function openDivision(slug: string) {
     ui.setAgentsCategory(slug);
   }
@@ -93,6 +99,11 @@
     {:else}
       <span class="lead"><LayersIcon size={14} /> {i18n.t("divisions.title")}</span>
       <span class="spacer"></span>
+      {#if outdatedCount > 0}
+        <button class="ghost updates" onclick={() => (updatesOpen = true)} title={i18n.t("agentUpdates.badgeTitle", { count: outdatedCount })}>
+          <ArrowUpCircle size={14} /> {i18n.t("agentUpdates.badge", { count: outdatedCount })}
+        </button>
+      {/if}
       {#if tiles.length > 0}
         <button class="ghost" onclick={enterSelect}>{i18n.t("common.select")}</button>
       {/if}
@@ -132,6 +143,10 @@
   <InstallModal title={dTitle} agentSlugs={slugs} onClose={() => (modalOpen = false)} />
 {/if}
 
+{#if updatesOpen}
+  <UpdatesModal onClose={() => (updatesOpen = false)} />
+{/if}
+
 <style>
   .dl { display: flex; flex-direction: column; min-height: 0; height: 100%; }
   .dl-bar {
@@ -151,6 +166,14 @@
   .ghost:hover { background: var(--color-surface-sunken); color: var(--color-text-primary); }
   .cta { color: var(--color-brand); font-weight: var(--fw-medium); }
   .cta:disabled { color: var(--color-text-muted); cursor: not-allowed; background: transparent; }
+
+  /* "N updates" — brand-tinted so a pending update reads at a glance. */
+  .updates {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--color-brand); font-weight: var(--fw-medium);
+    background: color-mix(in srgb, var(--color-brand) 10%, transparent);
+  }
+  .updates:hover { color: var(--color-brand); background: color-mix(in srgb, var(--color-brand) 18%, transparent); }
 
   .rows { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; min-height: 0; }
   .row {

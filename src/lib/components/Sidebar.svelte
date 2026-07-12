@@ -46,8 +46,11 @@
 
   function badge(id: SidebarSection): string | null {
     if (id === "personas") {
-      // Surface installs needing attention (outdated/modified/removed/foreign).
-      const n = install.installed.filter((i) => i.state !== "current").length;
+      // Installed agents with a newer version in the catalog — "updates
+      // available". (Matches the "N updates" action on the Agents view. Other
+      // non-current states — local edits, untracked, missing — are surfaced
+      // per-agent when you drill in, not as a catch-all attention count.)
+      const n = install.installed.filter((i) => i.state === "outdated").length;
       return n > 0 ? String(n) : null;
     }
     return null;
@@ -83,7 +86,7 @@
           >
             <span class="ico" aria-hidden="true"><item.icon size={16} /></span>
             <span class="label">{label(item.id)}</span>
-            {#if b}<span class="badge">{b}</span>{/if}
+            {#if b}<span class="badge" title={i18n.t("agentUpdates.badgeTitle", { count: Number(b) })}>{b}</span>{/if}
           </button>
         </li>
       {/each}
