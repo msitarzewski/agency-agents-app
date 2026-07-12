@@ -232,6 +232,7 @@ const en = {
   "agentUpdates.title": "{count} updates available",
   "agentUpdates.sub": "These installed agents have a newer version in the catalog. Choose which to update.",
   "agentUpdates.selectAll": "Select all",
+  "agentUpdates.cellAria": "Update {agent} in {tool}",
   "agentUpdates.updateN": "Update {count}",
   "agentUpdates.footHint": "Re-renders each agent from the current catalog.",
   "agentUpdates.done": "Updated {count} agents",

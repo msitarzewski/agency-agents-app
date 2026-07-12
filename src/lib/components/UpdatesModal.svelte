@@ -1,73 +1,99 @@
 <script lang="ts">
   /**
-   * UpdatesModal — the installed agents that have a newer version in the catalog
-   * (reconcile state "outdated"), with per-row selection and a bulk update.
+   * UpdatesModal — installed agents with a newer version in the catalog
+   * (reconcile state "outdated"), as an agents × tools grid (the app's standard
+   * install surface): one row per agent, a column per tool that has any outdated
+   * install, and a checkable cell only where that (agent, tool) install is stale.
    *
-   * One row per INSTALL, not per agent: an agent installed to two tools shows
-   * twice, because each install updates independently. Reuses
-   * `install.bulk("update", …)`, which re-reconciles afterward — so updated rows
-   * flip to "current" and drop out of the list live. Default: everything checked.
+   * Select whole rows/cells, then bulk-update via install.bulk("update", …),
+   * which re-reconciles so updated cells drop out of the grid live.
    */
+  import Check from "@lucide/svelte/icons/check";
   import ArrowUpCircle from "@lucide/svelte/icons/arrow-up-circle";
   import Modal from "./Modal.svelte";
   import Button from "./Button.svelte";
-  import { install } from "$lib/stores/install.svelte";
+  import { install, SUPPORTED_TOOLS } from "$lib/stores/install.svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { i18n } from "$lib/stores/i18n.svelte";
-  import type { InstalledAgent } from "$lib/types";
+  import type { Tool } from "$lib/types";
 
   interface Props {
     onClose: () => void;
   }
   let { onClose }: Props = $props();
 
-  const key = (r: InstalledAgent) => `${r.slug}:${r.tool}:${r.projectPath ?? ""}`;
-  const projLabel = (p: string) => p.replace(/\/+$/, "").split("/").pop() || p;
-  // Sync slug→agent lookup for the emoji (corpus.get() is async — fetches body).
+  const outdated = $derived(install.installed.filter((r) => r.state === "outdated"));
   const bySlug = $derived(new Map(corpus.agents.map((a) => [a.slug, a])));
 
-  // Every install with a newer catalog version, sorted for a stable, scannable
-  // list (agent name, then tool).
-  const outdated = $derived(
-    install.installed
-      .filter((r) => r.state === "outdated")
-      .sort((a, b) => a.name.localeCompare(b.name) || a.tool.localeCompare(b.tool)),
-  );
+  // Rows: distinct outdated agents, by name.
+  const rows = $derived.by(() => {
+    const seen = new Map<string, string>(); // slug -> name
+    for (const r of outdated) if (!seen.has(r.slug)) seen.set(r.slug, r.name);
+    return [...seen.entries()]
+      .map(([slug, name]) => ({ slug, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
+  // Columns: only the tools that actually have an outdated install, in menu order.
+  const cols = $derived.by(() => {
+    const present = new Set(outdated.map((r) => r.tool));
+    return SUPPORTED_TOOLS.filter((t) => present.has(t.id));
+  });
 
-  // Track DESELECTED keys, so the default (empty set) means "all checked" and we
-  // never need an effect to seed the selection.
+  // The install rows behind one (agent, tool) cell — usually one, but an agent
+  // installed to the same tool in multiple projects collapses into a cell that
+  // updates them all.
+  function cellRows(slug: string, tool: Tool) {
+    return outdated.filter((r) => r.slug === slug && r.tool === tool);
+  }
+  const cellKey = (slug: string, tool: Tool) => `${slug}:${tool}`;
+
+  // Track deselected cells, so the default (empty) means "all checked".
   let deselected = $state<Set<string>>(new Set());
-  const isChecked = (r: InstalledAgent) => !deselected.has(key(r));
-  const chosen = $derived(outdated.filter((r) => !deselected.has(key(r))));
-  const allChecked = $derived(deselected.size === 0);
-  const noneChecked = $derived(outdated.length > 0 && chosen.length === 0);
+  const allCellKeys = $derived.by(() => {
+    const out: string[] = [];
+    for (const row of rows) for (const t of cols) if (cellRows(row.slug, t.id).length) out.push(cellKey(row.slug, t.id));
+    return out;
+  });
+  const isSel = (slug: string, tool: Tool) =>
+    cellRows(slug, tool).length > 0 && !deselected.has(cellKey(slug, tool));
 
-  function toggle(r: InstalledAgent) {
-    const k = key(r);
+  // Every selected cell's underlying install(s) → the update targets.
+  const targets = $derived.by(() => {
+    const t: { slug: string; tool: Tool; projectPath: string | null }[] = [];
+    for (const key of allCellKeys) {
+      if (deselected.has(key)) continue;
+      const [slug, tool] = key.split(":") as [string, Tool];
+      for (const r of cellRows(slug, tool)) t.push({ slug: r.slug, tool: r.tool, projectPath: r.projectPath });
+    }
+    return t;
+  });
+
+  const allSel = $derived(deselected.size === 0);
+  const noneSel = $derived(allCellKeys.length > 0 && allCellKeys.every((k) => deselected.has(k)));
+
+  function toggleCell(slug: string, tool: Tool) {
+    if (!cellRows(slug, tool).length) return;
+    const k = cellKey(slug, tool);
     const next = new Set(deselected);
     if (next.has(k)) next.delete(k);
     else next.add(k);
     deselected = next;
   }
   function toggleAll() {
-    deselected = allChecked ? new Set(outdated.map(key)) : new Set();
+    deselected = allSel ? new Set(allCellKeys) : new Set();
   }
 
   let busy = $state(false);
   async function updateChosen() {
-    if (chosen.length === 0 || busy) return;
+    if (targets.length === 0 || busy) return;
     busy = true;
     try {
-      const { ok, fail } = await install.bulk(
-        "update",
-        chosen.map((r) => ({ slug: r.slug, tool: r.tool, projectPath: r.projectPath })),
-      );
+      const { ok, fail } = await install.bulk("update", targets);
       if (fail === 0) toast.success(i18n.t("agentUpdates.done", { count: ok }));
       else toast.error(i18n.t("agentUpdates.someFailed", { ok, fail }));
     } finally {
       busy = false;
-      // bulk() re-reconciles; if everything updated cleanly, nothing's left.
       if (install.installed.filter((r) => r.state === "outdated").length === 0) onClose();
     }
   }
@@ -83,35 +109,53 @@
       <label class="all">
         <input
           type="checkbox"
-          checked={allChecked}
-          indeterminate={!allChecked && !noneChecked}
+          checked={allSel}
+          indeterminate={!allSel && !noneSel}
           onchange={toggleAll}
         />
         {i18n.t("agentUpdates.selectAll")}
       </label>
-      <span class="n">{i18n.t("common.selected", { count: chosen.length })}</span>
+      <span class="n">{i18n.t("common.selected", { count: targets.length })}</span>
     </div>
 
-    <ul class="list">
-      {#each outdated as r (key(r))}
-        <li class="row">
-          <label class="lbl">
-            <input type="checkbox" checked={isChecked(r)} onchange={() => toggle(r)} />
-            <span class="emoji">{bySlug.get(r.slug)?.emoji ?? "○"}</span>
-            <span class="name">{r.name}</span>
-          </label>
-          <span class="tool">{install.toolLabel(r.tool)}</span>
-          {#if r.projectPath}<span class="proj" title={r.projectPath}>{projLabel(r.projectPath)}</span>{/if}
-        </li>
-      {/each}
-    </ul>
+    <div class="grid-wrap">
+      <div class="grid" style="--cols: {cols.length}">
+        <div class="cell head corner"></div>
+        {#each cols as t (t.id)}
+          <div class="cell head tool" title={t.label}>{t.label}</div>
+        {/each}
+
+        {#each rows as row (row.slug)}
+          <div class="cell agent">
+            <span class="emoji">{bySlug.get(row.slug)?.emoji ?? "○"}</span>
+            <span class="aname">{row.name}</span>
+          </div>
+          {#each cols as t (t.id)}
+            {#if cellRows(row.slug, t.id).length}
+              <button
+                class="cell toggle"
+                onclick={() => toggleCell(row.slug, t.id)}
+                aria-label={i18n.t("agentUpdates.cellAria", { agent: row.name, tool: t.label })}
+                aria-pressed={isSel(row.slug, t.id)}
+              >
+                <span class="box" class:on={isSel(row.slug, t.id)}>
+                  {#if isSel(row.slug, t.id)}<Check size={12} />{/if}
+                </span>
+              </button>
+            {:else}
+              <div class="cell na">·</div>
+            {/if}
+          {/each}
+        {/each}
+      </div>
+    </div>
   {/if}
 
   {#snippet actions()}
     <span class="foot-hint"><ArrowUpCircle size={13} /> {i18n.t("agentUpdates.footHint")}</span>
     <Button variant="secondary" onclick={onClose}>{i18n.t("common.close")}</Button>
-    <Button variant="primary" disabled={busy || chosen.length === 0} onclick={updateChosen}>
-      {busy ? i18n.t("common.working") : i18n.t("agentUpdates.updateN", { count: chosen.length })}
+    <Button variant="primary" disabled={busy || targets.length === 0} onclick={updateChosen}>
+      {busy ? i18n.t("common.working") : i18n.t("agentUpdates.updateN", { count: targets.length })}
     </Button>
   {/snippet}
 </Modal>
@@ -120,28 +164,36 @@
   .sub { font-size: var(--text-body-sm); color: var(--color-text-muted); margin-bottom: var(--space-3); }
   .empty { font-size: var(--text-body-sm); color: var(--color-text-muted); }
 
-  .head {
-    display: flex; align-items: center; gap: var(--space-3);
-    padding-bottom: var(--space-2); margin-bottom: var(--space-2);
-    border-bottom: 1px solid var(--color-border);
-  }
+  .head { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
   .all { display: inline-flex; align-items: center; gap: 7px; font-size: var(--text-body-sm); color: var(--color-text-secondary); cursor: pointer; }
+  .all input { width: 15px; height: 15px; accent-color: var(--color-brand); cursor: pointer; }
   .n { margin-left: auto; font-size: var(--text-caption); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 
-  .list { list-style: none; margin: 0; padding: 0; max-height: 46vh; overflow-y: auto; display: flex; flex-direction: column; }
-  .row {
-    display: flex; align-items: center; gap: var(--space-2);
-    padding: 6px 2px; border-bottom: 1px solid var(--color-border);
-    font-size: var(--text-body-sm);
+  /* Same grid language as InstallModal: agent rows × tool columns. */
+  .grid-wrap { max-height: 52vh; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(190px, 1fr) repeat(var(--cols), 96px);
+    width: max-content; min-width: 100%; align-items: stretch;
   }
-  .row:last-child { border-bottom: none; }
-  .lbl { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-  .emoji { flex: none; }
-  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-primary); }
-  .tool { flex: none; font-size: var(--text-caption); color: var(--color-text-secondary); background: var(--color-surface-sunken); padding: 2px 8px; border-radius: var(--radius-full); }
-  .proj { flex: none; font-size: var(--text-caption); color: var(--color-text-muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cell { display: flex; align-items: center; justify-content: center; padding: var(--space-2); border-bottom: 1px solid var(--color-border); }
+  .head { position: sticky; top: 0; z-index: 1; background: var(--color-surface-sunken); font-size: var(--text-caption); color: var(--color-text-muted); font-weight: var(--fw-semibold); min-height: 34px; padding: var(--space-2) 8px; line-height: 1.15; text-align: center; }
+  .corner { background: var(--color-surface-sunken); }
 
-  input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--color-brand); cursor: pointer; }
+  .agent { justify-content: flex-start; gap: 8px; min-width: 0; }
+  .emoji { flex: none; }
+  .aname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body-sm); color: var(--color-text-primary); }
+
+  .toggle { background: transparent; cursor: pointer; }
+  .toggle:hover { background: var(--color-surface-sunken); }
+  .box {
+    width: 18px; height: 18px; border-radius: var(--radius-sm);
+    border: 1.5px solid var(--color-border-strong, var(--color-text-muted));
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--color-text-inverse); box-sizing: border-box;
+  }
+  .box.on { background: var(--color-brand); border-color: var(--color-brand); }
+  .na { color: var(--color-text-muted); opacity: 0.35; }
 
   .foot-hint { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; font-size: var(--text-caption); color: var(--color-text-muted); }
   .foot-hint :global(svg) { color: var(--color-brand); }
