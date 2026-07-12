@@ -8,8 +8,6 @@
    * Select whole rows/cells, then bulk-update via install.bulk("update", …),
    * which re-reconciles so updated cells drop out of the grid live.
    */
-  import Check from "@lucide/svelte/icons/check";
-  import ArrowUpCircle from "@lucide/svelte/icons/arrow-up-circle";
   import Modal from "./Modal.svelte";
   import Button from "./Button.svelte";
   import { install, SUPPORTED_TOOLS } from "$lib/stores/install.svelte";
@@ -138,12 +136,10 @@
                 aria-label={i18n.t("agentUpdates.cellAria", { agent: row.name, tool: t.label })}
                 aria-pressed={isSel(row.slug, t.id)}
               >
-                <span class="box" class:on={isSel(row.slug, t.id)}>
-                  {#if isSel(row.slug, t.id)}<Check size={12} />{/if}
-                </span>
+                <span class="dot" class:full={isSel(row.slug, t.id)}></span>
               </button>
             {:else}
-              <div class="cell na">·</div>
+              <div class="cell na">—</div>
             {/if}
           {/each}
         {/each}
@@ -152,7 +148,7 @@
   {/if}
 
   {#snippet actions()}
-    <span class="foot-hint"><ArrowUpCircle size={13} /> {i18n.t("agentUpdates.footHint")}</span>
+    <span class="legend"><span class="dot full"></span> {i18n.t("agentUpdates.willUpdate")} <span class="dot"></span> {i18n.t("agentUpdates.skip")}</span>
     <Button variant="secondary" onclick={onClose}>{i18n.t("common.close")}</Button>
     <Button variant="primary" disabled={busy || targets.length === 0} onclick={updateChosen}>
       {busy ? i18n.t("common.working") : i18n.t("agentUpdates.updateN", { count: targets.length })}
@@ -185,16 +181,15 @@
   .aname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body-sm); color: var(--color-text-primary); }
 
   .toggle { background: transparent; cursor: pointer; }
-  .toggle:hover { background: var(--color-surface-sunken); }
-  .box {
-    width: 18px; height: 18px; border-radius: var(--radius-sm);
+  .toggle:hover:not(:disabled) { background: var(--color-surface-sunken); }
+  /* Same dot affordance as InstallModal: filled = selected to update. */
+  .dot {
+    width: 16px; height: 16px; border-radius: 999px; box-sizing: border-box;
     border: 1.5px solid var(--color-border-strong, var(--color-text-muted));
-    display: inline-flex; align-items: center; justify-content: center;
-    color: var(--color-text-inverse); box-sizing: border-box;
   }
-  .box.on { background: var(--color-brand); border-color: var(--color-brand); }
-  .na { color: var(--color-text-muted); opacity: 0.35; }
+  .dot.full { background: var(--color-brand); border-color: var(--color-brand); }
+  .na { color: var(--color-text-muted); opacity: 0.4; }
 
-  .foot-hint { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; font-size: var(--text-caption); color: var(--color-text-muted); }
-  .foot-hint :global(svg) { color: var(--color-brand); }
+  .legend { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; font-size: var(--text-caption); color: var(--color-text-muted); }
+  .legend .dot { width: 12px; height: 12px; }
 </style>
