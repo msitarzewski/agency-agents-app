@@ -97,7 +97,7 @@
   }
 </script>
 
-<Modal open title={i18n.t("agentUpdates.title", { count: outdated.length })} onClose={onClose}>
+<Modal open size="wide" title={i18n.t("agentUpdates.title", { count: outdated.length })} onClose={onClose}>
   <p class="sub">{i18n.t("agentUpdates.sub")}</p>
 
   {#if outdated.length === 0}
@@ -149,8 +149,8 @@
 
   {#snippet actions()}
     <span class="legend"><span class="dot full"></span> {i18n.t("agentUpdates.willUpdate")} <span class="dot"></span> {i18n.t("agentUpdates.skip")}</span>
-    <Button variant="secondary" onclick={onClose}>{i18n.t("common.close")}</Button>
-    <Button variant="primary" disabled={busy || targets.length === 0} onclick={updateChosen}>
+    <Button variant="secondary" modalAction="cancel" onclick={onClose}>{i18n.t("common.close")}</Button>
+    <Button variant="primary" modalAction="confirm" disabled={busy || targets.length === 0} onclick={updateChosen}>
       {busy ? i18n.t("common.working") : i18n.t("agentUpdates.updateN", { count: targets.length })}
     </Button>
   {/snippet}
