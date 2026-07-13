@@ -23,6 +23,7 @@ const IMPLEMENTED_FORMATS: &[&str] = &[
     "codex-toml",
     "gemini-md",
     "qwen-md",
+    "zcode-md",
     "cursor-mdc",
     "opencode-md",
     "skill-md",
@@ -183,11 +184,11 @@ mod tests {
 
     #[test]
     fn registry_loads_and_derives_installable() {
-        assert_eq!(all().len(), 14, "expected the full bundled tool set");
-        // The nine tools whose format we render are installable.
+        assert_eq!(all().len(), 15, "expected the full bundled tool set");
+        // The tools whose format we render are installable.
         for id in [
-            "claudeCode", "codex", "geminiCli", "copilot", "qwen", "cursor", "opencode", "osaurus",
-            "antigravity",
+            "claudeCode", "codex", "geminiCli", "copilot", "qwen", "zcode", "cursor", "opencode",
+            "osaurus", "antigravity",
         ] {
             let m = get(id).unwrap_or_else(|| panic!("missing tool {id}"));
             assert!(m.installable(), "{id} should be installable");

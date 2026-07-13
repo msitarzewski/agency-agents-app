@@ -201,6 +201,20 @@ pub fn render(_agent: &Agent, raw_source: &str, tool: &str) -> Result<String, Ap
             }
         }
 
+        // ZCode agent `.md` (Z.ai GLM harness): name + description frontmatter,
+        // optional `tools` list preserved literally, persona as the body. Read
+        // from `.zcode/agents/` (project) or `~/.config/zcode/agents/` (global).
+        Some("zcode-md") => {
+            let tools = source_field(raw_source, "tools");
+            if tools.is_empty() {
+                format!("---\nname: {slug}\ndescription: {description}\n---\n{body}\n")
+            } else {
+                format!(
+                    "---\nname: {slug}\ndescription: {description}\ntools: {tools}\n---\n{body}\n"
+                )
+            }
+        }
+
         // Agent-Skills `SKILL.md`: name (namespaced) + description frontmatter,
         // persona as the body. Mirrors upstream convert.sh `convert_osaurus`
         // (~/.osaurus/skills/<name>/SKILL.md). The `agency-` prefix on `name`
@@ -461,7 +475,7 @@ mod tests {
 
     #[test]
     fn render_is_deterministic() {
-        for tool in ["cursor", "codex", "opencode", "geminiCli", "qwen"] {
+        for tool in ["cursor", "codex", "opencode", "geminiCli", "qwen", "zcode"] {
             let a = render(&agent(), raw(), tool).unwrap();
             let b = render(&agent(), raw(), tool).unwrap();
             assert_eq!(a, b, "{tool} must be deterministic");
@@ -485,6 +499,18 @@ mod tests {
 
         let without = render(&agent(), raw(), "qwen").unwrap();
         assert!(!without.contains("\ntools: "));
+    }
+
+    #[test]
+    fn zcode_uses_slug_name_and_optional_tools() {
+        // ZCode agent .md: name(=slug) + description frontmatter, optional tools.
+        let out = render(&agent(), raw(), "zcode").unwrap();
+        assert!(out.starts_with("---\nname: frontend-developer\ndescription: Builds UIs.\n---\n"));
+        assert!(!out.contains("\ntools: "));
+
+        let source = "---\nname: Frontend Developer\ndescription: Builds UIs.\ntools: Read, Write\n---\nBody\n";
+        let with = render(&agent(), source, "zcode").unwrap();
+        assert!(with.contains("\ntools: Read, Write\n"));
     }
 
     #[test]
@@ -534,6 +560,7 @@ mod tests {
             ("geminiCli", "gemini-cli/agents", "md"),
             ("opencode", "opencode/agents", "md"),
             ("qwen", "qwen/agents", "md"),
+            ("zcode", "zcode/agents", "md"),
         ];
         for (_, tool_id, _) in tools {
             let tool = tool_id.split('/').next().unwrap();
