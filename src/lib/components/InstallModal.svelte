@@ -70,6 +70,20 @@
     return row.kind === "global" ? t.supportsUser : t.supportsProject;
   }
 
+  // Tools in this grid that ONLY install per-project (no global scope) — e.g.
+  // Cursor, whose "global" rules are a UI setting, not a writable file. With no
+  // projects registered their only cell is the Global-row "—", a dead end (#40),
+  // so we name them and steer the user to add a project.
+  const projectOnlyCols = $derived(cols.filter((t) => t.supportsProject && !t.supportsUser));
+  const noProjects = $derived(projects.list.length === 0);
+
+  /** Why a cell shows "—" (not installable there), for its tooltip + a11y. */
+  function naReason(row: Row, t: ToolDef): string {
+    return row.kind === "global"
+      ? i18n.t("install.naProjectOnly", { tool: t.label })
+      : i18n.t("install.naUserOnly", { tool: t.label });
+  }
+
   // Coverage of the set in one (tool, target) cell.
   function cover(tool: Tool, target: string | null) {
     const rs = install.installed.filter(
@@ -220,12 +234,19 @@
             {:else}<span class="dot"></span>{/if}
           </button>
         {:else}
-          <div class="cell na">—</div>
+          <div class="cell na" title={naReason(row, t)} aria-label={naReason(row, t)}>—</div>
         {/if}
       {/each}
     {/each}
   </div>
   </div>
+  {/if}
+
+  {#if cols.length > 0 && projectOnlyCols.length > 0 && noProjects}
+    <p class="scope-hint">
+      <FolderPlus size={13} />
+      <span>{i18n.t("install.projectOnlyHint", { tools: projectOnlyCols.map((t) => t.label).join(", ") })}</span>
+    </p>
   {/if}
 
   <div class="add-wrap">
@@ -311,6 +332,16 @@
   .dot.half { border-color: var(--color-brand); background: linear-gradient(90deg, var(--color-brand) 50%, transparent 50%); }
   .dot.busy { border-color: var(--color-text-muted); border-top-color: transparent; animation: spin 0.6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  .scope-hint {
+    display: flex; align-items: center; gap: 7px;
+    margin-top: var(--space-3); padding: var(--space-2) var(--space-3);
+    background: color-mix(in srgb, var(--color-brand) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-brand) 22%, transparent);
+    border-radius: var(--radius-md);
+    font-size: var(--text-body-sm); color: var(--color-text-secondary);
+  }
+  .scope-hint :global(svg) { flex: none; color: var(--color-brand); }
 
   .add-wrap { position: relative; display: inline-block; margin-top: var(--space-2); }
   .addrow {
