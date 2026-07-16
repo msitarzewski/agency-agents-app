@@ -8,8 +8,9 @@ import fr from "./locales/fr";
 import de from "./locales/de";
 import ptBR from "./locales/pt-BR";
 import ru from "./locales/ru";
+import fa from "./locales/fa;"
 
-export const LOCALES = ["en", "zh-CN", "zh-TW", "ja", "ko", "es", "fr", "de", "pt-BR", "ru"] as const;
+export const LOCALES = ["en", "zh-CN", "zh-TW", "ja", "ko", "es", "fr", "de", "pt-BR", "ru", "fa"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = "en";
@@ -29,6 +30,7 @@ export const localeLabels: Record<Locale, string> = {
   de: "Deutsch",
   "pt-BR": "Português (Brasil)",
   ru: "Русский",
+  fa: "فارسی"
 };
 
 const overrides = {
@@ -42,6 +44,7 @@ const overrides = {
   de,
   "pt-BR": ptBR,
   ru,
+  fa,
 } satisfies Record<Locale, Partial<Messages>>;
 
 export const messages: Record<Locale, Messages> = Object.fromEntries(
