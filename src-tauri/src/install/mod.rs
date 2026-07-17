@@ -321,6 +321,22 @@ fn candidate_dests(
     Ok(paths)
 }
 
+/// True when the tool's per-agent unit is a directory (`{slug}/LEAF`) rather
+/// than a bare `{slug}.ext` file — i.e. a dest template has a `/` right after
+/// `{slug}`. skill-md tools (Antigravity, Osaurus) are dir-units.
+fn tool_is_dir_unit(tool: &str) -> bool {
+    let Some(meta) = crate::registry::get(tool) else {
+        return false;
+    };
+    let Some(dest) = meta.dest.as_ref() else {
+        return false;
+    };
+    dest.user
+        .iter()
+        .chain(dest.project.iter())
+        .any(|t| t.split_once("{slug}").is_some_and(|(_, after)| after.starts_with('/')))
+}
+
 /// Back up divergent files, then remove every existing physical destination.
 /// Backup is a separate first pass so a preservation failure cannot occur after
 /// an earlier destination has already been deleted.
@@ -348,8 +364,19 @@ async fn remove_agent_files(
         let backup_stamp = format!("{stamp}-{index}");
         backup_if_differs(path, canonical.as_bytes(), backup_dir, &backup_stamp).await?;
     }
+    // Dir-unit tools (skill-md: Antigravity, Osaurus) install each agent as
+    // `<slug>/SKILL.md`. Removing only the leaf file orphans the now-empty
+    // `<slug>/` dir, which the reconcile scan re-surfaces as an untracked
+    // phantom (#60). Prune the agent dir after deleting the file. `remove_dir`
+    // is empty-only, so a dir a user dropped their own files into is left be.
+    let dir_unit = tool_is_dir_unit(tool);
     for path in existing {
         remove_file_strict(&path).await?;
+        if dir_unit {
+            if let Some(agent_dir) = path.parent() {
+                let _ = tokio::fs::remove_dir(agent_dir).await;
+            }
+        }
     }
     Ok(())
 }
@@ -1545,6 +1572,44 @@ mod tests {
 
         for dest in render::dests("copilot", &agent.slug, home.path(), None).unwrap() {
             assert!(!dest.exists());
+        }
+    }
+
+    #[tokio::test]
+    async fn uninstall_removes_orphaned_skill_dir() {
+        // #60: skill-md tools install each agent as `<slug>/SKILL.md`. Uninstall
+        // must remove the whole `<slug>/` dir — a leftover empty dir is otherwise
+        // re-surfaced by the reconcile scan as an untracked phantom.
+        let home = tempfile::tempdir().unwrap();
+        let backups = tempfile::tempdir().unwrap();
+        let agent = sample_agent();
+        let raw = "---\nname: Frontend Developer\ndescription: Builds UIs.\n---\nBODY\n";
+
+        for tool in ["antigravity", "osaurus"] {
+            let dests = candidate_dests(&agent, raw, tool, home.path(), None).unwrap();
+            for dest in &dests {
+                std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+                std::fs::write(dest, render::render(&agent, raw, tool).unwrap()).unwrap();
+            }
+
+            remove_agent_files(
+                &agent,
+                raw,
+                tool,
+                home.path(),
+                None,
+                None,
+                backups.path(),
+                "2026-06-12T00:00:00Z",
+            )
+            .await
+            .unwrap();
+
+            for dest in &dests {
+                assert!(!dest.exists(), "{tool}: SKILL.md still present at {dest:?}");
+                let slug_dir = dest.parent().unwrap();
+                assert!(!slug_dir.exists(), "{tool}: orphaned skill dir left at {slug_dir:?}");
+            }
         }
     }
 
