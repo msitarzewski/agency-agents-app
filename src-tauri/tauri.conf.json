@@ -58,6 +58,9 @@
         "appPosition": { "x": 140, "y": 190 },
         "applicationFolderPosition": { "x": 400, "y": 190 }
       }
+    },
+    "windows": {
+      "webviewInstallMode": { "type": "embedBootstrapper" }
     }
   }
 }
