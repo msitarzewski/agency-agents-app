@@ -40,11 +40,10 @@ pub enum Scope {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum CatalogSource {
-    /// App-managed copy seeded from the bundled baseline (`<app_data>/corpus`).
-    /// The always-works default; never touches anything outside app data.
-    Bundled,
     /// A clone the app provisioned and owns (default `~/.agency-agents`). The
-    /// app may pull/refresh it; it's shared with the CLI.
+    /// app may pull/refresh it; it's shared with the CLI. This is the default —
+    /// the app clones the live catalog from GitHub on first run rather than
+    /// bundling a snapshot that drifts.
     Managed { path: String },
     /// The user's own pre-existing clone. `manage` records whether the user
     /// granted permission to pull it (manage-with-permission); when false we
@@ -53,8 +52,10 @@ pub enum CatalogSource {
 }
 
 impl Default for CatalogSource {
+    /// Placeholder default; the real first-run default (`~/.agency-agents`) is
+    /// resolved by `corpus::default_source()`, which needs the home dir.
     fn default() -> Self {
-        CatalogSource::Bundled
+        CatalogSource::Managed { path: String::new() }
     }
 }
 

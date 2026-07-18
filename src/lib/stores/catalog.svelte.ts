@@ -3,10 +3,11 @@
  * which on-disk catalog the app reads from, detection of existing clones, and
  * provisioning/pulling. Wraps the `catalog_*` Tauri commands.
  *
- * Posture: the app is a respectful frontend. We default to the bundled snapshot,
- * we never pull a user clone without `manage` permission, and every switch is an
- * explicit user action. After any source change we `corpus.reload()` so the
- * Agents grid reflects the newly-active catalog.
+ * Posture: the app is a respectful frontend. On first run it clones the live
+ * catalog from GitHub (or the user points at their own clone) — there is no
+ * bundled snapshot. We never pull a user clone without `manage` permission, and
+ * every switch is an explicit user action. After any source change we
+ * `corpus.reload()` so the Agents grid reflects the newly-active catalog.
  *
  * Backend-not-ready posture (matches corpus/install stores): every invoke is
  * wrapped so a missing command degrades gracefully rather than throwing.
@@ -23,8 +24,8 @@ import type {
 import { corpus } from "$lib/stores/corpus.svelte";
 
 class CatalogStore {
-  /** The active catalog source (default bundled until loaded). */
-  source: CatalogSource = $state({ kind: "bundled" });
+  /** The active catalog source (managed clone at ~/.agency-agents until loaded). */
+  source: CatalogSource = $state({ kind: "managed", path: "" });
   /** Whether the user has made an explicit choice yet (drives first-run). */
   configured: boolean = $state(true);
   /** Live status of the active catalog (git commit/branch/freshness). */
@@ -52,7 +53,7 @@ class CatalogStore {
       this.source = source;
       this.configured = configured;
     } catch {
-      // leave defaults (bundled / configured) so the app still runs
+      // leave defaults (managed / configured) so the app still runs
     }
   }
 
@@ -110,11 +111,6 @@ class CatalogStore {
     }
   }
 
-  /** Use the bundled snapshot (the always-works default). */
-  async useBundled(): Promise<void> {
-    return this.setSource({ kind: "bundled" });
-  }
-
   /** Adopt the user's own clone. `manage` = permission to pull it later. */
   async useClone(path: string, manage: boolean): Promise<void> {
     return this.setSource({ kind: "userClone", path, manage });
@@ -156,9 +152,9 @@ class CatalogStore {
     }
   }
 
-  /** Active source path, or null for the bundled snapshot. */
+  /** Active source path on disk (empty until the first-run clone completes). */
   get sourcePath(): string | null {
-    return this.source.kind === "bundled" ? null : this.source.path;
+    return this.source.path || null;
   }
 }
 
