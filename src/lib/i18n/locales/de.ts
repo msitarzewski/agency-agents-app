@@ -481,7 +481,7 @@ const de = {
   "github.signIn": "Melden Sie sich mit GitHub an",
   "github.signInHint": "Öffnet den Standardablauf „App autorisieren“ von GitHub in Ihrem Browser. In Agency Agents wird nie ein Passwort eingegeben. Durch die Anmeldung wird das API-Ratenlimit aufgehoben und Sie können Ausgaben im Katalog-Repository markieren, ansehen und archivieren.",
   "github.privacyTitle": "Wofür die Anmeldung verwendet wird",
-  "github.privacyBody1": "Agency Agents speichert Ihr Token im macOS-Schlüsselbund. Das Token wird niemals über IPC an den Renderer gesendet, niemals auf die Festplatte geschrieben und niemals protokolliert. Nur die abgeleitete Ansicht { signedIn, username, scopes } überschreitet die IPC-Grenze.",
+  "github.privacyBody1": "Agency Agents speichert Ihr Token im System-Schlüsselbund. Das Token wird niemals über IPC an den Renderer gesendet, niemals auf die Festplatte geschrieben und niemals protokolliert. Nur die abgeleitete Ansicht { signedIn, username, scopes } überschreitet die IPC-Grenze.",
   "github.privacyBody2": "Die Anmeldung ist optional. Die angeforderten Mindestbereiche sind read:user (zur Anzeige Ihres Benutzernamens) und public_repo (zur Aktivierung der Markierung und Einreichung von Problemen in einem zukünftigen Update). Kein Zugriff auf private Repositorys, kein Lesen von E-Mails, kein Administrator.",
   "github.settingsUnreadable": "Einstellungsdatei nicht lesbar – zum Zurücksetzen gehen Sie zum Abschnitt „Netzwerk“.",
   "github.toast.signedIn": "Angemeldet bei GitHub",

@@ -273,7 +273,7 @@ export function appErrorMessage(e: AppErrorPayload): string {
       return `GitHub API rate limit reached. Resets at ${reset}. Sign in to lift the limit.`;
     }
     case "keychain_unavailable":
-      return `macOS Keychain unavailable: ${e.message}`;
+      return `System keychain unavailable: ${e.message}`;
     case "auth_required":
       return "Sign in to GitHub to use this feature.";
     case "scope_required":

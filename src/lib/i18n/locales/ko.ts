@@ -481,7 +481,7 @@ const ko = {
   "github.signIn": "GitHub로 로그인",
   "github.signInHint": "브라우저에서 GitHub의 표준 \"앱 승인\" 흐름을 엽니다. Agency Agents에는 비밀번호가 입력되지 않습니다. 로그인하면 API 비율 제한이 해제되고 카탈로그 저장소에서 문제를 별표표시하고 보고 파일로 저장할 수 있습니다.",
   "github.privacyTitle": "로그인의 용도",
-  "github.privacyBody1": "Agency Agents는 토큰을 macOS 키체인에 저장합니다. 토큰은 IPC를 통해 렌더러로 전송되지 않으며 디스크에 기록되지 않으며 기록되지 않습니다. 파생된 { signedIn, username, scopes } 보기만 IPC 경계를 넘습니다.",
+  "github.privacyBody1": "Agency Agents는 토큰을 시스템 키체인에 저장합니다. 토큰은 IPC를 통해 렌더러로 전송되지 않으며 디스크에 기록되지 않으며 기록되지 않습니다. 파생된 { signedIn, username, scopes } 보기만 IPC 경계를 넘습니다.",
   "github.privacyBody2": "로그인은 선택 사항입니다. 요청된 최소 범위는 read:user(사용자 이름 표시용) 및 public_repo(향후 업데이트에서 별표 표시 및 문제 제출 활성화용)입니다. 개인 저장소 액세스가 없고, 이메일을 읽지 않으며, 관리자가 없습니다.",
   "github.settingsUnreadable": "설정 파일을 읽을 수 없습니다. 재설정하려면 네트워크 섹션을 방문하세요.",
   "github.toast.signedIn": "GitHub에 로그인됨",

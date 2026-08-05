@@ -481,7 +481,7 @@ const zhCN = {
   "github.signIn": "使用GitHub登录",
   "github.signInHint": "在浏览器中打开 GitHub 标准“Authorize app”流程。你永远不会在 Agency Agents 中输入密码。登录后可提高 API 速率限制，并允许你在目录仓库中加星、关注和提交 issue。",
   "github.privacyTitle": "登录的用途是什么",
-  "github.privacyBody1": "Agency Agents 将您的令牌存储在 macOS 钥匙串中。令牌永远不会通过 IPC 发送到渲染器，永远不会写入磁盘，也永远不会记录。只有派生的 { signedIn, username, scopes } 视图跨越了 IPC 边界。",
+  "github.privacyBody1": "Agency Agents 将您的令牌存储在系统钥匙串中。令牌永远不会通过 IPC 发送到渲染器，永远不会写入磁盘，也永远不会记录。只有派生的 { signedIn, username, scopes } 视图跨越了 IPC 边界。",
   "github.privacyBody2": "登录是可选的。请求的最小范围是 read:user（用于显示您的用户名）和 public_repo（用于在未来的更新中启用加星标 + 问题归档）。没有私人仓库访问权限，没有电子邮件阅读，没有管理员。",
   "github.settingsUnreadable": "设置文件不可读 — 请访问网络部分进行重置。",
   "github.toast.signedIn": "已登录GitHub",

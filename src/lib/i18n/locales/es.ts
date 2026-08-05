@@ -481,7 +481,7 @@ const es = {
   "github.signIn": "Iniciar sesión con GitHub",
   "github.signInHint": "Abre el flujo estándar \"Autorizar aplicación\" de GitHub en su navegador. Nunca se ingresa ninguna contraseña en Agency Agents. Iniciar sesión elimina el límite de tasa de API y le permite destacar, ver y archivar problemas en el repositorio del catálogo.",
   "github.privacyTitle": "Para qué se utiliza el inicio de sesión",
-  "github.privacyBody1": "Agency Agents almacena su token en el llavero macOS. El token nunca se envía a través de IPC al renderizador, nunca se escribe en el disco y nunca se registra. Solo la vista derivada { signedIn, username, scopes } cruza el límite IPC.",
+  "github.privacyBody1": "Agency Agents almacena su token en el llavero del sistema. El token nunca se envía a través de IPC al renderizador, nunca se escribe en el disco y nunca se registra. Solo la vista derivada { signedIn, username, scopes } cruza el límite IPC.",
   "github.privacyBody2": "El inicio de sesión es opcional. Los alcances mínimos solicitados son read:user (para mostrar su nombre de usuario) y public_repo (para habilitar el destacado + archivo de problemas en una actualización futura). Sin acceso a repositorios privados, sin lectura de correo electrónico, sin administrador.",
   "github.settingsUnreadable": "El archivo de configuración es ilegible: visite la sección Red para restablecerlo.",
   "github.toast.signedIn": "Iniciado sesión en GitHub",

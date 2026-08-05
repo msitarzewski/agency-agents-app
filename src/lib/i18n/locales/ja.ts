@@ -481,7 +481,7 @@ const ja = {
   "github.signIn": "GitHub でサインインする",
   "github.signInHint": "ブラウザで GitHub の標準の「アプリの承認」フローを開きます。 Agency Agents にパスワードが入力されることはありません。サインインすると、API レート制限が解除され、カタログ リポジトリで問題にスターを付けたり、監視したり、ファイルしたりできるようになります。",
   "github.privacyTitle": "サインインの用途",
-  "github.privacyBody1": "Agency Agents は、トークンを macOS キーチェーンに保存します。トークンが IPC 経由でレンダラーに送信されることはなく、ディスクに書き込まれたり、ログに記録されたりすることはありません。派生した { signedIn, username, scopes } ビューのみが IPC 境界を越えます。",
+  "github.privacyBody1": "Agency Agents は、トークンをシステムキーチェーンに保存します。トークンが IPC 経由でレンダラーに送信されることはなく、ディスクに書き込まれたり、ログに記録されたりすることはありません。派生した { signedIn, username, scopes } ビューのみが IPC 境界を越えます。",
   "github.privacyBody2": "サインインはオプションです。要求される最小スコープは、read:user (ユーザー名を表示するため) および public_repo (将来の更新でのスター付けと問題のファイリングを有効にするため) です。プライベート リポジトリへのアクセス、電子メールの読み取り、管理者は不要です。",
   "github.settingsUnreadable": "設定ファイルを読み取ることができません — リセットするには、「ネットワーク」セクションにアクセスしてください。",
   "github.toast.signedIn": "GitHub にサインインしました",
