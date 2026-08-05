@@ -519,7 +519,7 @@ const en = {
   "github.signIn": "Sign in with GitHub",
   "github.signInHint": "Opens GitHub's standard “Authorize app” flow in your browser. No password is ever entered into Agency Agents. Signing in lifts the API rate limit and lets you star, watch, and file issues on the catalog repo.",
   "github.privacyTitle": "What sign-in is used for",
-  "github.privacyBody1": "Agency Agents stores your token in the macOS Keychain. The token is never sent over IPC to the renderer, never written to disk, and never logged. Only the derived { signedIn, username, scopes } view crosses the IPC boundary.",
+  "github.privacyBody1": "Agency Agents stores your token in your system's keychain. The token is never sent over IPC to the renderer, never written to disk, and never logged. Only the derived { signedIn, username, scopes } view crosses the IPC boundary.",
   "github.privacyBody2": "Sign-in is optional. The minimum scopes requested are read:user (to display your username) and public_repo (to enable starring + issue filing in a future update). No private-repo access, no email read, no admin.",
   "github.settingsUnreadable": "Settings file unreadable — visit the Network section to reset.",
   "github.toast.signedIn": "Signed in to GitHub",

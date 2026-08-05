@@ -481,7 +481,7 @@ const zhTW = {
   "github.signIn": "使用GitHub登入",
   "github.signInHint": "在瀏覽器中開啟 GitHub 標準「Authorize app」流程。你永遠不會在 Agency Agents 中輸入密碼。登入後可提高 API 速率限制，並允許你在目錄倉庫中加星、關注和提交 issue。",
   "github.privacyTitle": "登入的用途是什麼",
-  "github.privacyBody1": "Agency Agents 將您的令牌儲存在 macOS 鑰匙圈中。令牌永遠不會透過 IPC 發送到渲染器，永遠不會寫入磁碟，也永遠不會記錄。只有衍生的 { signedIn, username, scopes } 視圖跨越了 IPC 邊界。",
+  "github.privacyBody1": "Agency Agents 將您的令牌儲存在系統鑰匙圈中。令牌永遠不會透過 IPC 發送到渲染器，永遠不會寫入磁碟，也永遠不會記錄。只有衍生的 { signedIn, username, scopes } 視圖跨越了 IPC 邊界。",
   "github.privacyBody2": "登入是可選的。請求的最小範圍是 read:user（用於顯示您的使用者名稱）和 public_repo（用於在未來的更新中啟用加星標 + 問題歸檔）。沒有私人倉庫存取權限，沒有電子郵件閱讀，沒有管理員。",
   "github.settingsUnreadable": "設定檔案不可讀 — 請造訪網路部分進行重設。",
   "github.toast.signedIn": "已登入GitHub",

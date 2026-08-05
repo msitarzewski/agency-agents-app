@@ -481,7 +481,7 @@ const fr = {
   "github.signIn": "Connectez-vous avec GitHub",
   "github.signInHint": "Ouvre le flux standard « Autoriser l'application » de GitHub dans votre navigateur. Aucun mot de passe n'est jamais saisi dans Agency Agents. La connexion lève la limite de débit API et vous permet de suivre, de regarder et de classer des numéros sur le référentiel du catalogue.",
   "github.privacyTitle": "À quoi sert la connexion",
-  "github.privacyBody1": "Agency Agents stocke votre jeton dans le trousseau macOS. Le jeton n'est jamais envoyé via IPC au moteur de rendu, jamais écrit sur le disque et jamais enregistré. Seule la vue dérivée { signedIn, username, scopes } traverse la limite IPC.",
+  "github.privacyBody1": "Agency Agents stocke votre jeton dans le trousseau du système. Le jeton n'est jamais envoyé via IPC au moteur de rendu, jamais écrit sur le disque et jamais enregistré. Seule la vue dérivée { signedIn, username, scopes } traverse la limite IPC.",
   "github.privacyBody2": "La connexion est facultative. Les étendues minimales demandées sont read:user (pour afficher votre nom d'utilisateur) et public_repo (pour activer la mise en vedette + le classement des problèmes dans une future mise à jour). Pas d'accès au dépôt privé, pas de lecture d'e-mails, pas d'administrateur.",
   "github.settingsUnreadable": "Fichier de paramètres illisible – visitez la section Réseau pour réinitialiser.",
   "github.toast.signedIn": "Connecté à GitHub",

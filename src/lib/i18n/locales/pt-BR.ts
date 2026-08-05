@@ -481,7 +481,7 @@ const ptBR = {
   "github.signIn": "Faça login com GitHub",
   "github.signInHint": "Abre o fluxo padrão “Autorizar aplicativo” do GitHub em seu navegador. Nenhuma senha é inserida em Agency Agents. O login aumenta o limite de taxa API e permite que você marque com estrela, assista e registre problemas no repositório do catálogo.",
   "github.privacyTitle": "Para que o login é usado",
-  "github.privacyBody1": "Agency Agents armazena seu token no chaveiro macOS. O token nunca é enviado por IPC para o renderizador, nunca é gravado no disco e nunca é registrado. Somente a visualização derivada { signedIn, username, scopes } cruza o limite IPC.",
+  "github.privacyBody1": "Agency Agents armazena seu token no chaveiro do sistema. O token nunca é enviado por IPC para o renderizador, nunca é gravado no disco e nunca é registrado. Somente a visualização derivada { signedIn, username, scopes } cruza o limite IPC.",
   "github.privacyBody2": "O login é opcional. Os escopos mínimos solicitados são read:user (para exibir seu nome de usuário) e public_repo (para ativar a marcação + registro de problemas em uma atualização futura). Sem acesso a repositório privado, sem leitura de e-mail, sem administrador.",
   "github.settingsUnreadable": "Arquivo de configurações ilegível – visite a seção Rede para redefinir.",
   "github.toast.signedIn": "Conectado em GitHub",
