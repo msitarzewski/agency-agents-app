@@ -13,3 +13,4 @@
 - `NEXT-SESSION.md` — **read first after a compaction**: resume notes, the v2 plan, open decisions,
   known issues, and hard-won gotchas (each_key_duplicate, icon re-embed, port 1430, screenshots).
 - `tasks/2026-06/` — monthly README + per-task docs (Phase 0 fork, Phase 1 corpus+discover, etc.).
+- `tasks/2026-08/` — monthly README + Pi Subagent support task record.
