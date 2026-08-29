@@ -12,9 +12,9 @@ new dependency.
 - ✅ Global installs target `~/.pi/agent/agents/<slug>.md`.
 - ✅ Project installs target `<project>/.pi/agents/<slug>.md`.
 - ✅ Pi uses the supplied official `currentColor` SVG mark across tool badges.
-- ✅ Pi uses a deterministic `pi-agent-md` Subagent shape (`name`, quoted `description`, body).
-  This deliberately drops source `tools:` metadata, whose Claude-style values conflict with
-  `pi-subagents` tool allowlist semantics.
+- ✅ Pi uses a deterministic `pi-agent-md` projection that preserves Claude `name`, `description`,
+  `color`, `emoji`, `vibe`, and persona body fields while mapping the current `tools:` vocabulary.
+  Original and unmapped tools remain under `x-agency-*` metadata.
 - ✅ User reviewed and approved the app implementation on 2026-08-28.
 
 ## Files Modified
@@ -27,8 +27,8 @@ new dependency.
 
 ## Patterns Applied
 
-- `memory-bank/systemPatterns.md#3-deterministic-renderer-plan-b--load-bearing` — added the minimal
-  deterministic Pi format needed to avoid changing existing Gemini output.
+- `memory-bank/systemPatterns.md#3-deterministic-renderer-plan-b--load-bearing` — added a narrow,
+  deterministic Pi projection without changing existing Gemini output.
 - `memory-bank/decisions.md#2026-06-21-tool-registry-as-the-single-source-of-truth-drop-the-tool-enum`
   — added Pi through the registry so backend and frontend pick it up automatically.
 - No new components or dependencies were needed; the supplied Pi SVG is the only new app asset.
@@ -46,7 +46,7 @@ new dependency.
 - Pi renderer parity: all 273 current upstream agents matched the canonical converter byte-for-byte.
 - Production frontend: `npm run build` passed.
 - Rust LSP: zero diagnostics in changed Rust files.
-- Actual `pi-subagents` parser smoke test passed for name, description, body, and default tool access.
+- Actual `pi-subagents` parser loaded all 273 definitions; mapped tools and `extensions=false` were verified for explicit tool lists.
 - ego-browser: Pi appears as an installable tool under Tools → All, renders the official two-path mark,
   and opens its normal management detail.
 - Local arm64 `.app` and DMG were built, ad-hoc signature verified, and the DMG mounted successfully.

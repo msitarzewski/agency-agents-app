@@ -66,7 +66,7 @@ The app currently installs to these deterministic renderer-backed targets:
 | Osaurus | user | `~/.osaurus/skills/agency-<slug>/SKILL.md` |
 | Pi | user / project | `~/.pi/agent/agents/<slug>.md` or `.pi/agents/<slug>.md` |
 
-Pi targets custom Subagent definitions provided by [`pi-subagents`](https://github.com/tintinweb/pi-subagents); it does not install personas as Pi Skills.
+Pi targets custom Subagent definitions provided by [`pi-subagents`](https://github.com/tintinweb/pi-subagents); it does not install personas as Pi Skills. The renderer preserves Claude `name`, `description`, `color`, `emoji`, `vibe`, and body fields while mapping the current tools vocabulary.
 
 The upstream AA repo also contains integrations for Antigravity, Aider, Windsurf, OpenClaw, and Kimi. Those output shapes need additional app work before they should be exposed as first-class app installs — they appear in the Tools panel as recognized-only.
 
