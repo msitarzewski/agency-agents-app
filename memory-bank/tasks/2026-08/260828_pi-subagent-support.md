@@ -49,7 +49,6 @@ new dependency.
 - Actual `pi-subagents` parser loaded all 273 definitions; mapped tools and `extensions=false` were verified for explicit tool lists.
 - ego-browser: Pi appears as an installable tool under Tools → All, renders the official two-path mark,
   and opens its normal management detail.
-- Local arm64 `.app` and DMG were built, ad-hoc signature verified, and the DMG mounted successfully.
 - `git diff --check` and JSON parsing passed.
 
 ## Known Baseline / Scope Limits
@@ -63,4 +62,3 @@ new dependency.
 ## Artifacts
 
 - Branch: `feat/pi-support`
-- Local DMG: `src-tauri/target/release/bundle/dmg/Agency_Agents_0.3.0_pi-icon_local_aarch64.dmg`
