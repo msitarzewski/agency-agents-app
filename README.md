@@ -86,6 +86,7 @@ Or on macOS via Homebrew:
 
 ```sh
 brew tap msitarzewski/agency-agents
+brew trust --cask msitarzewski/agency-agents/agency-agents
 brew install --cask agency-agents
 ```
 
