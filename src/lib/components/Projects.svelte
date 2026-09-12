@@ -15,6 +15,7 @@
    * agent, division, or team on the left; install into the project's tools on
    * the right) — so an empty project can be filled.
    */
+  import { errorText } from "$lib/types";
   import { onMount } from "svelte";
   import EmptyState from "./EmptyState.svelte";
   import Pill from "./Pill.svelte";
@@ -115,7 +116,7 @@
     try {
       await install.revealPath(path);
     } catch (e) {
-      toast.error(i18n.t("common.couldNotOpenFolder"), String(e));
+      toast.error(i18n.t("common.couldNotOpenFolder"), errorText(e));
     }
   }
 
@@ -140,7 +141,7 @@
       projects.unregister(path);
       finishRemove(path);
     } catch (e) {
-      toast.error(i18n.t("common.actionFailed"), String(e));
+      toast.error(i18n.t("common.actionFailed"), errorText(e));
     } finally {
       deleteBusy = false;
     }
@@ -158,7 +159,7 @@
       projects.unregister(path);
       finishRemove(path);
     } catch (e) {
-      toast.error(i18n.t("common.actionFailed"), String(e));
+      toast.error(i18n.t("common.actionFailed"), errorText(e));
     } finally {
       deleteBusy = false;
     }

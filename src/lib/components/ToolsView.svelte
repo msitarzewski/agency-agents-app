@@ -7,6 +7,7 @@
    * default install target, and run tool-wide actions — Sync to catalog, Track
    * all, Remove all — plus per-agent controls.
    */
+  import { errorText } from "$lib/types";
   import { onMount } from "svelte";
   import RefreshIcon from "@lucide/svelte/icons/refresh-cw";
   import FolderOpen from "@lucide/svelte/icons/folder-open";
@@ -298,7 +299,7 @@
       await fn();
       toast.success(ok);
     } catch (e) {
-      toast.error(i18n.t("common.actionFailed"), String(e));
+      toast.error(i18n.t("common.actionFailed"), errorText(e));
     }
   }
   async function reveal(path: string | null | undefined) {
@@ -306,7 +307,7 @@
     try {
       await install.revealPath(path);
     } catch (e) {
-      toast.error(i18n.t("common.couldNotOpenFolder"), String(e));
+      toast.error(i18n.t("common.couldNotOpenFolder"), errorText(e));
     }
   }
 
@@ -323,7 +324,7 @@
       await settingsSet({ ...s, toolPaths: next });
       await install.loadTools(); // re-detect against the new base
     } catch (e) {
-      toast.error("Could not save install location", String(e));
+      toast.error("Could not save install location", errorText(e));
     } finally {
       locationBusy = false;
     }
@@ -333,7 +334,7 @@
       const picked = await openFolderDialog({ directory: true, multiple: false });
       if (typeof picked === "string") await saveToolPath(tool, picked);
     } catch (e) {
-      toast.error("Could not open the folder picker", String(e));
+      toast.error("Could not open the folder picker", errorText(e));
     }
   }
   function homePath(p: string): string {

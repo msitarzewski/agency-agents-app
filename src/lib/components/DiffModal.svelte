@@ -9,6 +9,7 @@
    * file is the OLD side, the catalog render is the NEW side, so `-` lines are
    * yours and `+` lines are what the catalog would write.
    */
+  import { errorText } from "$lib/types";
   import { onMount } from "svelte";
   import X from "@lucide/svelte/icons/x";
   import { install } from "$lib/stores/install.svelte";
@@ -33,7 +34,7 @@
     void install
       .diff(slug, tool, projectPath)
       .then((d) => (data = d))
-      .catch((e) => (error = String(e)))
+      .catch((e) => (error = errorText(e)))
       .finally(() => (loading = false));
   });
 

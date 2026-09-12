@@ -13,7 +13,7 @@
  * authoritative; localStorage was only ever a 12b-era stopgap.
  */
 
-import { isAppError, SETTINGS_DEFAULTS, type Settings } from "$lib/types";
+import { isAppError, SETTINGS_DEFAULTS, errorText, type Settings } from "$lib/types";
 import { settingsGet, settingsReset, settingsSet } from "$lib/api";
 
 class SettingsStore {
@@ -51,12 +51,8 @@ class SettingsStore {
         // defaults for any reader that needs a value to render.
         this.corruptOnDisk = true;
         this.data = { ...SETTINGS_DEFAULTS };
-        this.error = e.message;
-      } else if (isAppError(e)) {
-        this.error = e.code;
-      } else {
-        this.error = String(e);
       }
+      this.error = errorText(e);
     } finally {
       this.loading = false;
     }
@@ -82,11 +78,7 @@ class SettingsStore {
     } catch (e) {
       // Revert optimistic update on failure.
       this.data = base;
-      if (isAppError(e)) {
-        this.error = e.code === "invalid_argument" ? e.message : e.code;
-      } else {
-        this.error = String(e);
-      }
+      this.error = errorText(e);
     } finally {
       this.loading = false;
     }
@@ -102,11 +94,7 @@ class SettingsStore {
       this.data = fresh;
       this.corruptOnDisk = false;
     } catch (e) {
-      if (isAppError(e)) {
-        this.error = e.code;
-      } else {
-        this.error = String(e);
-      }
+      this.error = errorText(e);
     } finally {
       this.loading = false;
     }

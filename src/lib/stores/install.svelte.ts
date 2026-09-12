@@ -16,6 +16,7 @@ import { i18n } from "$lib/stores/i18n.svelte";
 import { corpus } from "$lib/stores/corpus.svelte";
 import { wiredTools } from "$lib/data/toolRegistry";
 import type { AgentDiff, InstalledAgent, InstallRecord, InstallState, Tool, ToolInfo, ToolVersion } from "$lib/types";
+import { errorText } from "$lib/types";
 
 /** The tools Phase 2 can install to. Mirrors the Rust `SUPPORTED` set and the
     `supports_user()`/`supports_project()` capabilities in `render/mod.rs`.
@@ -254,7 +255,7 @@ class InstallStore {
         scope: this.scopeOf(projectPath),
         projectPath: projectPath ?? undefined,
         outcome: "error",
-        detail: e instanceof Error ? e.message : String(e),
+        detail: errorText(e),
       });
       throw e;
     } finally {
@@ -286,7 +287,7 @@ class InstallStore {
         scope: this.scopeOf(projectPath),
         projectPath: projectPath ?? undefined,
         outcome: "error",
-        detail: e instanceof Error ? e.message : String(e),
+        detail: errorText(e),
       });
       throw e;
     } finally {
@@ -318,7 +319,7 @@ class InstallStore {
         scope: this.scopeOf(projectPath),
         projectPath: projectPath ?? undefined,
         outcome: "error",
-        detail: e instanceof Error ? e.message : String(e),
+        detail: errorText(e),
       });
       throw e;
     } finally {
@@ -355,7 +356,7 @@ class InstallStore {
         scope: this.scopeOf(projectPath),
         projectPath: projectPath ?? undefined,
         outcome: "error",
-        detail: e instanceof Error ? e.message : String(e),
+        detail: errorText(e),
       });
       throw e;
     } finally {

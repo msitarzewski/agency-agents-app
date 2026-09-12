@@ -8,6 +8,7 @@
    * point at your own clone. Reuses the existing `github` store (device-flow
    * auth + repo stats) — no new auth code.
    */
+  import { errorText } from "$lib/types";
   import { onMount } from "svelte";
   import { open as openDialog } from "@tauri-apps/plugin-dialog";
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
@@ -52,7 +53,7 @@
       await fn();
       toast.success(ok);
     } catch (e) {
-      toast.error(i18n.t("catalog.actionFailed"), String(e));
+      toast.error(i18n.t("catalog.actionFailed"), errorText(e));
     }
   }
 

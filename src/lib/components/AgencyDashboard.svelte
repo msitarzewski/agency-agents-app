@@ -6,6 +6,7 @@
    * surface deep-links into the Agents workspace (with the matching filter) or
    * the Tools view. All charts are dependency-free (SVG + CSS).
    */
+  import { errorText } from "$lib/types";
   import { onMount } from "svelte";
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
   import RepoIcon from "@lucide/svelte/icons/git-branch";
@@ -47,7 +48,7 @@
       await catalog.pull();
       toast.success(i18n.t("dashboard.catalogUpdated"));
     } catch (e) {
-      toast.error(i18n.t("common.actionFailed"), String(e));
+      toast.error(i18n.t("common.actionFailed"), errorText(e));
     }
   }
 

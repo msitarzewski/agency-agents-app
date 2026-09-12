@@ -12,6 +12,7 @@
    * "Your team" reads the live install ledger (reconciled in +layout). Saved
    * teams live in the teams store (localStorage). Presets are bundled data.
    */
+  import { errorText } from "$lib/types";
   import { onMount } from "svelte";
   import EmptyState from "./EmptyState.svelte";
   import Pill from "./Pill.svelte";
@@ -237,7 +238,7 @@
       const n = await install.exportLoadout(path);
       toast.success(i18n.t("teams.exportedToast", { count: n }), path);
     } catch (e) {
-      toast.error(i18n.t("teams.exportFailed"), String(e));
+      toast.error(i18n.t("teams.exportFailed"), errorText(e));
     } finally {
       busy = false;
     }
@@ -250,7 +251,7 @@
       const recs = await install.importLoadout(picked);
       toast.success(i18n.t("teams.restoredToast", { count: recs.length }), picked);
     } catch (e) {
-      toast.error(i18n.t("teams.restoreFailed"), String(e));
+      toast.error(i18n.t("teams.restoreFailed"), errorText(e));
     } finally {
       busy = false;
     }

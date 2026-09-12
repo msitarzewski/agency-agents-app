@@ -38,6 +38,7 @@ import {
   type DeviceFlowStart,
   type GithubStatus,
   type RepoStats,
+  errorText,
 } from "$lib/types";
 
 /** Per-row outcome we cache in the frontend. */
@@ -199,10 +200,10 @@ class GithubStore {
         } else if (e.code === "paranoid_mode_blocked") {
           outcome = { kind: "blocked" };
         } else {
-          outcome = { kind: "error", message: e.code };
+          outcome = { kind: "error", message: errorText(e) };
         }
       } else {
-        outcome = { kind: "error", message: String(e) };
+        outcome = { kind: "error", message: errorText(e) };
       }
       const after = new Map(this.repoStatsCache);
       after.set(homepage, outcome);
@@ -227,7 +228,7 @@ class GithubStore {
     } catch (e) {
       this._setSignin("signIn-startError", {
         kind: "error",
-        message: isAppError(e) ? appErrorMessage(e) : String(e),
+        message: errorText(e),
       });
       return;
     }
@@ -267,7 +268,7 @@ class GithubStore {
       } catch (e) {
         this._setSignin("poll-error", {
           kind: "error",
-          message: isAppError(e) ? appErrorMessage(e) : String(e),
+          message: errorText(e),
         });
         return;
       }

@@ -7,6 +7,8 @@
    * affirmation paragraph.
    */
 
+  import { errorText } from "$lib/types";
+
   import { onMount } from "svelte";
   import ExternalLink from "@lucide/svelte/icons/external-link";
 
@@ -23,7 +25,7 @@
   onMount(() => {
     void appVersion()
       .then((v) => (version = v))
-      .catch((e) => (versionError = String(e)));
+      .catch((e) => (versionError = errorText(e)));
   });
 </script>
 

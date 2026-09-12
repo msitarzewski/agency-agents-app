@@ -1016,6 +1016,9 @@ async fn run_git(args: &[&str], cwd: Option<&Path>) -> Result<String, AppError> 
     let cwd = cwd.map(|p| p.to_path_buf());
     let out = tokio::task::spawn_blocking(move || {
         let mut c = std::process::Command::new("git");
+        // The AppImage's AppRun points LD_LIBRARY_PATH at the bundle, and git would
+        // otherwise load bundle libraries it was not built against (#94).
+        crate::util::proc::sanitize(&mut c);
         if let Some(d) = &cwd {
             c.current_dir(d);
         }

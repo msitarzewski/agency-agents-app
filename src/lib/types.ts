@@ -257,6 +257,22 @@ export function isAppError(e: unknown): e is AppErrorPayload {
   );
 }
 
+/**
+ * Human-readable text for anything thrown at us.
+ *
+ * Tauri commands reject with a serialized `AppError`, which is a plain object:
+ * `String(e)` on one yields "[object Object]", which is what users were shown
+ * for every backend failure (#92). It hid a real `git clone` failure behind a
+ * meaningless toast for an entire evening. Prefer this over `String(e)` and over
+ * `e instanceof Error ? e.message : String(e)` anywhere the result reaches a
+ * human.
+ */
+export function errorText(e: unknown): string {
+  if (isAppError(e)) return appErrorMessage(e);
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
+
 /** Human-readable message for an AppError. */
 export function appErrorMessage(e: AppErrorPayload): string {
   switch (e.code) {

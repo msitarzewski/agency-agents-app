@@ -14,6 +14,7 @@
    * `strategy/` only ships in a synced catalog, so an empty manifest shows a
    * "sync to unlock" state, not an error.
    */
+  import { errorText } from "$lib/types";
   import { onMount } from "svelte";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import RocketIcon from "@lucide/svelte/icons/rocket";
@@ -95,7 +96,7 @@
       await navigator.clipboard.writeText(activationPrompt(rb));
       toast.success(i18n.t("runbooks.promptCopied", { runbook: runbookTitle(rb) }));
     } catch (e) {
-      toast.error(i18n.t("common.copyFailed"), String(e));
+      toast.error(i18n.t("common.copyFailed"), errorText(e));
     }
   }
 </script>

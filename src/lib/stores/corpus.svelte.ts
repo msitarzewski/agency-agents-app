@@ -20,6 +20,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import { i18n } from "$lib/stores/i18n.svelte";
 import type { Agent, Category } from "$lib/types";
+import { errorText } from "$lib/types";
 
 class CorpusStore {
   /** List-view agents (body omitted by the backend to keep the payload small). */
@@ -58,7 +59,7 @@ class CorpusStore {
       } catch (e) {
         // Backend may not be implemented yet — degrade to an empty state
         // rather than throwing into the component tree.
-        this.error = `Corpus unavailable: ${String(e)}`;
+        this.error = `Corpus unavailable: ${errorText(e)}`;
         this.agents = [];
         this.categories = [];
       } finally {

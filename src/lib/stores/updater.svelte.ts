@@ -26,7 +26,7 @@
  */
 
 import { updateCheckNow, updateInstall, updateRelaunch, updateSkip } from "$lib/api";
-import { isAppError, appErrorMessage, type UpdateInfo } from "$lib/types";
+import { isAppError, type UpdateInfo, errorText } from "$lib/types";
 
 class UpdaterStore {
   /** Epoch millis of the most recent check (success OR error). `null`
@@ -97,10 +97,8 @@ class UpdaterStore {
         // the Settings card (the button's own tooltip explains why).
         this.available = null;
         this.error = null;
-      } else if (isAppError(e)) {
-        this.error = appErrorMessage(e);
       } else {
-        this.error = String(e);
+        this.error = errorText(e);
       }
     } finally {
       this.checking = false;
@@ -129,11 +127,7 @@ class UpdaterStore {
       await updateInstall(version);
       this.installComplete = true;
     } catch (e) {
-      if (isAppError(e)) {
-        this.error = appErrorMessage(e);
-      } else {
-        this.error = String(e);
-      }
+      this.error = errorText(e);
     } finally {
       this.installing = false;
     }
@@ -160,11 +154,7 @@ class UpdaterStore {
       // Best-effort: don't restore the indicator on failure (the user
       // explicitly asked to dismiss; better to keep their click than
       // surface a confusing "we couldn't dismiss" toast).
-      if (isAppError(e)) {
-        this.error = appErrorMessage(e);
-      } else {
-        this.error = String(e);
-      }
+      this.error = errorText(e);
     }
   }
 
@@ -182,11 +172,7 @@ class UpdaterStore {
       // The process may have already started restarting and the IPC
       // socket closed mid-call. Treat any error here as benign — if
       // the restart actually failed, the user will notice immediately.
-      if (isAppError(e)) {
-        this.error = appErrorMessage(e);
-      } else {
-        this.error = String(e);
-      }
+      this.error = errorText(e);
     }
   }
 

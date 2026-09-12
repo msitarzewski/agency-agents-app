@@ -11,6 +11,7 @@
    * Posture: nothing is written until the user picks. Choosing any option
    * persists the choice (configured → true), which dismisses this modal.
    */
+  import { errorText } from "$lib/types";
   import { onMount } from "svelte";
   import { open as openDialog } from "@tauri-apps/plugin-dialog";
   import FolderGit2 from "@lucide/svelte/icons/folder-git-2";
@@ -34,7 +35,7 @@
       await fn();
       toast.success(ok);
     } catch (e) {
-      toast.error(i18n.t("firstRun.error"), String(e));
+      toast.error(i18n.t("firstRun.error"), errorText(e));
     }
   }
 
