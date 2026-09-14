@@ -89,6 +89,12 @@ brew tap msitarzewski/agency-agents
 brew install --cask agency-agents
 ```
 
+Or on Windows via winget:
+
+```powershell
+winget install --id msitarzewski.AgencyAgents
+```
+
 For local review, use the development app:
 
 ```sh
