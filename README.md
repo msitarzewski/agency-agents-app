@@ -18,7 +18,7 @@ It is full source, MIT-licensed, local-first, and does not run telemetry.
 
 ## Why This Exists
 
-The `agency-agents` repo is a useful catalog of specialist AI agent personas, but every coding tool has its own agent format and install path. Claude Code, Codex, Cursor, Gemini CLI, Qwen, opencode, Copilot, and Osaurus all want similar content in slightly different places.
+The `agency-agents` repo is a useful catalog of specialist AI agent personas, but every coding tool has its own agent format and install path. Claude Code, Codex, Cursor, Gemini CLI, Qwen, opencode, Copilot, Osaurus, and Pi all want similar content in slightly different places.
 
 Agency Agents gives that catalog a native control surface:
 
@@ -52,10 +52,10 @@ New to directing agents? See **[docs/USING-AGENTS.md](./docs/USING-AGENTS.md)** 
 
 ## Supported Install Targets
 
-The app currently installs to the renderer-backed targets that have deterministic byte parity with the upstream `agency-agents` converter:
+The app currently installs to these deterministic renderer-backed targets:
 
 | Tool | Scope Today | Output |
-|------|-------------|--------|
+| ------ | ------------- | -------- |
 | Claude Code | user | `~/.claude/agents/*.md` |
 | Codex | user | `~/.codex/agents/*.toml` |
 | Gemini CLI | user | `~/.gemini/agents/*.md` |
@@ -64,6 +64,9 @@ The app currently installs to the renderer-backed targets that have deterministi
 | Cursor | project | `.cursor/rules/*.mdc` |
 | opencode | project | `.opencode/agents/*.md` |
 | Osaurus | user | `~/.osaurus/skills/agency-<slug>/SKILL.md` |
+| Pi | user / project | `~/.pi/agent/agents/<slug>.md` or `.pi/agents/<slug>.md` |
+
+Pi targets custom Subagent definitions provided by [`pi-subagents`](https://github.com/tintinweb/pi-subagents); it does not install personas as Pi Skills. The renderer preserves Claude `name`, `description`, `color`, `emoji`, `vibe`, and body fields while mapping the current tools vocabulary.
 
 The upstream AA repo also contains integrations for Antigravity, Aider, Windsurf, OpenClaw, and Kimi. Those output shapes need additional app work before they should be exposed as first-class app installs — they appear in the Tools panel as recognized-only.
 

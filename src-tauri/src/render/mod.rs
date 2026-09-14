@@ -111,6 +111,139 @@ fn source_body(source: &str) -> String {
     body
 }
 
+/// Strip only the leading frontmatter block, preserving later `---` lines in
+/// the persona body. Pi subagents may use those separators as prompt structure.
+fn source_body_preserving_separators(source: &str) -> String {
+    let mut fences = 0;
+    let mut body = String::new();
+    for line in source.lines() {
+        if fences < 2 && line == "---" {
+            fences += 1;
+            continue;
+        }
+        if fences >= 2 {
+            body.push_str(line);
+            body.push('\n');
+        }
+    }
+    while body.ends_with('\n') {
+        body.pop();
+    }
+    body
+}
+
+/// Read one known Agency string field, folding its optional aligned continuation.
+fn pi_field(source: &str, field: &str) -> String {
+    let mut fences = 0;
+    let mut found = false;
+    let mut value = String::new();
+    for line in source.lines() {
+        if line == "---" {
+            fences += 1;
+            if fences >= 2 {
+                break;
+            }
+            continue;
+        }
+        if fences != 1 {
+            continue;
+        }
+        if found {
+            if line.as_bytes().first().is_some_and(u8::is_ascii_whitespace) {
+                if !value.is_empty() {
+                    value.push(' ');
+                }
+                value.push_str(line.trim());
+                continue;
+            }
+            break;
+        }
+        let Some((key, raw_value)) = line.split_once(':') else {
+            continue;
+        };
+        if key.trim() == field {
+            found = true;
+            value.push_str(raw_value.trim());
+        }
+    }
+    value
+}
+
+/// Match `scripts/convert.sh#yaml_quote`: single-quoted YAML scalars only
+/// escape apostrophes, while preserving colons, hashes, and Unicode literally.
+fn yaml_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
+}
+
+fn yaml_string(value: &str) -> String {
+    if (value.starts_with('\'') && value.ends_with('\''))
+        || (value.starts_with('"') && value.ends_with('"'))
+    {
+        value.to_string()
+    } else {
+        yaml_quote(value)
+    }
+}
+
+fn pi_tool_mapping(value: &str) -> (Vec<&'static str>, Vec<&str>) {
+    let mut mapped = Vec::new();
+    let mut unmapped = Vec::new();
+    for tool in value.split(',').map(str::trim).filter(|tool| !tool.is_empty()) {
+        let mapped_tool = match tool {
+            "Read" => Some("read"),
+            "Write" => Some("write"),
+            "Edit" => Some("edit"),
+            "Bash" => Some("bash"),
+            "Grep" => Some("grep"),
+            "Glob" => Some("find"),
+            _ => None,
+        };
+        if let Some(mapped_tool) = mapped_tool {
+            mapped.push(mapped_tool);
+        } else {
+            unmapped.push(tool);
+        }
+    }
+    (mapped, unmapped)
+}
+
+fn render_pi_agent(source: &str) -> String {
+    let mut out = String::from("---\n");
+    for field in ["name", "description", "color", "emoji", "vibe"] {
+        let value = pi_field(source, field);
+        if !value.is_empty() {
+            out.push_str(field);
+            out.push_str(": ");
+            out.push_str(&yaml_string(&value));
+            out.push('\n');
+        }
+    }
+    let tools = pi_field(source, "tools");
+    if !tools.is_empty() {
+        let (mapped, unmapped) = pi_tool_mapping(&tools);
+        out.push_str("x-agency-claude-tools: ");
+        out.push_str(&yaml_quote(&tools));
+        out.push('\n');
+        out.push_str("tools: ");
+        let mapped = if mapped.is_empty() {
+            "none".to_string()
+        } else {
+            mapped.join(", ")
+        };
+        out.push_str(&mapped);
+        out.push_str("\nextensions: false\n");
+        if !unmapped.is_empty() {
+            out.push_str("x-agency-unmapped-tools: ");
+            out.push_str(&yaml_quote(&unmapped.join(", ")));
+            out.push('\n');
+        }
+    }
+    out.push_str("---\n");
+    out.push_str(&source_body_preserving_separators(source));
+    out.push('\n');
+    out
+}
+
 /// Match `scripts/lib.sh#slugify`.
 pub fn slugify(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
@@ -188,6 +321,10 @@ pub fn render(_agent: &Agent, raw_source: &str, tool: &str) -> Result<String, Ap
             "---\nname: {slug}\ndescription: {desc}\n---\n{body}\n",
             desc = description,
         ),
+
+        // Pi custom subagent `.md`: preserve the five Claude-facing metadata
+        // fields and prompt body; translate only the current tools vocabulary.
+        Some("pi-agent-md") => render_pi_agent(raw_source),
 
         // Qwen Code SubAgent `.md`: optional tools line is preserved literally.
         Some("qwen-md") => {
@@ -474,6 +611,16 @@ mod tests {
     }
 
     #[test]
+    fn pi_preserves_metadata_and_maps_current_tools() {
+        let source = "---\nname: Frontend Developer\ndescription: Builds Bob's UIs: safely.\n             Across lines.\ncolor: blue\nemoji: 🎨\nvibe: Ships pixels.\ntools: WebFetch, WebSearch, Read, Write, Edit\n---\nYou are a frontend dev.\n---\nKeep this separator.\n";
+        let expected = "---\nname: 'Frontend Developer'\ndescription: 'Builds Bob''s UIs: safely. Across lines.'\ncolor: 'blue'\nemoji: '🎨'\nvibe: 'Ships pixels.'\nx-agency-claude-tools: 'WebFetch, WebSearch, Read, Write, Edit'\ntools: read, write, edit\nextensions: false\nx-agency-unmapped-tools: 'WebFetch, WebSearch'\n---\nYou are a frontend dev.\n---\nKeep this separator.\n";
+        let mut a = agent();
+        a.slug = "engineering-frontend-developer".into();
+        assert_eq!(render(&a, source, "pi").unwrap(), expected);
+        assert_eq!(output_slug(&a, source, "pi"), "engineering-frontend-developer");
+    }
+
+    #[test]
     fn render_is_deterministic() {
         for tool in ["cursor", "codex", "opencode", "geminiCli", "qwen", "zcode"] {
             let a = render(&agent(), raw(), tool).unwrap();
@@ -627,6 +774,75 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires AGENCY_AGENTS_PARITY_ROOT and executes upstream convert.sh"]
+    fn upstream_pi_is_byte_identical_for_all_agents() {
+        let root = PathBuf::from(
+            std::env::var("AGENCY_AGENTS_PARITY_ROOT")
+                .expect("set AGENCY_AGENTS_PARITY_ROOT to an agency-agents clone"),
+        );
+        let script = root.join("scripts/convert.sh");
+        assert!(script.is_file(), "missing {}", script.display());
+
+        let script_text = fs::read_to_string(&script).unwrap();
+        let dirs_start = script_text.find("AGENT_DIRS=(").expect("AGENT_DIRS");
+        let dirs_tail = &script_text[dirs_start + "AGENT_DIRS=(".len()..];
+        let categories: Vec<&str> = dirs_tail
+            .split(')')
+            .next()
+            .expect("AGENT_DIRS close")
+            .split_whitespace()
+            .collect();
+
+        let temp = tempfile::tempdir().unwrap();
+        let status = Command::new("bash")
+            .arg(&script)
+            .args(["--tool", "pi", "--out"])
+            .arg(temp.path())
+            .status()
+            .unwrap();
+        assert!(status.success(), "convert.sh failed for pi");
+
+        let mut files = Vec::new();
+        for category in categories {
+            collect_markdown(&root.join(category), &mut files);
+        }
+        files.sort();
+
+        let mut compared = 0usize;
+        for path in files {
+            let raw = fs::read_to_string(&path).unwrap();
+            let name = source_field(&raw, "name");
+            if name.is_empty() || !raw.starts_with("---\n") {
+                continue;
+            }
+            let source_slug = path.file_stem().unwrap().to_string_lossy().to_string();
+            let agent = Agent {
+                slug: source_slug.clone(),
+                name: name.to_string(),
+                description: String::new(),
+                category: String::new(),
+                emoji: None,
+                color: None,
+                vibe: None,
+                body: String::new(),
+            };
+            let expected_path = temp.path().join("pi/agents").join(format!("{source_slug}.md"));
+            let expected = fs::read(&expected_path)
+                .unwrap_or_else(|e| panic!("read {}: {e}", expected_path.display()));
+            let actual = render(&agent, &raw, "pi").unwrap();
+            assert_eq!(
+                actual.as_bytes(),
+                expected,
+                "pi parity mismatch for {}",
+                path.display()
+            );
+            compared += 1;
+        }
+        assert!(compared > 0);
+        eprintln!("pi renderer parity: {compared} agents");
+    }
+
+    #[test]
     fn unsupported_tools_error() {
         // These tools are in the catalog (upstream truth: real format + dest), but
         // this app ships no renderer for their format — so render() must refuse.
@@ -691,6 +907,15 @@ mod tests {
         assert_eq!(
             dests("opencode", "x", home, Some(proj)).unwrap()[0],
             proj.join(".opencode/agents/x.md")
+        );
+        // Pi custom subagents use Pi-specific directories in both scopes.
+        assert_eq!(
+            dests("pi", "x", home, None).unwrap()[0],
+            home.join(".pi/agent/agents/x.md")
+        );
+        assert_eq!(
+            dests("pi", "x", home, Some(proj)).unwrap()[0],
+            proj.join(".pi/agents/x.md")
         );
         // Cursor is project-only: a global (no project root) request errors.
         assert!(dests("cursor", "x", home, None).is_err());
