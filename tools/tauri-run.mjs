@@ -22,6 +22,7 @@
 // already present in the process environment).
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 
 const repo = path.resolve(import.meta.dirname, "..");
@@ -34,7 +35,16 @@ if (process.platform === "darwin") {
   macOSPrivateApi = macConf.app?.macOSPrivateApi === true;
 }
 
-const result = spawnSync("tauri", process.argv.slice(2), {
+// Run the CLI's JS entry point with this same node binary rather than the
+// `tauri` shim on PATH. On Windows that shim is `tauri.cmd`, and Node refuses
+// to spawn `.cmd`/`.bat` without `shell: true` — which would then mangle the
+// JSON `--config` argument through cmd.exe quoting. Resolving the entry point
+// avoids both problems and is independent of how node_modules is laid out.
+const cli = createRequire(path.join(repo, "package.json")).resolve(
+  "@tauri-apps/cli/tauri.js",
+);
+
+const result = spawnSync(process.execPath, [cli, ...process.argv.slice(2)], {
   stdio: "inherit",
   cwd: repo,
   env: {
