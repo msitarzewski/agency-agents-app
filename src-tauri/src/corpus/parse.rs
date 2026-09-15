@@ -193,7 +193,10 @@ mod tests {
         assert_eq!(agent.description, "Builds delightful UIs.");
         assert_eq!(agent.color.as_deref(), Some("blue"));
         assert_eq!(agent.emoji.as_deref(), Some("🎨"));
-        assert_eq!(agent.vibe.as_deref(), Some("Ships pixel-perfect interfaces."));
+        assert_eq!(
+            agent.vibe.as_deref(),
+            Some("Ships pixel-perfect interfaces.")
+        );
         assert!(agent.body.starts_with("# Frontend Developer Agent"));
         // Index row mirrors the agent metadata.
         assert_eq!(entry.name, agent.name);
@@ -211,7 +214,9 @@ mod tests {
         // 64 lowercase hex chars.
         for h in [&e1.source_hash, &e1.frontmatter_hash, &e1.body_hash] {
             assert_eq!(h.len(), 64);
-            assert!(h.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+            assert!(h
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
         }
         // The three regions differ, so their hashes differ.
         assert_ne!(e1.frontmatter_hash, e1.body_hash);
@@ -222,7 +227,10 @@ mod tests {
     fn body_only_change_keeps_frontmatter_hash() {
         // Cosmetic vs substantive classification depends on this: a body
         // edit must move body_hash + source_hash but NOT frontmatter_hash.
-        let edited = SAMPLE.replace("You are a frontend developer.", "You are a senior frontend dev.");
+        let edited = SAMPLE.replace(
+            "You are a frontend developer.",
+            "You are a senior frontend dev.",
+        );
         let (_, base) = parse_agent("x", "engineering", SAMPLE).unwrap().unwrap();
         let (_, mutated) = parse_agent("x", "engineering", &edited).unwrap().unwrap();
         assert_eq!(base.frontmatter_hash, mutated.frontmatter_hash);

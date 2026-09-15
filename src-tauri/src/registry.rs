@@ -132,7 +132,9 @@ impl ToolMeta {
         if self.install_kind.as_deref() == Some("plugin") {
             return false;
         }
-        self.format.as_deref().is_some_and(|f| IMPLEMENTED_FORMATS.contains(&f))
+        self.format
+            .as_deref()
+            .is_some_and(|f| IMPLEMENTED_FORMATS.contains(&f))
     }
 }
 
@@ -187,12 +189,23 @@ mod tests {
         assert_eq!(all().len(), 15, "expected the full bundled tool set");
         // The tools whose format we render are installable.
         for id in [
-            "claudeCode", "codex", "geminiCli", "copilot", "qwen", "zcode", "cursor", "opencode",
-            "osaurus", "antigravity",
+            "claudeCode",
+            "codex",
+            "geminiCli",
+            "copilot",
+            "qwen",
+            "zcode",
+            "cursor",
+            "opencode",
+            "osaurus",
+            "antigravity",
         ] {
             let m = get(id).unwrap_or_else(|| panic!("missing tool {id}"));
             assert!(m.installable(), "{id} should be installable");
-            assert!(m.format.is_some() && m.dest.is_some(), "{id} needs format + dest");
+            assert!(
+                m.format.is_some() && m.dest.is_some(),
+                "{id} needs format + dest"
+            );
         }
     }
 

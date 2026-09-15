@@ -67,9 +67,7 @@ pub mod url;
 // callers don't currently use them so external code can reach them
 // without re-importing from sub-mods.
 #[allow(unused_imports)]
-pub use actions::{
-    create_issue, is_starred, star, unstar, unwatch, watch, CreatedIssue,
-};
+pub use actions::{create_issue, is_starred, star, unstar, unwatch, watch, CreatedIssue};
 #[allow(unused_imports)]
 pub use auth::{
     read_scopes, DeviceFlowStart, GithubStatusDto, PollResult, PollResultDto, Token,

@@ -38,8 +38,8 @@ use serde::{Deserialize, Serialize};
 use crate::error::AppError;
 use crate::github::extract_github_repo;
 use crate::types::{
-    Agent, Category, CatalogCandidate, CatalogDetection, CatalogSource, CatalogStatus,
-    CatalogUpdateCheck, CorpusEntry, CorpusMeta,
+    Agent, CatalogCandidate, CatalogDetection, CatalogSource, CatalogStatus, CatalogUpdateCheck,
+    Category, CorpusEntry, CorpusMeta,
 };
 use crate::util::fs::atomic_write;
 use crate::util::process::headless_command;
@@ -89,7 +89,11 @@ fn parse_agent_dirs(script: &str) -> Option<Vec<String>> {
         let line = raw_line.split('#').next().unwrap_or("");
         for tok in line.split_whitespace() {
             // Defensive: ignore anything that isn't a plausible dir slug.
-            if tok.is_empty() || !tok.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+            if tok.is_empty()
+                || !tok
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+            {
                 continue;
             }
             if seen.insert(tok.to_string()) {
@@ -110,7 +114,15 @@ const CATALOG_GIT_URL: &str = "https://github.com/msitarzewski/agency-agents.git
 
 /// Dev-root directory names scanned (under `$HOME`) by the "Find Agency Agents"
 /// button when looking for an existing clone.
-const SCAN_ROOTS: [&str; 7] = ["Software", "Projects", "git", "Developer", "code", "dev", "src"];
+const SCAN_ROOTS: [&str; 7] = [
+    "Software",
+    "Projects",
+    "git",
+    "Developer",
+    "code",
+    "dev",
+    "src",
+];
 
 /// User-Agent for the refresh fetch. Mirrors the catalog refresh style.
 const USER_AGENT: &str = "agency-agents/0.1 (+https://github.com/msitarzewski/agency-agents)";
@@ -360,7 +372,11 @@ fn category_meta_from(
 ) -> (String, String, String) {
     match meta.get(slug) {
         Some(row) => (row.label.clone(), row.icon.clone(), row.color.clone()),
-        None => (title_case(slug), "Folder".to_string(), default_division_color()),
+        None => (
+            title_case(slug),
+            "Folder".to_string(),
+            default_division_color(),
+        ),
     }
 }
 
@@ -425,9 +441,11 @@ pub(crate) async fn save_catalog_source(
     source: &CatalogSource,
 ) -> Result<(), AppError> {
     let sdir = state_dir(app_data_dir);
-    tokio::fs::create_dir_all(&sdir).await.map_err(|e| AppError::Io {
-        message: format!("create state dir {}: {e}", sdir.display()),
-    })?;
+    tokio::fs::create_dir_all(&sdir)
+        .await
+        .map_err(|e| AppError::Io {
+            message: format!("create state dir {}: {e}", sdir.display()),
+        })?;
     let bytes = serde_json::to_vec_pretty(source).map_err(|e| AppError::Internal {
         message: format!("serialize catalog.json: {e}"),
     })?;
@@ -518,7 +536,9 @@ fn collect_md_files(root: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
     while let Some(d) = stack.pop() {
-        let Ok(rd) = std::fs::read_dir(&d) else { continue };
+        let Ok(rd) = std::fs::read_dir(&d) else {
+            continue;
+        };
         for ent in rd.flatten() {
             let path = ent.path();
             match ent.file_type() {
@@ -537,7 +557,9 @@ fn collect_md_files(root: &Path) -> Vec<PathBuf> {
 fn find_md_under(dir: &Path, file_name: &str) -> Option<PathBuf> {
     let mut stack = vec![dir.to_path_buf()];
     while let Some(d) = stack.pop() {
-        let Ok(rd) = std::fs::read_dir(&d) else { continue };
+        let Ok(rd) = std::fs::read_dir(&d) else {
+            continue;
+        };
         for ent in rd.flatten() {
             let path = ent.path();
             if path.is_dir() {
@@ -555,7 +577,11 @@ fn find_md_under(dir: &Path, file_name: &str) -> Option<PathBuf> {
 /// subdirs). Files without valid frontmatter (READMEs, workflow docs) are
 /// skipped. The category is the top-level dir; the resulting `agents` vec and
 /// `index` map are ordered deterministically by `(category, path)`.
-async fn build_from_dir(dir: &Path, version: &str, categories: &[String]) -> Result<Corpus, AppError> {
+async fn build_from_dir(
+    dir: &Path,
+    version: &str,
+    categories: &[String],
+) -> Result<Corpus, AppError> {
     let mut rows: Vec<(Agent, CorpusEntry)> = Vec::new();
 
     for category in categories.iter() {
@@ -651,7 +677,11 @@ fn is_empty_dir(dir: &Path) -> bool {
 /// `category`, plus the repo tooling (`scripts/convert.sh`) so the seeded
 /// working copy can discover its own divisions. Anything else in the baseline
 /// is ignored. Idempotent: re-seeding overwrites file-for-file.
-async fn seed_from_baseline(baseline: &Path, dest: &Path, categories: &[String]) -> Result<(), AppError> {
+async fn seed_from_baseline(
+    baseline: &Path,
+    dest: &Path,
+    categories: &[String],
+) -> Result<(), AppError> {
     if !baseline.exists() {
         return Err(AppError::Io {
             message: format!("baseline corpus not found at {}", baseline.display()),
@@ -675,7 +705,9 @@ async fn seed_from_baseline(baseline: &Path, dest: &Path, categories: &[String])
             if path.extension().and_then(|e| e.to_str()) != Some("md") {
                 continue;
             }
-            let Some(fname) = path.file_name() else { continue };
+            let Some(fname) = path.file_name() else {
+                continue;
+            };
             let bytes = read_capped(&path, MAX_AGENT_BYTES).await?;
             atomic_write(&dst_cat.join(fname), &bytes).await?;
             seeded += 1;
@@ -769,8 +801,7 @@ async fn refresh(app_data_dir: &Path) -> Result<CorpusMeta, AppError> {
     // Discover the live category set from the tarball's OWN tooling
     // (`scripts/convert.sh`) so a freshly-added upstream division is picked up
     // automatically. Falls back to the canonical default if absent.
-    let categories = categories_from_tarball(&bytes)
-        .unwrap_or_else(bundled_division_slugs);
+    let categories = categories_from_tarball(&bytes).unwrap_or_else(bundled_division_slugs);
 
     // Extract the category dirs (+ the tooling) into the active catalog root.
     // The tarball has a single top-level `agency-agents-main/` prefix we strip.
@@ -846,7 +877,11 @@ async fn download_corpus_tarball() -> Result<Vec<u8>, AppError> {
     })?;
     if bytes.len() as u64 > MAX_TARBALL_BYTES {
         return Err(AppError::Io {
-            message: format!("corpus tarball {} bytes exceeds {} cap", bytes.len(), MAX_TARBALL_BYTES),
+            message: format!(
+                "corpus tarball {} bytes exceeds {} cap",
+                bytes.len(),
+                MAX_TARBALL_BYTES
+            ),
         });
     }
     Ok(bytes.to_vec())
@@ -859,9 +894,11 @@ fn gunzip_capped(tar_gz: &[u8]) -> Result<Vec<u8>, AppError> {
     let gz = flate2::read::GzDecoder::new(tar_gz);
     let mut capped = gz.take(MAX_TARBALL_BYTES * 8);
     let mut tar_bytes = Vec::new();
-    capped.read_to_end(&mut tar_bytes).map_err(|e| AppError::Io {
-        message: format!("gunzip corpus tarball: {e}"),
-    })?;
+    capped
+        .read_to_end(&mut tar_bytes)
+        .map_err(|e| AppError::Io {
+            message: format!("gunzip corpus tarball: {e}"),
+        })?;
     Ok(tar_bytes)
 }
 
@@ -1026,12 +1063,20 @@ async fn run_git(args: &[&str], cwd: Option<&Path>) -> Result<String, AppError> 
         c.args(&owned).output()
     })
     .await
-    .map_err(|e| AppError::Internal { message: format!("join git task: {e}") })?
-    .map_err(|e| AppError::Io { message: format!("spawn git: {e}") })?;
+    .map_err(|e| AppError::Internal {
+        message: format!("join git task: {e}"),
+    })?
+    .map_err(|e| AppError::Io {
+        message: format!("spawn git: {e}"),
+    })?;
 
     if !out.status.success() {
         return Err(AppError::Io {
-            message: format!("git {:?} failed: {}", args, String::from_utf8_lossy(&out.stderr).trim()),
+            message: format!(
+                "git {:?} failed: {}",
+                args,
+                String::from_utf8_lossy(&out.stderr).trim()
+            ),
         });
     }
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
@@ -1073,7 +1118,9 @@ async fn detect_catalogs(scan: bool) -> CatalogDetection {
     let git_available = git_available().await;
     let mut candidates: Vec<CatalogCandidate> = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let push = |c: Option<CatalogCandidate>, list: &mut Vec<CatalogCandidate>, seen: &mut std::collections::HashSet<String>| {
+    let push = |c: Option<CatalogCandidate>,
+                list: &mut Vec<CatalogCandidate>,
+                seen: &mut std::collections::HashSet<String>| {
         if let Some(c) = c {
             if seen.insert(c.path.clone()) {
                 list.push(c);
@@ -1082,7 +1129,11 @@ async fn detect_catalogs(scan: bool) -> CatalogDetection {
     };
 
     if let Some(managed) = home_agency_dir() {
-        push(candidate_for(&managed, "managed"), &mut candidates, &mut seen);
+        push(
+            candidate_for(&managed, "managed"),
+            &mut candidates,
+            &mut seen,
+        );
     }
 
     if scan {
@@ -1091,12 +1142,20 @@ async fn detect_catalogs(scan: bool) -> CatalogDetection {
                 // Look for `<home>/<root>/agency-agents` and a direct
                 // `<home>/<root>` that is itself a catalog.
                 let base = home.join(root);
-                push(candidate_for(&base.join("agency-agents"), "userClone"), &mut candidates, &mut seen);
+                push(
+                    candidate_for(&base.join("agency-agents"), "userClone"),
+                    &mut candidates,
+                    &mut seen,
+                );
                 // One level of children named with "agency" (cheap heuristic).
                 if let Ok(rd) = std::fs::read_dir(&base) {
                     for ent in rd.filter_map(|e| e.ok()) {
                         let p = ent.path();
-                        if p.is_dir() && p.file_name().map(|n| n.to_string_lossy().contains("agency")).unwrap_or(false) {
+                        if p.is_dir()
+                            && p.file_name()
+                                .map(|n| n.to_string_lossy().contains("agency"))
+                                .unwrap_or(false)
+                        {
                             push(candidate_for(&p, "userClone"), &mut candidates, &mut seen);
                         }
                     }
@@ -1105,7 +1164,11 @@ async fn detect_catalogs(scan: bool) -> CatalogDetection {
         }
     }
 
-    CatalogDetection { git_available, scanned: scan, candidates }
+    CatalogDetection {
+        git_available,
+        scanned: scan,
+        candidates,
+    }
 }
 
 /// Ensure `~/.agency-agents` holds a catalog, cloning (git) or unpacking the
@@ -1131,12 +1194,13 @@ async fn provision_managed() -> Result<PathBuf, AppError> {
         run_git(&["clone", CATALOG_GIT_URL, &path.to_string_lossy()], None).await?;
     } else {
         // No git (or a non-empty target): drop the snapshot tarball in place.
-        tokio::fs::create_dir_all(&path).await.map_err(|e| AppError::Io {
-            message: format!("create {}: {e}", path.display()),
-        })?;
+        tokio::fs::create_dir_all(&path)
+            .await
+            .map_err(|e| AppError::Io {
+                message: format!("create {}: {e}", path.display()),
+            })?;
         let bytes = download_corpus_tarball().await?;
-        let categories = categories_from_tarball(&bytes)
-            .unwrap_or_else(bundled_division_slugs);
+        let categories = categories_from_tarball(&bytes).unwrap_or_else(bundled_division_slugs);
         let written = extract_categories(&bytes, &path, &categories)?;
         if written == 0 {
             return Err(AppError::Internal {
@@ -1223,7 +1287,10 @@ pub(crate) async fn read_source(
 /// Ensure the in-memory corpus is built + memoized on `AppState`, then
 /// return the shared `Arc`. First call seeds (if needed), parses, and
 /// persists the index; subsequent calls are a cheap cache read.
-pub(crate) async fn ensure_corpus(app: &AppHandle, state: &AppState) -> Result<Arc<Corpus>, AppError> {
+pub(crate) async fn ensure_corpus(
+    app: &AppHandle,
+    state: &AppState,
+) -> Result<Arc<Corpus>, AppError> {
     // Hold the cache lock across the ENTIRE init — check, seed, parse, store.
     // The frontend fires corpus_list + corpus_categories (+ corpus_status)
     // concurrently on mount; a released-lock double-check would let each run
@@ -1367,7 +1434,13 @@ pub async fn catalog_provision_managed(
     state.require_network("catalog_provision_managed").await?;
     let path = provision_managed().await?;
     let adir = app_data_dir(&app)?;
-    save_catalog_source(&adir, &CatalogSource::Managed { path: path.to_string_lossy().to_string() }).await?;
+    save_catalog_source(
+        &adir,
+        &CatalogSource::Managed {
+            path: path.to_string_lossy().to_string(),
+        },
+    )
+    .await?;
     rebuild_corpus(&app, &state).await
 }
 
@@ -1419,7 +1492,10 @@ pub async fn catalog_status(
         if let Ok(log) = run_git(&["-C", &rs, "log", "-1", "--format=%s%x1f%cI"], None).await {
             let mut it = log.trim().splitn(2, '\u{1f}');
             last_commit_subject = it.next().map(|s| s.to_string()).filter(|s| !s.is_empty());
-            last_commit_date = it.next().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+            last_commit_date = it
+                .next()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty());
         }
         if let Ok(porcelain) = run_git(&["-C", &rs, "status", "--porcelain"], None).await {
             dirty_count = porcelain.lines().filter(|l| !l.trim().is_empty()).count() as u32;
@@ -1487,7 +1563,19 @@ pub async fn catalog_check_updates(
 
     // "<ahead>\t<behind>" relative to the upstream tracking branch.
     let (mut ahead, mut behind) = (0u32, 0u32);
-    if let Ok(counts) = run_git(&["-C", &rs, "rev-list", "--left-right", "--count", "HEAD...@{u}"], None).await {
+    if let Ok(counts) = run_git(
+        &[
+            "-C",
+            &rs,
+            "rev-list",
+            "--left-right",
+            "--count",
+            "HEAD...@{u}",
+        ],
+        None,
+    )
+    .await
+    {
         let mut it = counts.split_whitespace();
         ahead = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
         behind = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
@@ -1495,7 +1583,9 @@ pub async fn catalog_check_updates(
 
     let (mut diffstat, mut changed_files) = (String::new(), 0u32);
     if behind > 0 {
-        diffstat = run_git(&["-C", &rs, "diff", "--stat", "HEAD..@{u}"], None).await.unwrap_or_default();
+        diffstat = run_git(&["-C", &rs, "diff", "--stat", "HEAD..@{u}"], None)
+            .await
+            .unwrap_or_default();
         if let Ok(names) = run_git(&["-C", &rs, "diff", "--name-only", "HEAD..@{u}"], None).await {
             changed_files = names.lines().filter(|l| !l.trim().is_empty()).count() as u32;
         }
@@ -1570,7 +1660,9 @@ fn looks_like_catalog(root: &Path) -> bool {
     if root.join("scripts").join("convert.sh").exists() {
         return true;
     }
-    bundled_division_meta().keys().any(|c| root.join(c).is_dir())
+    bundled_division_meta()
+        .keys()
+        .any(|c| root.join(c).is_dir())
 }
 
 /// `corpus_list(category?)` — list view (bodies omitted).
@@ -1630,7 +1722,9 @@ mod tests {
         write_agent(dir, "engineering", "alpha", "Alpha", "a");
         write_agent(dir, "design", "mid", "Mid", "m");
 
-        let corpus = build_from_dir(dir, "test", &discover_categories(dir)).await.unwrap();
+        let corpus = build_from_dir(dir, "test", &discover_categories(dir))
+            .await
+            .unwrap();
         assert_eq!(corpus.count(), 3);
         // design < engineering, and within engineering alpha < zeta.
         let order: Vec<&str> = corpus.agents.iter().map(|a| a.slug.as_str()).collect();
@@ -1651,7 +1745,9 @@ mod tests {
         )
         .unwrap();
 
-        let corpus = build_from_dir(dir, "v", &discover_categories(dir)).await.unwrap();
+        let corpus = build_from_dir(dir, "v", &discover_categories(dir))
+            .await
+            .unwrap();
         let nested_agent = corpus.get("godot-shader-developer");
         assert!(nested_agent.is_some(), "nested agent must be indexed");
         assert_eq!(
@@ -1670,8 +1766,16 @@ mod tests {
         write_agent(dir, "design", "mid", "Mid", "m");
 
         let cats = discover_categories(dir);
-        let a = build_from_dir(dir, "v", &cats).await.unwrap().index_json().unwrap();
-        let b = build_from_dir(dir, "v", &cats).await.unwrap().index_json().unwrap();
+        let a = build_from_dir(dir, "v", &cats)
+            .await
+            .unwrap()
+            .index_json()
+            .unwrap();
+        let b = build_from_dir(dir, "v", &cats)
+            .await
+            .unwrap()
+            .index_json()
+            .unwrap();
         assert_eq!(a, b, "corpus-index.json must be deterministic");
     }
 
@@ -1680,14 +1784,19 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path();
         write_agent(dir, "engineering", "alpha", "Alpha", "the persona body");
-        let corpus = build_from_dir(dir, "v", &discover_categories(dir)).await.unwrap();
+        let corpus = build_from_dir(dir, "v", &discover_categories(dir))
+            .await
+            .unwrap();
 
         let listed = corpus.list(None);
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].body, "", "list view must omit body");
 
         let full = corpus.get("alpha").unwrap();
-        assert!(full.body.contains("the persona body"), "get must include body");
+        assert!(
+            full.body.contains("the persona body"),
+            "get must include body"
+        );
     }
 
     #[tokio::test]
@@ -1696,7 +1805,9 @@ mod tests {
         let dir = tmp.path();
         write_agent(dir, "engineering", "alpha", "Alpha", "a");
         write_agent(dir, "design", "mid", "Mid", "m");
-        let corpus = build_from_dir(dir, "v", &discover_categories(dir)).await.unwrap();
+        let corpus = build_from_dir(dir, "v", &discover_categories(dir))
+            .await
+            .unwrap();
 
         let eng = corpus.list(Some("engineering"));
         assert_eq!(eng.len(), 1);
@@ -1710,7 +1821,9 @@ mod tests {
         write_agent(dir, "engineering", "alpha", "Alpha", "a");
         write_agent(dir, "engineering", "beta", "Beta", "b");
         // No divisions.json in this tempdir → discover falls back to the bundled floor.
-        let corpus = build_from_dir(dir, "v", &discover_categories(dir)).await.unwrap();
+        let corpus = build_from_dir(dir, "v", &discover_categories(dir))
+            .await
+            .unwrap();
 
         let cats = corpus.categories();
         assert_eq!(cats.len(), 17, "all declared divisions always returned");
@@ -1726,8 +1839,14 @@ mod tests {
         // NOT (it's convert.sh output) — neither may appear as a division.
         let hc = cats.iter().find(|c| c.slug == "healthcare").unwrap();
         assert_eq!(hc.count, 0);
-        assert!(!cats.iter().any(|c| c.slug == "strategy"), "strategy is not a division");
-        assert!(!cats.iter().any(|c| c.slug == "integrations"), "integrations is not a division");
+        assert!(
+            !cats.iter().any(|c| c.slug == "strategy"),
+            "strategy is not a division"
+        );
+        assert!(
+            !cats.iter().any(|c| c.slug == "integrations"),
+            "integrations is not a division"
+        );
     }
 
     #[tokio::test]
@@ -1741,7 +1860,9 @@ mod tests {
         // A workflow doc with no frontmatter.
         std::fs::write(cat.join("workflow.md"), "# Workflow\nnope\n").unwrap();
 
-        let corpus = build_from_dir(dir, "v", &discover_categories(dir)).await.unwrap();
+        let corpus = build_from_dir(dir, "v", &discover_categories(dir))
+            .await
+            .unwrap();
         assert_eq!(corpus.count(), 1);
         assert!(corpus.get("real").is_some());
         assert!(corpus.get("workflow").is_none());
@@ -1757,7 +1878,9 @@ mod tests {
         let corpus = resolve_active(app_data.path(), baseline.path()).await;
         assert_eq!(corpus.count(), 2);
         // Working copy + index were written.
-        assert!(corpus_dir(app_data.path()).join("engineering/alpha.md").exists());
+        assert!(corpus_dir(app_data.path())
+            .join("engineering/alpha.md")
+            .exists());
         assert!(index_path(app_data.path()).exists());
         assert!(meta_path(app_data.path()).exists());
     }
@@ -1843,15 +1966,27 @@ mod tests {
         }
         // Divisions come from the bundled floor (no divisions.json in the baseline).
         let categories = discover_categories(dir);
-        assert!(!categories.iter().any(|c| c == "strategy"), "strategy is not a division");
-        assert!(!categories.iter().any(|c| c == "integrations"), "integrations is convert.sh output, not a division");
+        assert!(
+            !categories.iter().any(|c| c == "strategy"),
+            "strategy is not a division"
+        );
+        assert!(
+            !categories.iter().any(|c| c == "integrations"),
+            "integrations is convert.sh output, not a division"
+        );
 
-        let corpus = build_from_dir(dir, "baseline-test", &categories).await.unwrap();
+        let corpus = build_from_dir(dir, "baseline-test", &categories)
+            .await
+            .unwrap();
 
         // 209 = 210 prior minus the lone `integrations/` artifact
         // (backend-architect-with-memory), which is convert.sh output, not a
         // catalog persona.
-        assert_eq!(corpus.count(), 209, "all bundled agent personas indexed (integrations excluded)");
+        assert_eq!(
+            corpus.count(),
+            209,
+            "all bundled agent personas indexed (integrations excluded)"
+        );
 
         // Every agent parsed real frontmatter: non-empty name + slug, real category.
         for a in &corpus.agents {
@@ -1869,18 +2004,34 @@ mod tests {
         // the ones a flat seeding would silently undercount.
         let cats = corpus.categories();
         assert_eq!(cats.len(), 17, "17 declared divisions");
-        let count_of = |slug: &str| cats.iter().find(|c| c.slug == slug).map(|c| c.count).unwrap_or(0);
+        let count_of = |slug: &str| {
+            cats.iter()
+                .find(|c| c.slug == slug)
+                .map(|c| c.count)
+                .unwrap_or(0)
+        };
         assert_eq!(count_of("engineering"), 30);
         assert_eq!(count_of("specialized"), 46);
         // game-development nests agents in unity/, godot/, unreal-engine/ etc.
         // upstream; a flat seeding would silently undercount these.
-        assert_eq!(count_of("game-development"), 20, "nested game-dev agents included");
+        assert_eq!(
+            count_of("game-development"),
+            20,
+            "nested game-dev agents included"
+        );
         // strategy is NOT a division (playbooks/runbooks, no agent frontmatter),
         // so it never appears as one — regardless of what's on disk.
-        assert!(!cats.iter().any(|c| c.slug == "strategy"), "strategy is not a division");
+        assert!(
+            !cats.iter().any(|c| c.slug == "strategy"),
+            "strategy is not a division"
+        );
         // healthcare IS a declared division; the bundled baseline predates its
         // agents, so it's present but empty (count 0) until a sync brings them in.
-        assert_eq!(count_of("healthcare"), 0, "healthcare present but empty in the stale baseline");
+        assert_eq!(
+            count_of("healthcare"),
+            0,
+            "healthcare present but empty in the stale baseline"
+        );
     }
 
     #[test]
@@ -1895,7 +2046,10 @@ AGENT_DIRS=(
 echo done
 "#;
         let cats = parse_agent_dirs(script).unwrap();
-        assert_eq!(cats, vec!["academic", "design", "engineering", "finance", "strategy"]);
+        assert_eq!(
+            cats,
+            vec!["academic", "design", "engineering", "finance", "strategy"]
+        );
         assert!(!cats.contains(&"integrations".to_string()));
     }
 
@@ -1928,16 +2082,24 @@ echo done
     async fn catalog_source_persists_and_defaults_bundled() {
         let app_data = tempfile::tempdir().unwrap();
         // No file yet → default Bundled.
-        assert_eq!(load_catalog_source(app_data.path()).await, CatalogSource::Bundled);
+        assert_eq!(
+            load_catalog_source(app_data.path()).await,
+            CatalogSource::Bundled
+        );
 
-        let src = CatalogSource::Managed { path: "/Users/x/.agency-agents".into() };
+        let src = CatalogSource::Managed {
+            path: "/Users/x/.agency-agents".into(),
+        };
         save_catalog_source(app_data.path(), &src).await.unwrap();
         assert_eq!(load_catalog_source(app_data.path()).await, src);
 
         // catalog.json is valid camelCase-tagged JSON.
         let bytes = std::fs::read(catalog_source_path(app_data.path())).unwrap();
         let text = String::from_utf8_lossy(&bytes);
-        assert!(text.contains("\"kind\": \"managed\""), "tagged on kind: {text}");
+        assert!(
+            text.contains("\"kind\": \"managed\""),
+            "tagged on kind: {text}"
+        );
     }
 
     #[test]
@@ -1948,11 +2110,22 @@ echo done
             corpus_dir(app_data)
         );
         assert_eq!(
-            catalog_root(app_data, &CatalogSource::Managed { path: "/home/x/.agency-agents".into() }),
+            catalog_root(
+                app_data,
+                &CatalogSource::Managed {
+                    path: "/home/x/.agency-agents".into()
+                }
+            ),
             PathBuf::from("/home/x/.agency-agents")
         );
         assert_eq!(
-            catalog_root(app_data, &CatalogSource::UserClone { path: "/src/aa".into(), manage: true }),
+            catalog_root(
+                app_data,
+                &CatalogSource::UserClone {
+                    path: "/src/aa".into(),
+                    manage: true
+                }
+            ),
             PathBuf::from("/src/aa")
         );
     }
@@ -1960,14 +2133,21 @@ echo done
     #[test]
     fn looks_like_catalog_detects_tooling_or_categories() {
         let tmp = tempfile::tempdir().unwrap();
-        assert!(!looks_like_catalog(tmp.path()), "empty dir is not a catalog");
+        assert!(
+            !looks_like_catalog(tmp.path()),
+            "empty dir is not a catalog"
+        );
         // A category dir is enough.
         std::fs::create_dir_all(tmp.path().join("engineering")).unwrap();
         assert!(looks_like_catalog(tmp.path()));
         // …or the tooling.
         let tmp2 = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(tmp2.path().join("scripts")).unwrap();
-        std::fs::write(tmp2.path().join("scripts/convert.sh"), "AGENT_DIRS=(engineering)\n").unwrap();
+        std::fs::write(
+            tmp2.path().join("scripts/convert.sh"),
+            "AGENT_DIRS=(engineering)\n",
+        )
+        .unwrap();
         assert!(looks_like_catalog(tmp2.path()));
     }
 
@@ -1997,7 +2177,10 @@ echo done
         // No divisions.json → the bundled floor (agency-categories.json) keys.
         assert_eq!(cats, bundled_division_slugs());
         assert!(cats.contains(&"healthcare".to_string()) && cats.contains(&"gis".to_string()));
-        assert!(!cats.contains(&"strategy".to_string()), "no phantom strategy division");
+        assert!(
+            !cats.contains(&"strategy".to_string()),
+            "no phantom strategy division"
+        );
     }
 
     #[test]
@@ -2010,7 +2193,10 @@ echo done
         .unwrap();
         // The active catalog's divisions.json is authoritative — its keys, sorted.
         let cats = discover_categories(tmp.path());
-        assert_eq!(cats, vec!["engineering".to_string(), "healthcare".to_string()]);
+        assert_eq!(
+            cats,
+            vec!["engineering".to_string(), "healthcare".to_string()]
+        );
         assert!(!cats.contains(&"strategy".to_string()));
     }
 
@@ -2023,7 +2209,9 @@ echo done
         assert_eq!(rb.slug, "startup-mvp");
         assert_eq!(rb.mode, "NEXUS-Sprint");
         assert_eq!(rb.roster[0].agents.len(), 2);
-        assert!(rb.roster[0].agents.contains(&"engineering-frontend-developer".to_string()));
+        assert!(rb.roster[0]
+            .agents
+            .contains(&"engineering-frontend-developer".to_string()));
         // An absent `runbooks` key (bundled / no strategy/) parses to empty, not an error.
         let empty: RunbooksFile = serde_json::from_str("{}").unwrap();
         assert!(empty.runbooks.is_empty());

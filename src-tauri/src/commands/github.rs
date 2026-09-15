@@ -103,9 +103,7 @@ pub async fn github_status(_state: State<'_, AppState>) -> Result<GithubStatusDt
 // ---------- Sign-in start (12e) ----------
 
 #[tauri::command]
-pub async fn github_signin_start(
-    state: State<'_, AppState>,
-) -> Result<DeviceFlowStart, AppError> {
+pub async fn github_signin_start(state: State<'_, AppState>) -> Result<DeviceFlowStart, AppError> {
     // Sign-in itself is outbound — paranoid mode blocks even the OAuth
     // handshake. Per §12d this is by design: the user can't sign in if
     // they've told us not to make outbound calls.
@@ -201,20 +199,14 @@ async fn authed_gate(
 }
 
 #[tauri::command]
-pub async fn github_star(
-    homepage: String,
-    state: State<'_, AppState>,
-) -> Result<(), AppError> {
+pub async fn github_star(homepage: String, state: State<'_, AppState>) -> Result<(), AppError> {
     let (client, repo, token) =
         authed_gate(&state, &homepage, "github_star", SCOPE_PUBLIC_REPO).await?;
     actions::star(&client, &repo, &token).await
 }
 
 #[tauri::command]
-pub async fn github_unstar(
-    homepage: String,
-    state: State<'_, AppState>,
-) -> Result<(), AppError> {
+pub async fn github_unstar(homepage: String, state: State<'_, AppState>) -> Result<(), AppError> {
     let (client, repo, token) =
         authed_gate(&state, &homepage, "github_unstar", SCOPE_PUBLIC_REPO).await?;
     actions::unstar(&client, &repo, &token).await
@@ -231,20 +223,14 @@ pub async fn github_is_starred(
 }
 
 #[tauri::command]
-pub async fn github_watch(
-    homepage: String,
-    state: State<'_, AppState>,
-) -> Result<(), AppError> {
+pub async fn github_watch(homepage: String, state: State<'_, AppState>) -> Result<(), AppError> {
     let (client, repo, token) =
         authed_gate(&state, &homepage, "github_watch", SCOPE_NOTIFICATIONS).await?;
     actions::watch(&client, &repo, &token).await
 }
 
 #[tauri::command]
-pub async fn github_unwatch(
-    homepage: String,
-    state: State<'_, AppState>,
-) -> Result<(), AppError> {
+pub async fn github_unwatch(homepage: String, state: State<'_, AppState>) -> Result<(), AppError> {
     let (client, repo, token) =
         authed_gate(&state, &homepage, "github_unwatch", SCOPE_NOTIFICATIONS).await?;
     actions::unwatch(&client, &repo, &token).await
@@ -283,9 +269,7 @@ mod tests {
 
     use super::*;
     use crate::commands::settings::{Settings, SettingsLoadState};
-    use crate::github::auth::{
-        KeychainSlot, KEYCHAIN_ACCOUNT_SCOPES, KEYCHAIN_ACCOUNT_TOKEN,
-    };
+    use crate::github::auth::{KeychainSlot, KEYCHAIN_ACCOUNT_SCOPES, KEYCHAIN_ACCOUNT_TOKEN};
     use std::collections::HashMap;
     use std::sync::Mutex;
 
@@ -456,10 +440,10 @@ mod tests {
         }
         fn with_token_and_scopes(token: &str, scopes: &[&str]) -> Self {
             let mk = Self::new();
-            mk.entries.lock().unwrap().insert(
-                KEYCHAIN_ACCOUNT_TOKEN.to_string(),
-                token.to_string(),
-            );
+            mk.entries
+                .lock()
+                .unwrap()
+                .insert(KEYCHAIN_ACCOUNT_TOKEN.to_string(), token.to_string());
             let json = serde_json::to_string(scopes).unwrap();
             mk.entries
                 .lock()
@@ -624,8 +608,7 @@ mod tests {
     #[tokio::test]
     async fn authed_gate_returns_scope_required_when_notifications_missing() {
         let state = build_state_with(SettingsLoadState::Loaded(Settings::default())).await;
-        let kc =
-            MockKeychain::with_token_and_scopes("ghp_test", &["read:user", "public_repo"]);
+        let kc = MockKeychain::with_token_and_scopes("ghp_test", &["read:user", "public_repo"]);
         let r = inner_authed_gate_with_kc(
             &state,
             "https://github.com/octocat/hello-world",
@@ -645,8 +628,7 @@ mod tests {
     #[tokio::test]
     async fn authed_gate_passes_with_token_and_public_repo_scope() {
         let state = build_state_with(SettingsLoadState::Loaded(Settings::default())).await;
-        let kc =
-            MockKeychain::with_token_and_scopes("ghp_test", &["read:user", "public_repo"]);
+        let kc = MockKeychain::with_token_and_scopes("ghp_test", &["read:user", "public_repo"]);
         let r = inner_authed_gate_with_kc(
             &state,
             "https://github.com/octocat/hello-world",
@@ -688,8 +670,7 @@ mod tests {
     #[tokio::test]
     async fn authed_gate_rejects_non_github_url_with_invalid_argument() {
         let state = build_state_with(SettingsLoadState::Loaded(Settings::default())).await;
-        let kc =
-            MockKeychain::with_token_and_scopes("ghp_test", &["read:user", "public_repo"]);
+        let kc = MockKeychain::with_token_and_scopes("ghp_test", &["read:user", "public_repo"]);
         let r = inner_authed_gate_with_kc(
             &state,
             "https://example.com/foo/bar",
