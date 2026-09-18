@@ -169,6 +169,7 @@ pub fn run() {
             corpus::catalog_status,
             corpus::catalog_check_updates,
             corpus::runbooks_list,
+            corpus::runbook_doc,
             // Phase 2 — install + reconcile (contracts.md §C). The cross-tool
             // agent state layer: render/ledger/reconcile/tools/projects.
             install::install_agent,
