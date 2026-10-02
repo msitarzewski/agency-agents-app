@@ -502,6 +502,16 @@ fn classify(
     }
 }
 
+/// A `Current` install whose source agent is unchanged can still be stale if
+/// the renderer has changed since it was written (a fix to how a tool's file
+/// is generated). The file on disk still matches the hash we recorded, so it
+/// is not `Modified`; a fresh render of the same source differs, so an update
+/// is available. Pure for testing; `fresh_render` is `None` when the agent or
+/// its source is unavailable, which never upgrades the state.
+fn renderer_outdated(state: InstallState, recorded_render: &str, fresh_render: Option<&str>) -> bool {
+    state == InstallState::Current && fresh_render.is_some_and(|fresh| fresh != recorded_render)
+}
+
 /// True if `file_bytes` are byte-identical to the canonical render of `agent`
 /// for `tool`. Pure (no I/O) so it's unit-testable. When they match, the file
 /// on disk IS this agent verbatim — there's nothing to "adopt"; reconcile can
@@ -712,12 +722,28 @@ pub async fn installs_reconcile(
         };
         let centry = corpus.entry(&r.slug);
         let corpus_source = centry.as_ref().map(|e| e.source_hash.as_str());
-        let st = classify(disk_hash.as_deref(), &r.rendered_hash, &r.source_hash, corpus_source);
+        let mut st = classify(disk_hash.as_deref(), &r.rendered_hash, &r.source_hash, corpus_source);
+        // Re-render an unchanged agent to catch renderer fixes: without this an
+        // install written by an older renderer stays `Current` forever.
+        let mut renderer_changed = false;
+        if st == InstallState::Current {
+            if let Some(agent) = corpus.get(&r.slug) {
+                let fresh = match corpus::read_source(&app, &agent.category, &r.slug).await {
+                    Ok(raw) => render::render_with_hash(&agent, &raw, &r.tool).ok().map(|(_, h)| h),
+                    Err(_) => None,
+                };
+                if renderer_outdated(st, &r.rendered_hash, fresh.as_deref()) {
+                    st = InstallState::Outdated;
+                    renderer_changed = true;
+                }
+            }
+        }
         // Cosmetic vs substantive: only meaningful when Outdated. Body unchanged
-        // upstream → the update is metadata-only.
+        // upstream → the update is metadata-only. A renderer change counts as
+        // substantive: it can decide whether the tool loads the agent at all.
         let update_kind = if st == InstallState::Outdated {
             let cur_body = centry.as_ref().map(|e| e.body_hash.as_str());
-            Some(if cur_body == Some(r.body_hash.as_str()) {
+            Some(if !renderer_changed && cur_body == Some(r.body_hash.as_str()) {
                 UpdateKind::Cosmetic
             } else {
                 UpdateKind::Substantive
@@ -1210,6 +1236,19 @@ mod tests {
         assert_eq!(classify(Some("r"), "r", "s1", Some("s2")), InstallState::Outdated);
         // agent gone from corpus but file intact → current
         assert_eq!(classify(Some("r"), "r", "s1", None), InstallState::Current);
+    }
+
+    #[test]
+    fn renderer_change_makes_a_current_install_outdated() {
+        // Same recorded render as a fresh render: still current.
+        assert!(!renderer_outdated(InstallState::Current, "r1", Some("r1")));
+        // The renderer now writes different bytes for the same source: update.
+        assert!(renderer_outdated(InstallState::Current, "r1", Some("r2")));
+        // Unknown fresh render (agent or source unavailable): never upgrade.
+        assert!(!renderer_outdated(InstallState::Current, "r1", None));
+        // Only Current rows are reconsidered; edits and removals win.
+        assert!(!renderer_outdated(InstallState::Modified, "r1", Some("r2")));
+        assert!(!renderer_outdated(InstallState::Removed, "r1", Some("r2")));
     }
 
     #[test]

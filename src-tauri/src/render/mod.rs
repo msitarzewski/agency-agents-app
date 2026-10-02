@@ -67,36 +67,70 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     s
 }
 
-/// Match `scripts/lib.sh#get_field`: return the first literal `field: value`
-/// line between exact `---` fences. The shell helper does not parse YAML, so
-/// quotes and other source spelling must be preserved for byte parity.
-fn source_field<'a>(source: &'a str, field: &str) -> &'a str {
+/// Match `scripts/lib.sh#get_field`: the first `field: value` line inside the
+/// frontmatter. A plain scalar's indented continuation lines are folded in,
+/// joined by single spaces (as YAML does), and one matching pair of outer
+/// quotes is a delimiter, not content: it is stripped and unescaped
+/// (`\"`/`\\` in double quotes, `''` in single quotes) exactly as the shell
+/// helper does. Byte parity with `convert.sh` depends on every step here.
+fn source_field(source: &str, field: &str) -> String {
     let prefix = format!("{field}: ");
     let mut fences = 0;
+    let mut value: Option<String> = None;
     for line in source.lines() {
         if line == "---" {
             fences += 1;
+            if fences >= 2 {
+                break;
+            }
             continue;
         }
-        if fences == 1 {
-            if let Some(value) = line.strip_prefix(&prefix) {
-                return value;
+        if fences != 1 {
+            continue;
+        }
+        match value.as_mut() {
+            None => {
+                if let Some(v) = line.strip_prefix(&prefix) {
+                    value = Some(v.to_string());
+                }
             }
-        } else if fences >= 2 {
-            break;
+            Some(v) => {
+                let rest = line.trim_start_matches([' ', '\t']);
+                if rest.len() < line.len() && !rest.is_empty() {
+                    v.push(' ');
+                    v.push_str(rest);
+                } else {
+                    break;
+                }
+            }
         }
     }
-    ""
+    value.map(|v| unquote_scalar(&v)).unwrap_or_default()
 }
 
-/// Match `body="$(get_body "$file")"` from the upstream converter. `awk`
-/// emits one newline per body line and command substitution strips every
-/// trailing newline before the heredoc adds exactly one back.
+/// `get_field`'s `emit`: trim plain-scalar padding, then strip and unescape one
+/// matching pair of outer quotes.
+fn unquote_scalar(raw: &str) -> String {
+    let v = raw.trim_matches([' ', '\t']);
+    if v.len() >= 2 && v.starts_with('"') && v.ends_with('"') {
+        v[1..v.len() - 1].replace("\\\"", "\"").replace("\\\\", "\\")
+    } else if v.len() >= 2 && v.starts_with('\'') && v.ends_with('\'') {
+        v[1..v.len() - 1].replace("''", "'")
+    } else {
+        v.to_string()
+    }
+}
+
+/// Match `body="$(get_body "$file")"` from the upstream converter: skip only
+/// the two `---` lines that fence the frontmatter. Later `---` lines are
+/// Markdown horizontal rules and belong to the body (agency-agents #891).
+/// `awk` emits one newline per body line and command substitution strips
+/// every trailing newline before the heredoc adds exactly one back.
 fn source_body(source: &str) -> String {
     let mut fences = 0;
     let mut body = String::new();
     for line in source.lines() {
-        if line == "---" {
+        if fences < 2 && line == "---" {
             fences += 1;
             continue;
         }
@@ -109,6 +143,47 @@ fn source_body(source: &str) -> String {
         body.pop();
     }
     body
+}
+
+/// Match `convert.sh#yaml_quote`: a single-quoted YAML scalar with embedded
+/// apostrophes doubled. Unquoted, a description containing `: ` is invalid
+/// frontmatter (agency-agents #778).
+fn yaml_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
+}
+
+/// Match `convert.sh#qwen_tools`: rename a source agent's Claude Code tool list
+/// to Qwen Code's canonical tool names. Qwen resolves a subagent's tools by
+/// exact name or display name only, so `Read`, `Write` and `Bash` would match
+/// nothing and grant nothing (agency-agents #965). Unknown names (MCP tools,
+/// names Qwen already knows) pass through; duplicates collapse.
+fn qwen_tools(tools: &str) -> String {
+    let mut out: Vec<String> = Vec::new();
+    for raw in tools.split(',') {
+        let t = raw.trim_matches([' ', '\t', '\n', '\r', '\u{0b}', '\u{0c}']);
+        if t.is_empty() {
+            continue;
+        }
+        let q = match t {
+            "Read" => "read_file",
+            "Write" => "write_file",
+            "Edit" | "MultiEdit" => "edit",
+            "Bash" => "run_shell_command",
+            "Grep" => "grep_search",
+            "Glob" => "glob",
+            "LS" => "list_directory",
+            "WebFetch" => "web_fetch",
+            "WebSearch" => "web_search",
+            "TodoWrite" => "todo_write",
+            "NotebookEdit" => "notebook_edit",
+            "Task" => "agent",
+            other => other,
+        };
+        if !out.iter().any(|existing| existing == q) {
+            out.push(q.to_string());
+        }
+    }
+    out.join(", ")
 }
 
 /// Match `scripts/lib.sh#slugify`.
@@ -141,7 +216,7 @@ pub fn output_slug(agent: &Agent, raw_source: &str, tool: &str) -> String {
         agent.slug.clone()
     } else {
         let prefix = meta.and_then(|m| m.slug_prefix.as_deref()).unwrap_or("");
-        format!("{prefix}{}", slugify(source_field(raw_source, "name")))
+        format!("{prefix}{}", slugify(&source_field(raw_source, "name")))
     }
 }
 
@@ -162,8 +237,10 @@ pub fn render(_agent: &Agent, raw_source: &str, tool: &str) -> Result<String, Ap
     let name = source_field(raw_source, "name");
     let description = source_field(raw_source, "description");
     let body = source_body(raw_source);
-    let slug = slugify(name);
+    let slug = slugify(&name);
     // Dispatch on the registry's render `format` key rather than a Rust variant.
+    // Every template below mirrors its `convert.sh` heredoc byte for byte,
+    // including which scalars go through `yaml_quote`.
     let format = registry::get(tool).and_then(|m| m.format.as_deref());
     let out = match format {
         // Identity — ship the corpus `.md` exactly as authored.
@@ -172,66 +249,85 @@ pub fn render(_agent: &Agent, raw_source: &str, tool: &str) -> Result<String, Ap
         // Cursor `.mdc`: description + globs + alwaysApply frontmatter.
         Some("cursor-mdc") => format!(
             "---\ndescription: {desc}\nglobs: \"\"\nalwaysApply: false\n---\n{body}\n",
-            desc = description,
+            desc = yaml_quote(&description),
         ),
 
         // Codex TOML: minimal required fields, control chars escaped.
         Some("codex-toml") => format!(
             "name = \"{name}\"\ndescription = \"{desc}\"\ndeveloper_instructions = \"{body}\"\n",
-            name = toml_escape(name),
-            desc = toml_escape(description),
+            name = toml_escape(&name),
+            desc = toml_escape(&description),
             body = toml_escape(&body),
         ),
 
         // Gemini CLI subagent `.md`: name(=slug) + description frontmatter.
         Some("gemini-md") => format!(
-            "---\nname: {slug}\ndescription: {desc}\n---\n{body}\n",
-            desc = description,
+            "---\nname: {name}\ndescription: {desc}\n---\n{body}\n",
+            name = yaml_quote(&slug),
+            desc = yaml_quote(&description),
         ),
 
-        // Qwen Code SubAgent `.md`: optional tools line is preserved literally.
+        // Qwen Code SubAgent `.md`: the optional tool list is renamed to Qwen's
+        // own tool names (see `qwen_tools`).
         Some("qwen-md") => {
-            let tools = source_field(raw_source, "tools");
+            let tools = qwen_tools(&source_field(raw_source, "tools"));
             if tools.is_empty() {
-                format!("---\nname: {slug}\ndescription: {description}\n---\n{body}\n")
+                format!(
+                    "---\nname: {}\ndescription: {}\n---\n{body}\n",
+                    yaml_quote(&slug),
+                    yaml_quote(&description),
+                )
             } else {
                 format!(
-                    "---\nname: {slug}\ndescription: {description}\ntools: {tools}\n---\n{body}\n"
+                    "---\nname: {}\ndescription: {}\ntools: {}\n---\n{body}\n",
+                    yaml_quote(&slug),
+                    yaml_quote(&description),
+                    yaml_quote(&tools),
                 )
             }
         }
 
-        // ZCode agent `.md` (Z.ai GLM harness): name + description frontmatter,
-        // optional `tools` list preserved literally, persona as the body. Read
-        // from `.zcode/agents/` (project) or `~/.config/zcode/agents/` (global).
+        // ZCode subagent `.md` (Z.ai GLM harness): name + description frontmatter,
+        // optional `tools` list kept as written, persona as the body. ZCode reads
+        // subagents from `~/.zcode/agents/` (its Subagents docs) and, per the
+        // catalog, `<project>/.zcode/agents/`.
         Some("zcode-md") => {
             let tools = source_field(raw_source, "tools");
             if tools.is_empty() {
-                format!("---\nname: {slug}\ndescription: {description}\n---\n{body}\n")
+                format!(
+                    "---\nname: {}\ndescription: {}\n---\n{body}\n",
+                    yaml_quote(&slug),
+                    yaml_quote(&description),
+                )
             } else {
                 format!(
-                    "---\nname: {slug}\ndescription: {description}\ntools: {tools}\n---\n{body}\n"
+                    "---\nname: {}\ndescription: {}\ntools: {}\n---\n{body}\n",
+                    yaml_quote(&slug),
+                    yaml_quote(&description),
+                    yaml_quote(&tools),
                 )
             }
         }
 
         // Agent-Skills `SKILL.md`: name (namespaced) + description frontmatter,
-        // persona as the body. Mirrors upstream convert.sh `convert_osaurus`
-        // (~/.osaurus/skills/<name>/SKILL.md). The `agency-` prefix on `name`
-        // comes from the tool's `slugPrefix`.
+        // persona as the body. Mirrors upstream `convert_osaurus`,
+        // `convert_antigravity` and `convert_dsh`. The `agency-` prefix on
+        // `name` comes from the tool's `slugPrefix`.
         Some("skill-md") => {
             let prefix = registry::get(tool).and_then(|m| m.slug_prefix.as_deref()).unwrap_or("");
             format!(
-                "---\nname: {prefix}{slug}\ndescription: {desc}\n---\n{body}\n",
-                desc = description,
+                "---\nname: {name}\ndescription: {desc}\n---\n{body}\n",
+                name = yaml_quote(&format!("{prefix}{slug}")),
+                desc = yaml_quote(&description),
             )
         }
 
         // OpenCode `.md`: name + description + mode + hex color frontmatter.
         Some("opencode-md") => format!(
             "---\nname: {name}\ndescription: {desc}\nmode: subagent\ncolor: '{color}'\n---\n{body}\n",
-            desc = description,
-            color = resolve_opencode_color(source_field(raw_source, "color")),
+            name = yaml_quote(&name),
+            desc = yaml_quote(&description),
+            color = resolve_opencode_color(&source_field(raw_source, "color")),
         ),
 
         // No format (recognized-only) or an unknown renderer ⇒ not installable.
@@ -319,6 +415,8 @@ fn resolve_opencode_color(color: &str) -> String {
         "lime" => "#84CC16",
         "gray" => "#6B7280",
         "fuchsia" => "#D946EF",
+        "slate" => "#64748B",
+        "navy" => "#000080",
         other => other,
     };
     let hex = mapped.strip_prefix('#').unwrap_or(mapped);
@@ -386,7 +484,7 @@ mod tests {
     #[test]
     fn cursor_mdc_shape() {
         let out = render(&agent(), raw(), "cursor").unwrap();
-        assert!(out.starts_with("---\ndescription: Builds UIs.\nglobs: \"\"\nalwaysApply: false\n---\n"));
+        assert!(out.starts_with("---\ndescription: 'Builds UIs.'\nglobs: \"\"\nalwaysApply: false\n---\n"));
         assert!(out.contains("You are a frontend dev."));
     }
 
@@ -415,7 +513,7 @@ mod tests {
         let out = render(&agent(), raw(), "osaurus").unwrap();
         assert_eq!(
             out,
-            "---\nname: agency-frontend-developer\ndescription: Builds UIs.\n---\nYou are a frontend dev.\n"
+            "---\nname: 'agency-frontend-developer'\ndescription: 'Builds UIs.'\n---\nYou are a frontend dev.\n"
         );
         // output_slug carries the prefix → it names the skill directory.
         assert_eq!(output_slug(&agent(), raw(), "osaurus"), "agency-frontend-developer");
@@ -435,7 +533,7 @@ mod tests {
         let out = render(&agent(), raw(), "antigravity").unwrap();
         assert_eq!(
             out,
-            "---\nname: agency-frontend-developer\ndescription: Builds UIs.\n---\nYou are a frontend dev.\n"
+            "---\nname: 'agency-frontend-developer'\ndescription: 'Builds UIs.'\n---\nYou are a frontend dev.\n"
         );
         assert_eq!(output_slug(&agent(), raw(), "antigravity"), "agency-frontend-developer");
         // user-scope → ~/.gemini/config/skills/<name>/SKILL.md
@@ -470,7 +568,7 @@ mod tests {
     #[test]
     fn gemini_uses_slug_as_name() {
         let out = render(&agent(), raw(), "geminiCli").unwrap();
-        assert!(out.starts_with("---\nname: frontend-developer\ndescription: Builds UIs.\n---\n"));
+        assert!(out.starts_with("---\nname: 'frontend-developer'\ndescription: 'Builds UIs.'\n---\n"));
     }
 
     #[test]
@@ -485,17 +583,60 @@ mod tests {
     #[test]
     fn source_helpers_match_shell_semantics() {
         let source = "---\nname: \"Quoted Name\"\ndescription: has: colon\ntools: Read, Write\n---\nBody\n---\nTail\n\n";
-        assert_eq!(source_field(source, "name"), "\"Quoted Name\"");
+        // get_field: one pair of outer quotes is a delimiter, not content.
+        assert_eq!(source_field(source, "name"), "Quoted Name");
         assert_eq!(source_field(source, "description"), "has: colon");
-        assert_eq!(source_body(source), "Body\nTail");
+        // get_body: only the two frontmatter fences are skipped; a later `---`
+        // is a horizontal rule and stays in the body (agency-agents #891).
+        assert_eq!(source_body(source), "Body\n---\nTail");
         assert_eq!(slugify("FP&A / QA"), "fp-a-qa");
     }
 
     #[test]
+    fn source_field_unquotes_and_folds_like_get_field() {
+        let s = "---\nname: 'It''s Here'\ndescription: \"Say \\\"hi\\\" \\\\ bye\"\ncolor: \"#D97706\"\nvibe: first line\n  second line\n\tthird\nemoji: x\n---\nB\n";
+        assert_eq!(source_field(s, "name"), "It's Here");
+        assert_eq!(source_field(s, "description"), "Say \"hi\" \\ bye");
+        assert_eq!(source_field(s, "vibe"), "first line second line third");
+        assert_eq!(source_field(s, "emoji"), "x");
+        assert_eq!(source_field(s, "missing"), "");
+        // A quoted hex colour resolves instead of falling back to grey.
+        assert_eq!(resolve_opencode_color(&source_field(s, "color")), "#D97706");
+    }
+
+    #[test]
+    fn yaml_quote_keeps_colon_descriptions_valid() {
+        // Unquoted, `Tools: X` after `description: ` is invalid YAML (#778).
+        assert_eq!(yaml_quote("Builds tools: CLIs, SDKs"), "'Builds tools: CLIs, SDKs'");
+        assert_eq!(yaml_quote("It's fine"), "'It''s fine'");
+        let src = "---\nname: Tooling\ndescription: Builds tools: CLIs\n---\nB\n";
+        let out = render(&agent(), src, "geminiCli").unwrap();
+        assert!(out.contains("\ndescription: 'Builds tools: CLIs'\n"));
+    }
+
+    #[test]
+    fn qwen_tools_maps_claude_names_and_dedupes() {
+        assert_eq!(
+            qwen_tools("WebFetch, WebSearch, Read, Write, Edit, Bash"),
+            "web_fetch, web_search, read_file, write_file, edit, run_shell_command"
+        );
+        // MultiEdit and Edit both become one `edit`; unknown names pass through.
+        assert_eq!(qwen_tools(" Edit,MultiEdit , mcp__github__issues ,, "), "edit, mcp__github__issues");
+        assert_eq!(qwen_tools(""), "");
+    }
+
+    #[test]
+    fn opencode_knows_slate_and_navy() {
+        assert_eq!(resolve_opencode_color("slate"), "#64748B");
+        assert_eq!(resolve_opencode_color(" Navy "), "#000080");
+    }
+
+    #[test]
     fn qwen_preserves_optional_tools() {
+        // Qwen grants a subagent's tools by Qwen's own names (#965).
         let source = "---\nname: Frontend Developer\ndescription: Builds UIs.\ntools: Read, Write\n---\nBody\n";
         let out = render(&agent(), source, "qwen").unwrap();
-        assert!(out.contains("\ntools: Read, Write\n"));
+        assert!(out.contains("\ntools: 'read_file, write_file'\n"));
 
         let without = render(&agent(), raw(), "qwen").unwrap();
         assert!(!without.contains("\ntools: "));
@@ -505,12 +646,13 @@ mod tests {
     fn zcode_uses_slug_name_and_optional_tools() {
         // ZCode agent .md: name(=slug) + description frontmatter, optional tools.
         let out = render(&agent(), raw(), "zcode").unwrap();
-        assert!(out.starts_with("---\nname: frontend-developer\ndescription: Builds UIs.\n---\n"));
+        assert!(out.starts_with("---\nname: 'frontend-developer'\ndescription: 'Builds UIs.'\n---\n"));
         assert!(!out.contains("\ntools: "));
 
         let source = "---\nname: Frontend Developer\ndescription: Builds UIs.\ntools: Read, Write\n---\nBody\n";
         let with = render(&agent(), source, "zcode").unwrap();
-        assert!(with.contains("\ntools: Read, Write\n"));
+        // ZCode keeps the source spelling: its tool names are not documented.
+        assert!(with.contains("\ntools: 'Read, Write'\n"));
     }
 
     #[test]
@@ -562,8 +704,9 @@ mod tests {
             ("qwen", "qwen/agents", "md"),
             ("zcode", "zcode/agents", "md"),
         ];
-        for (_, tool_id, _) in tools {
-            let tool = tool_id.split('/').next().unwrap();
+        // Agent-Skills tools write `<tool>/agency-<slug>/SKILL.md`.
+        let skill_tools = ["antigravity", "osaurus"];
+        for tool in tools.iter().map(|(_, dir, _)| dir.split('/').next().unwrap()).chain(skill_tools) {
             let status = Command::new("bash")
                 .arg(&script)
                 .args(["--tool", tool, "--out"])
@@ -615,6 +758,15 @@ mod tests {
                     "{tool} parity mismatch for {}",
                     path.display()
                 );
+                compared += 1;
+            }
+            for tool in skill_tools {
+                let expected_path = temp.path().join(tool)
+                    .join(format!("agency-{converted_slug}")).join("SKILL.md");
+                let expected = fs::read(&expected_path)
+                    .unwrap_or_else(|e| panic!("read {}: {e}", expected_path.display()));
+                let actual = render(&agent, &raw, tool).unwrap();
+                assert_eq!(actual.as_bytes(), expected, "{tool} parity mismatch for {}", path.display());
                 compared += 1;
             }
         }
