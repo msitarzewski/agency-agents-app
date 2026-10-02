@@ -447,6 +447,12 @@ async fn write_agent_files_to(
 ) -> Result<InstallRecord, AppError> {
     let (bytes, rendered_hash) = render::render_with_hash(agent, raw, tool)?;
     let mut paths = render::dests(tool, &agent.slug, home, project_root)?;
+    // Keep an existing install's filename variant (source slug vs converted
+    // slug), but only while that path is still a valid destination for the
+    // tool. A path the tool no longer reads (ZCode's user dir moved from
+    // ~/.config/zcode/agents to ~/.zcode/agents) must not pin updates there.
+    let valid = candidate_dests(agent, raw, tool, home, project_root)?;
+    let preferred_dest = preferred_dest.filter(|p| valid.iter().any(|v| v == p));
     if let Some(preferred) = preferred_dest {
         if paths.len() == 1 {
             paths[0] = preferred.to_path_buf();
@@ -1282,6 +1288,28 @@ mod tests {
         assert_eq!(osa.len(), 1, "osaurus: {osa:?}");
         assert!(osa[0].0.ends_with(".osaurus/skills"), "osaurus dir: {:?}", osa[0].0);
         assert_eq!(osa[0].1, "/SKILL.md");
+    }
+
+    /// ZCode reads user subagents from ~/.zcode/agents (its Subagents docs);
+    /// app v0.3.1 wrote them to ~/.config/zcode/agents. An Update for such an
+    /// install must land in the folder ZCode reads, not the recorded old one.
+    #[tokio::test]
+    async fn update_moves_a_stale_zcode_install_to_the_path_zcode_reads() {
+        let home = tempfile::tempdir().unwrap();
+        let backups = tempfile::tempdir().unwrap();
+        let agent = sample_agent();
+        let raw = "---\nname: Frontend Developer\ndescription: Builds UIs.\n---\nBody\n";
+        let old = home.path().join(".config/zcode/agents/frontend-developer.md");
+        let record = write_agent_files_to(
+            &agent, raw, "zcode", home.path(), None, Some(backups.path()),
+            "src-1", "body-1", "v1", "2026-10-01T00:00:00Z", Some(&old),
+        )
+        .await
+        .unwrap();
+        let expected = home.path().join(".zcode/agents/frontend-developer.md");
+        assert_eq!(record.dest, expected.to_string_lossy());
+        assert!(expected.exists(), "written where ZCode reads subagents");
+        assert!(!old.exists(), "the stale recorded path is not recreated");
     }
 
     fn sample_agent() -> crate::types::Agent {

@@ -626,6 +626,26 @@ mod tests {
     }
 
     #[test]
+    fn zcode_user_dest_is_where_zcode_reads_subagents() {
+        let d = dests("zcode", "frontend-developer", Path::new("/home"), None).unwrap();
+        assert_eq!(d, vec![PathBuf::from("/home/.zcode/agents/frontend-developer.md")]);
+    }
+
+    #[test]
+    fn dsh_renders_an_agency_skill_and_vibe_is_not_installable() {
+        // DeepSeek Harness reuses the Agent-Skills renderer (upstream convert_dsh).
+        let out = render(&agent(), raw(), "deepseekHarness").unwrap();
+        assert_eq!(
+            out,
+            "---\nname: 'agency-frontend-developer'\ndescription: 'Builds UIs.'\n---\nYou are a frontend dev.\n"
+        );
+        let d = dests("deepseekHarness", "agency-frontend-developer", Path::new("/home"), None).unwrap();
+        assert_eq!(d, vec![PathBuf::from("/home/.dsh/skills/agency-frontend-developer/SKILL.md")]);
+        // Vibe is recognized (its format has no native renderer yet), not installable.
+        assert!(render(&agent(), raw(), "vibe").is_err());
+    }
+
+    #[test]
     fn opencode_knows_slate_and_navy() {
         assert_eq!(resolve_opencode_color("slate"), "#64748B");
         assert_eq!(resolve_opencode_color(" Navy "), "#000080");
@@ -705,8 +725,8 @@ mod tests {
             ("zcode", "zcode/agents", "md"),
         ];
         // Agent-Skills tools write `<tool>/agency-<slug>/SKILL.md`.
-        let skill_tools = ["antigravity", "osaurus"];
-        for tool in tools.iter().map(|(_, dir, _)| dir.split('/').next().unwrap()).chain(skill_tools) {
+        let skill_tools = [("antigravity", "antigravity"), ("osaurus", "osaurus"), ("deepseekHarness", "dsh")];
+        for tool in tools.iter().map(|(_, dir, _)| dir.split('/').next().unwrap()).chain(skill_tools.iter().map(|(_, cli)| *cli)) {
             let status = Command::new("bash")
                 .arg(&script)
                 .args(["--tool", tool, "--out"])
@@ -760,8 +780,8 @@ mod tests {
                 );
                 compared += 1;
             }
-            for tool in skill_tools {
-                let expected_path = temp.path().join(tool)
+            for (tool, cli) in skill_tools {
+                let expected_path = temp.path().join(cli)
                     .join(format!("agency-{converted_slug}")).join("SKILL.md");
                 let expected = fs::read(&expected_path)
                     .unwrap_or_else(|e| panic!("read {}: {e}", expected_path.display()));
