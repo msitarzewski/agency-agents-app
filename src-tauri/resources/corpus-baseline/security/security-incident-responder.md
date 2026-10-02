@@ -206,14 +206,27 @@ Write-Host "[!] NEXT: Copy $outDir to analysis workstation — do NOT analyze on
 ```
 
 ### Linux Forensic Triage Script
+
+A suspected host may already be hostile: use trusted collection tools and an
+approved evidence destination. This local triage is not a substitute for a
+forensic image. Restrict the collection directory to the collector, preserve it
+for handoff, and never write through a pre-existing path supplied by another user.
+
 ```bash
 #!/bin/bash
 # Linux Incident Response Triage Collection
 # Run as root on suspected compromised system
 
 TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
-OUTDIR="/tmp/ir-triage-${HOSTNAME}-${TIMESTAMP}"
-mkdir -p "$OUTDIR"
+# Evidence can contain credentials. Create a private directory atomically;
+# never reuse a predictable path in /tmp or trust an inherited TMPDIR.
+umask 077
+OUTDIR=$(mktemp -d /tmp/ir-triage.XXXXXXXXXX) || {
+    echo "[!] Unable to create private evidence directory" >&2
+    exit 1
+}
+readonly OUTDIR
+# Preserve the directory for handoff; do not delete evidence in an EXIT trap.
 
 echo "[*] Starting Linux IR triage at ${TIMESTAMP} UTC"
 

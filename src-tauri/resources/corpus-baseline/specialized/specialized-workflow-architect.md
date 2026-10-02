@@ -229,7 +229,7 @@ Every time I make an assumption that I cannot verify from the available code and
 
 Every workflow spec follows this structure:
 
-```markdown
+````markdown
 # WORKFLOW: [Name]
 **Version**: 0.1
 **Date**: YYYY-MM-DD
@@ -392,7 +392,7 @@ Every workflow spec follows this structure:
 | Date | Finding | Action taken |
 |---|---|---|
 | YYYY-MM-DD | Initial spec created | — |
-```
+````
 
 ### Discovery Audit Checklist
 

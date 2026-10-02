@@ -1703,6 +1703,21 @@ mod tests {
         assert_eq!(eng[0].slug, "alpha");
     }
 
+    /// Every division icon named in the bundled floor must be bound in the UI's
+    /// icon map, or that division renders the HelpCircle "?" fallback (healthcare
+    /// and research did). There is no frontend test runner, so check it here.
+    #[test]
+    fn every_division_icon_is_bound_in_the_ui() {
+        let ui = include_str!("../../../src/lib/util/categoryIcon.ts");
+        for (slug, row) in bundled_division_meta() {
+            let icon = &row.icon;
+            assert!(
+                ui.contains(&format!("import {icon} from \"@lucide/svelte/icons/")),
+                "division '{slug}' uses icon '{icon}', which categoryIcon.ts does not import"
+            );
+        }
+    }
+
     #[tokio::test]
     async fn categories_returns_all_divisions_with_counts() {
         let tmp = tempfile::tempdir().unwrap();
@@ -1713,7 +1728,7 @@ mod tests {
         let corpus = build_from_dir(dir, "v", &discover_categories(dir)).await.unwrap();
 
         let cats = corpus.categories();
-        assert_eq!(cats.len(), 17, "all declared divisions always returned");
+        assert_eq!(cats.len(), 18, "all declared divisions always returned");
         let eng = cats.iter().find(|c| c.slug == "engineering").unwrap();
         assert_eq!(eng.count, 2);
         assert_eq!(eng.label, "Engineering");
@@ -1848,10 +1863,9 @@ mod tests {
 
         let corpus = build_from_dir(dir, "baseline-test", &categories).await.unwrap();
 
-        // 209 = 210 prior minus the lone `integrations/` artifact
-        // (backend-architect-with-memory), which is convert.sh output, not a
-        // catalog persona.
-        assert_eq!(corpus.count(), 209, "all bundled agent personas indexed (integrations excluded)");
+        // The baseline is agency-agents main @ d3f71c4 (2026-10-01): every
+        // division's agents, flattened exactly as `corpus_refresh` extracts them.
+        assert_eq!(corpus.count(), 282, "all bundled agent personas indexed");
 
         // Every agent parsed real frontmatter: non-empty name + slug, real category.
         for a in &corpus.agents {
@@ -1868,19 +1882,19 @@ mod tests {
         // Spot-check categories that nest agents in subdirs upstream — these are
         // the ones a flat seeding would silently undercount.
         let cats = corpus.categories();
-        assert_eq!(cats.len(), 17, "17 declared divisions");
+        assert_eq!(cats.len(), 18, "18 declared divisions");
         let count_of = |slug: &str| cats.iter().find(|c| c.slug == slug).map(|c| c.count).unwrap_or(0);
-        assert_eq!(count_of("engineering"), 30);
-        assert_eq!(count_of("specialized"), 46);
+        assert_eq!(count_of("engineering"), 65);
+        assert_eq!(count_of("specialized"), 59);
         // game-development nests agents in unity/, godot/, unreal-engine/ etc.
         // upstream; a flat seeding would silently undercount these.
-        assert_eq!(count_of("game-development"), 20, "nested game-dev agents included");
+        assert_eq!(count_of("game-development"), 21, "nested game-dev agents included");
         // strategy is NOT a division (playbooks/runbooks, no agent frontmatter),
         // so it never appears as one — regardless of what's on disk.
         assert!(!cats.iter().any(|c| c.slug == "strategy"), "strategy is not a division");
-        // healthcare IS a declared division; the bundled baseline predates its
-        // agents, so it's present but empty (count 0) until a sync brings them in.
-        assert_eq!(count_of("healthcare"), 0, "healthcare present but empty in the stale baseline");
+        // Divisions added upstream after the July baseline now ship populated.
+        assert_eq!(count_of("healthcare"), 3, "healthcare agents bundled");
+        assert!(count_of("research") > 0, "research is a bundled division");
     }
 
     #[test]

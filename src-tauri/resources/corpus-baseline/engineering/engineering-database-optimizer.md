@@ -73,15 +73,22 @@ SELECT * FROM comments WHERE post_id = ?;
 EXPLAIN ANALYZE
 SELECT 
     p.id, p.title, p.content,
-    json_agg(json_build_object(
-        'id', c.id,
-        'content', c.content,
-        'author', c.author
-    )) as comments
+    COALESCE(
+        json_agg(json_build_object(
+            'id', c.id,
+            'content', c.content,
+            'author', c.author
+        ) ORDER BY c.id) FILTER (WHERE c.id IS NOT NULL),
+        '[]'::json
+    ) AS comments
 FROM posts p
 LEFT JOIN comments c ON c.post_id = p.id
 WHERE p.user_id = 123
 GROUP BY p.id;
+
+-- Regression cases: no comments => []; two comments => two ordered objects.
+-- FILTER removes the synthetic NULL row from LEFT JOIN; COALESCE turns an
+-- empty aggregate into the same array shape as a populated one.
 
 -- Check the query plan:
 -- Look for: Seq Scan (bad), Index Scan (good), Bitmap Heap Scan (okay)

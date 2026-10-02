@@ -298,6 +298,50 @@ spec:
           port: 5432
 
 ---
+# Sender egress must also allow frontend → backend API under default-deny
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-api-egress
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: backend-api
+      ports:
+        - protocol: TCP
+          port: 8080
+
+---
+# Sender egress must also allow backend API → database
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-database-egress
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: backend-api
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+---
 # Allow DNS egress for all pods (required for service discovery)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -322,6 +366,15 @@ spec:
         - protocol: TCP
           port: 53
 ```
+
+Both the sender's egress and the receiver's ingress must permit a connection.
+The selectors above target pods in `production`; they do not grant the same
+labels in other namespaces access. Use a NetworkPolicy-enforcing CNI and verify
+frontend → API:8080 and API → database:5432 succeed, while frontend → database,
+API → database:5433, and API → arbitrary external destinations remain blocked.
+DNS labels must match the cluster's actual DNS pods; NodeLocal DNS needs a
+cluster-specific policy. Reply traffic for an allowed connection is implicit.
+See [Kubernetes NetworkPolicy semantics](https://kubernetes.io/docs/concepts/services-networking/network-policies/).
 
 ### CI/CD Pipeline Security (GitHub Actions with OIDC)
 ```yaml

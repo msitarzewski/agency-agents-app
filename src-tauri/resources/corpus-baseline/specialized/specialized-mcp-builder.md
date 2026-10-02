@@ -110,6 +110,12 @@ await server.connect(transport);
 ### Python MCP Server
 
 ```python
+# MCP Python SDK 1.x: pip install 'mcp>=1,<2' httpx
+# SDK 2.x uses a different server API; this example targets FastMCP.
+import json
+import os
+from pathlib import Path
+import httpx
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
@@ -133,7 +139,13 @@ async def search_issues(
             headers={"Authorization": f"token {os.environ['GITHUB_TOKEN']}"},
         )
         resp.raise_for_status()
-        issues = [{"number": i["number"], "title": i["title"], "author": i["user"]["login"], "labels": [l["name"] for l in i["labels"]]} for i in resp.json()]
+        # GitHub's repository issues endpoint also returns pull requests.
+        # Keep this tool's issue-only contract; limit bounds the listing page.
+        issues = [
+            {"number": i["number"], "title": i["title"],
+             "author": i["user"]["login"], "labels": [l["name"] for l in i["labels"]]}
+            for i in resp.json() if "pull_request" not in i
+        ]
         return json.dumps(issues, indent=2)
 
 @mcp.resource("repo://readme")

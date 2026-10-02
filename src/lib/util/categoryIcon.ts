@@ -49,7 +49,9 @@ import Map from "@lucide/svelte/icons/map";
 import Megaphone from "@lucide/svelte/icons/megaphone";
 import Network from "@lucide/svelte/icons/network";
 import Workflow from "@lucide/svelte/icons/workflow";
+import Search from "@lucide/svelte/icons/search";
 import ShieldCheck from "@lucide/svelte/icons/shield-check";
+import Stethoscope from "@lucide/svelte/icons/stethoscope";
 import Sparkles from "@lucide/svelte/icons/sparkles";
 import Target from "@lucide/svelte/icons/target";
 import TrendingUp from "@lucide/svelte/icons/trending-up";
@@ -84,7 +86,9 @@ const ICONS: Record<string, Component> = {
   Map,
   Megaphone,
   Network,
+  Search,
   ShieldCheck,
+  Stethoscope,
   Workflow,
   Sparkles,
   Target,

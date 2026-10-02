@@ -233,43 +233,70 @@ class DependencyScanner:
         "CVE-2023-XXXXX": "Not exploitable in our configuration — validated by AppSec team 2024-01-15",
     }
 
-    def scan_npm(self, project_path: Path) -> list[VulnFinding]:
-        """Scan Node.js dependencies using npm audit."""
+    @staticmethod
+    def audit_json(command: list[str], project_path: Path) -> dict:
+        """Exit 1 may mean findings; tool errors are never a clean scan."""
         result = subprocess.run(
-            ["npm", "audit", "--json", "--production"],
-            cwd=project_path, capture_output=True, text=True
+            command, cwd=project_path, capture_output=True, text=True
         )
-        findings = []
-        if result.stdout:
+        try:
             audit = json.loads(result.stdout)
-            for vuln_id, vuln in audit.get("vulnerabilities", {}).items():
-                findings.append(VulnFinding(
-                    package=vuln_id,
-                    version=vuln.get("range", "unknown"),
-                    severity=Severity(vuln.get("severity", "low")),
-                    cve=vuln.get("via", [{}])[0].get("url", "N/A") if vuln.get("via") else "N/A",
-                    fixed_version=vuln.get("fixAvailable", {}).get("version", "N/A")
-                        if isinstance(vuln.get("fixAvailable"), dict) else "N/A",
-                    description=vuln.get("via", [{}])[0].get("title", "")
-                        if isinstance(vuln.get("via", [None])[0], dict) else str(vuln.get("via", "")),
-                ))
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"{command[0]} did not produce valid JSON") from exc
+        if result.returncode not in (0, 1) or not isinstance(audit, dict) or audit.get("error"):
+            raise RuntimeError(f"{command[0]} failed (exit {result.returncode})")
+        return audit
+
+    def scan_npm(self, project_path: Path) -> list[VulnFinding]:
+        """Scan Node.js dependencies using npm audit's current JSON report."""
+        audit = self.audit_json(["npm", "audit", "--json", "--omit=dev"], project_path)
+        vulnerabilities = audit.get("vulnerabilities")
+        if not isinstance(vulnerabilities, dict):
+            raise RuntimeError("npm audit report is missing vulnerabilities")
+        findings = []
+        for package, vuln in vulnerabilities.items():
+            # via contains advisory objects OR names of indirect dependencies.
+            via = vuln.get("via", [])
+            advisories = [item for item in via if isinstance(item, dict)]
+            fix = vuln.get("fixAvailable")
+            severity = vuln.get("severity")
+            if severity not in {item.value for item in Severity} | {"info"}:
+                raise RuntimeError(f"npm audit returned unknown severity for {package}")
+            findings.append(VulnFinding(
+                package=package,
+                version=vuln.get("range", "unknown"),
+                severity=Severity.LOW if severity == "info" else Severity(severity),
+                cve=advisories[0].get("url", "N/A") if advisories else "N/A",
+                fixed_version=(fix.get("version", "N/A") if isinstance(fix, dict)
+                               else "available" if fix is True else "N/A"),
+                description="; ".join(item.get("title", "") for item in advisories)
+                    or "Indirect dependency vulnerability: " + ", ".join(map(str, via)),
+            ))
         return findings
 
     def scan_python(self, project_path: Path) -> list[VulnFinding]:
-        """Scan Python dependencies using pip-audit."""
-        result = subprocess.run(
-            ["pip-audit", "--format=json", "--desc"],
-            cwd=project_path, capture_output=True, text=True
-        )
+        """Audit requirements, or the active environment with the project installed."""
+        command = ["pip-audit", "--format=json", "--desc"]
+        if (project_path / "requirements.txt").exists():
+            command.extend(["-r", "requirements.txt"])
+        audit = self.audit_json(command, project_path)
+        dependencies = audit.get("dependencies")
+        if not isinstance(dependencies, list):
+            raise RuntimeError("pip-audit report is missing dependencies")
         findings = []
-        if result.stdout:
-            for vuln in json.loads(result.stdout):
+        for dependency in dependencies:
+            if dependency.get("skip_reason"):
+                raise RuntimeError(f"pip-audit skipped {dependency['name']}")
+            vulnerabilities = dependency.get("vulns")
+            if not isinstance(vulnerabilities, list):
+                raise RuntimeError("pip-audit dependency is missing vulns")
+            for vuln in vulnerabilities:
                 findings.append(VulnFinding(
-                    package=vuln["name"],
-                    version=vuln["version"],
-                    severity=Severity.HIGH,  # pip-audit doesn't always provide severity
-                    cve=vuln.get("id", "N/A"),
-                    fixed_version=vuln.get("fix_versions", ["N/A"])[0],
+                    package=dependency["name"],
+                    version=dependency["version"],
+                    severity=Severity.HIGH,  # Conservative local policy, not tool-provided severity
+                    cve=vuln["id"],
+                    fixed_version=", ".join(vuln.get("fix_versions", [])) or "N/A",
                     description=vuln.get("description", ""),
                 ))
         return findings
@@ -307,12 +334,17 @@ def main():
     scanner = DependencyScanner()
     project = Path(".")
 
-    # Detect project type and scan
+    # Detect project type and scan. An unavailable scanner, malformed report,
+    # unsupported report shape, or skipped dependency leaves coverage incomplete.
     findings = []
-    if (project / "package.json").exists():
-        findings.extend(scanner.scan_npm(project))
-    if (project / "requirements.txt").exists() or (project / "pyproject.toml").exists():
-        findings.extend(scanner.scan_python(project))
+    try:
+        if (project / "package.json").exists():
+            findings.extend(scanner.scan_npm(project))
+        if (project / "requirements.txt").exists() or (project / "pyproject.toml").exists():
+            findings.extend(scanner.scan_python(project))
+    except (OSError, RuntimeError, KeyError, TypeError, ValueError) as exc:
+        print(f"SCAN INCOMPLETE: {exc}", file=sys.stderr)
+        sys.exit(2)
 
     # Enforce policy
     passed, violations = scanner.enforce_policy(findings)
@@ -330,6 +362,15 @@ def main():
 if __name__ == "__main__":
     main()
 ```
+
+For a `pyproject.toml` project, install its locked runtime dependencies into an
+isolated environment before invoking this wrapper; `pip-audit` without `-r`
+audits the active environment. Exit 2 means the gate could not complete and must
+block promotion until the scanner/report problem is resolved. Exercise fixtures
+for clean reports, advisory findings, indirect npm `via` strings, empty Python
+`fix_versions`, scanner failures, invalid JSON, and skipped dependencies. See the
+[pip-audit JSON format and exit codes](https://github.com/pypa/pip-audit#usage)
+and [npm audit report behavior](https://docs.npmjs.com/cli/v11/commands/npm-audit).
 
 ### Threat Model Template (STRIDE)
 ```markdown

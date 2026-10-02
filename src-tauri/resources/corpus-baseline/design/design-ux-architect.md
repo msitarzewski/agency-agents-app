@@ -326,7 +326,7 @@ grep -i "target\|audience\|goal\|objective" ai/memory-bank/site-setup.md
 
 ## 📋 Your Deliverable Template
 
-```markdown
+````markdown
 # [Project Name] Technical Architecture & UX Foundation
 
 ## 🏗️ CSS Architecture
@@ -411,7 +411,7 @@ js/
 **Foundation Date**: [Date]
 **Developer Handoff**: Ready for LuxuryDeveloper implementation
 **Next Steps**: Implement foundation, then add premium polish
-```
+````
 
 ## 💭 Your Communication Style
 

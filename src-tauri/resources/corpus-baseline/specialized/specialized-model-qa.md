@@ -109,26 +109,35 @@ import numpy as np
 import pandas as pd
 
 def compute_psi(expected: pd.Series, actual: pd.Series, bins: int = 10) -> float:
+    """Baseline-quantile PSI; include out-of-range observations in tail bins.
+
+    <0.10: little shift; 0.10–0.25: investigate; >=0.25: significant shift.
+    These are monitoring heuristics, not a model validity certificate.
     """
-    Compute Population Stability Index between two distributions.
-    
-    Interpretation:
-      < 0.10  → No significant shift (green)
-      0.10–0.25 → Moderate shift, investigation recommended (amber)
-      >= 0.25 → Significant shift, action required (red)
-    """
-    breakpoints = np.linspace(0, 100, bins + 1)
-    expected_pcts = np.percentile(expected.dropna(), breakpoints)
+    if not isinstance(bins, int) or isinstance(bins, bool) or bins < 2:
+        raise ValueError("bins must be an integer >= 2")
+    baseline = expected.dropna().to_numpy(dtype=float)
+    observed = actual.dropna().to_numpy(dtype=float)
+    if not len(baseline) or not len(observed):
+        raise ValueError("PSI requires nonempty baseline and observed samples")
+    if not np.isfinite(baseline).all() or not np.isfinite(observed).all():
+        raise ValueError("PSI samples must be finite")
 
-    expected_counts = np.histogram(expected, bins=expected_pcts)[0]
-    actual_counts = np.histogram(actual, bins=expected_pcts)[0]
-
-    # Laplace smoothing to avoid division by zero
-    exp_pct = (expected_counts + 1) / (expected_counts.sum() + bins)
-    act_pct = (actual_counts + 1) / (actual_counts.sum() + bins)
-
-    psi = np.sum((act_pct - exp_pct) * np.log(act_pct / exp_pct))
-    return round(psi, 6)
+    # Unique interior quantiles handle repeated/constant baseline values.
+    interior = np.unique(np.percentile(baseline, np.linspace(0, 100, bins + 1)[1:-1]))
+    if np.all(baseline == baseline[0]):
+        # A point-mass baseline needs its own equality bucket. Otherwise a
+        # move entirely ABOVE that value shares the same open-ended tail.
+        value = baseline[0]
+        interior = np.array([value, np.nextafter(value, np.inf)])
+    edges = np.unique(np.concatenate(([-np.inf], interior, [np.inf])))
+    expected_counts = np.histogram(baseline, bins=edges)[0]
+    actual_counts = np.histogram(observed, bins=edges)[0]
+    bucket_count = len(edges) - 1
+    # Normalize smoothing with the actual number of nonduplicate buckets.
+    exp_pct = (expected_counts + 1) / (len(baseline) + bucket_count)
+    act_pct = (actual_counts + 1) / (len(observed) + bucket_count)
+    return round(float(np.sum((act_pct - exp_pct) * np.log(act_pct / exp_pct))), 6)
 ```
 
 ### Discrimination Metrics (Gini & KS)
