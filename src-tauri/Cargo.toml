@@ -1,6 +1,6 @@
 [package]
 name = "agency-agents-app"
-version = "0.3.1"
+version = "0.3.2"
 description = "Agency Agents — a native macOS app store for AI agents."
 authors = ["Michael Sitarzewski"]
 edition = "2021"
