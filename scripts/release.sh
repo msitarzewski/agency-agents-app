@@ -15,10 +15,11 @@
 #         -a "msitarzewski@mac.com" -s "agency-agents-notary" -U -w
 #       # (paste the app-specific password when prompted)
 #
-#    Optional sanity check that the password actually works with Apple:
+#    Then save the same password as a notarytool profile (it prompts for the
+#    password, so it never lands on a command line or in shell history). The
+#    script uses this profile to notarize + staple each .dmg after Tauri builds it:
 #       xcrun notarytool store-credentials "agency-agents" \
-#         --apple-id "msitarzewski@mac.com" --team-id "7JQGQ7CRH8" \
-#         --password "<app-specific-password>"
+#         --apple-id "msitarzewski@mac.com" --team-id "7JQGQ7CRH8"
 #
 # 2. Tauri updater signing key (minisign — signs the auto-update artifacts so
 #    the app trusts its own updates; separate from Apple signing). Store the
@@ -40,6 +41,8 @@ UPDATER_KEY_SERVICE="agency-agents-updater-key"
 UPDATER_KEY_PW_SERVICE="agency-agents-updater-key-pw"
 
 kc() { security find-generic-password -a "$1" -s "$2" -w 2>/dev/null || true; }
+
+NOTARY_PROFILE="${NOTARY_PROFILE:-agency-agents}"   # notarytool keychain profile (SETUP step 1)
 
 # ── Apple notarization password (from Keychain) ──
 APPLE_PASSWORD="$(kc "$APPLE_ID" "$NOTARY_SERVICE")"
@@ -90,6 +93,27 @@ fi
 # Recovery (pre-compile proc-macros without that env var, then let Tauri reuse
 # the cache to bundle/sign/notarize) is documented in docs/BUILD.md →
 # "Troubleshooting: proc-macro 'can't find crate' on a beta macOS".
+# Tauri notarizes + staples the .app, then wraps it in a .dmg it signs but does
+# NOT notarize. Apple's guidance is to notarize the outermost container, so each
+# .dmg is submitted + stapled below. Check the profile now (it also surfaces an
+# expired Apple agreement as a 403) rather than after a long build.
+if ! xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
+  echo "✗ notarytool profile '$NOTARY_PROFILE' is missing or Apple rejected it." >&2
+  echo "  Create it (SETUP step 1), or check: xcrun notarytool history --keychain-profile $NOTARY_PROFILE" >&2
+  exit 1
+fi
+VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+
+notarize_dmg() {
+  local dmg
+  dmg="$(ls "$1"/*_"${VERSION}"_*.dmg 2>/dev/null | head -1)"
+  if [[ -z "$dmg" ]]; then echo "✗ No ${VERSION} .dmg in $1" >&2; exit 1; fi
+  echo "▸ Notarizing $(basename "$dmg")…"
+  xcrun notarytool submit "$dmg" --keychain-profile "$NOTARY_PROFILE" --wait
+  xcrun stapler staple "$dmg"
+  spctl --assess --type install -v "$dmg"
+}
+
 read -r -a TARGETS <<< "${RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin}"
 HOST_TRIPLE="$(rustc -vV | awk '/^host:/{print $2}')"
 DMG_DIRS=()
@@ -99,13 +123,15 @@ for target in "${TARGETS[@]}"; do
     echo "▸ Building signed + notarized Agency Agents for ${target} (native, Team $APPLE_TEAM_ID)…"
     npm run tauri build -- ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"}
     DMG_DIRS+=("src-tauri/target/release/bundle/dmg/")
+    notarize_dmg "src-tauri/target/release/bundle/dmg"
   else
     echo "▸ Building signed + notarized Agency Agents for ${target} (cross, Team $APPLE_TEAM_ID)…"
     npm run tauri build -- --target "$target" ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"}
     DMG_DIRS+=("src-tauri/target/${target}/release/bundle/dmg/")
+    notarize_dmg "src-tauri/target/${target}/release/bundle/dmg"
   fi
 done
 
 echo
-echo "✓ Done. Signed + notarized DMGs:"
+echo "✓ Done. Signed, notarized + stapled DMGs:"
 for d in "${DMG_DIRS[@]}"; do echo "    $d"; done

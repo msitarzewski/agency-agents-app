@@ -66,6 +66,19 @@ or an env file. The non-secret `APPLE_ID` / `APPLE_TEAM_ID` are hardcoded in the
    # paste the app-specific password when prompted
    ```
 
+   Save the same password as a `notarytool` profile too. Tauri notarizes the `.app` but only *signs*
+   the `.dmg` around it; `release.sh` uses this profile to notarize and staple each `.dmg` itself
+   (Apple's guidance: notarize the outermost container). It prompts, so the password stays off the
+   command line:
+
+   ```sh
+   xcrun notarytool store-credentials agency-agents --apple-id "<apple-id>" --team-id 7JQGQ7CRH8
+   ```
+
+   `release.sh` checks the profile before building, which also surfaces an expired Apple developer
+   agreement (HTTP 403 "A required agreement is missing or has expired" — the Account Holder accepts it
+   at <https://developer.apple.com/account>) before a long build rather than after.
+
 3. Updater signing key — the minisign key whose public half is embedded in `tauri.conf.json`.
    Generate it once (writes the canonical key file), then store the key **and** its password in
    the Keychain:
@@ -116,8 +129,8 @@ src-tauri/target/release/bundle/
 DMG=src-tauri/target/release/bundle/dmg/Agency\ Agents_0.1.0_aarch64.dmg
 
 codesign -dv --verbose=4 "$DMG"
-spctl --assess --type install --verbose=4 "$DMG"
-xcrun stapler validate "$DMG"
+spctl --assess --type install --verbose=4 "$DMG"   # expect: source=Notarized Developer ID
+xcrun stapler validate "$DMG"                      # expect: The validate action worked!
 ```
 
 The exact filename may vary by version and architecture.
