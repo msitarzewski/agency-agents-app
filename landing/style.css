@@ -1,12 +1,17 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    Agency Agents landing — single-file CSS
-   Dark-first, OKLCH, indigo accent. Adapted from the brew-browser landing.
+   Dark-first, red accent from the app icon (#E83020). Adapted from the brew-browser landing.
    ───────────────────────────────────────────────────────────────────────────── */
 
 :root {
   /* Brand */
-  --brand:           oklch(62% 0.19 277);
-  --brand-soft:      oklch(62% 0.19 277 / 0.18);
+  /* --brand is for text and outlines on the page background (AA 5.2:1 on --void);
+     --brand-fill is behind white button text (AA 5.1:1). The icon red, #E83020,
+     is just under 4.5:1 for either job, so it only tints the hero glow. */
+  --brand:           #f0453a;
+  --brand-fill:      #d12e20;
+  --brand-fill-hover:#b8261a;
+  --brand-soft:      rgb(232 48 32 / 0.18);
 
   /* Surfaces (dark first) */
   --void:            #0a0d0f;
@@ -39,8 +44,9 @@
     --text:            oklch(20% 0.005 95);
     --text-muted:      oklch(48% 0.01 95);
     --text-dim:        oklch(65% 0.008 95);
-    --brand:           oklch(52% 0.18 277);
-    --brand-soft:      oklch(52% 0.18 277 / 0.14);
+    --brand:           #c42a1c;   /* AA 5.3:1 on --void, 5.7:1 under white text */
+    --brand-fill:      #c42a1c;
+    --brand-soft:      rgb(232 48 32 / 0.12);
   }
 }
 
@@ -156,11 +162,11 @@ h1 {
 }
 .btn:hover { transform: translateY(-1px); }
 .btn-primary {
-  background: var(--brand);
+  background: var(--brand-fill);
   color: #fff;
-  border-color: var(--brand);
+  border-color: var(--brand-fill);
 }
-.btn-primary:hover { background: oklch(68% 0.19 277); }
+.btn-primary:hover { background: var(--brand-fill-hover); border-color: var(--brand-fill-hover); }
 .btn-secondary {
   background: var(--surface-raised);
   color: var(--text);

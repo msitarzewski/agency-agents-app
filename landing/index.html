@@ -86,7 +86,10 @@
 
   <header class="hero">
     <div class="hero-inner">
-      <img src="/agency-agents.png" alt="Agency Agents icon" class="hero-icon" width="160" height="160">
+      <picture>
+        <source srcset="/agency-agents-dark.png" media="(prefers-color-scheme: dark)">
+        <img src="/agency-agents.png" alt="Agency Agents icon" class="hero-icon" width="160" height="160">
+      </picture>
       <h1>Agency Agents</h1>
       <p class="tagline">A native installer for AI agents.</p>
       <p class="sub">Browse the agent catalog by division and role. Inspect a persona before you install it. Deploy deterministic renders into <strong>Claude Code, Codex, Cursor, Gemini CLI, Qwen, opencode, Copilot, and Osaurus</strong> — then track what the app wrote, detect drift, update, or back it out. A small, fast <strong>Tauri 2</strong> app (Rust + Svelte 5). The local install database your AI tools don't share.</p>
