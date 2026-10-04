@@ -114,12 +114,25 @@ pre code {
   margin: 0 auto;
   text-align: center;
 }
-.hero-icon {
+/* The shadow sits on the wrapper as a rounded box-shadow, not as
+   filter: drop-shadow() on the <img>. Safari on macOS clipped the image's
+   alpha-derived shadow to its square box, painting grey into the transparent
+   corners of the rounded icon. 22.37% is the macOS icon corner radius. */
+.hero-icon-wrap {
   display: block;
-  margin: 0 auto 28px;
   width: 160px;
   height: 160px;
-  filter: drop-shadow(0 20px 60px rgba(0,0,0,0.55));
+  margin: 0 auto 28px;
+  border-radius: 22.37%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+}
+@media (prefers-color-scheme: light) {
+  .hero-icon-wrap { box-shadow: 0 18px 50px rgba(0,0,0,0.16); }
+}
+.hero-icon {
+  display: block;
+  width: 160px;
+  height: 160px;
 }
 h1 {
   font-size: clamp(40px, 7vw, 64px);
