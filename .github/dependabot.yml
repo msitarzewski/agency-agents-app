@@ -1,0 +1,11 @@
+# Keeps the commit-pinned GitHub Actions current: Dependabot proposes the new
+# commit SHA (and updates the version comment) once a month, in one PR.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
