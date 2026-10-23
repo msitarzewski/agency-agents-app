@@ -1037,20 +1037,19 @@ async fn run_git(args: &[&str], cwd: Option<&Path>) -> Result<String, AppError> 
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
-/// Quick agent count for a candidate badge: top-level `.md` files across the
-/// root's discovered categories. Cheap + synchronous (cold path, small repo).
+/// Quick agent count for a candidate badge. Same walk as the indexer:
+/// every `.md` under a discovered category, including nested engine dirs.
+/// README files are not agents. Cheap + synchronous (cold path, small repo).
 fn quick_agent_count(root: &Path) -> u32 {
-    let mut n = 0u32;
-    for cat in discover_categories(root) {
-        if let Ok(rd) = std::fs::read_dir(root.join(&cat)) {
-            n += rd
-                .filter_map(|e| e.ok())
-                .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("md"))
-                .filter(|e| e.file_name().to_string_lossy() != "README.md")
-                .count() as u32;
-        }
-    }
-    n
+    discover_categories(root)
+        .iter()
+        .map(|cat| {
+            collect_md_files(&root.join(cat))
+                .into_iter()
+                .filter(|path| path.file_name().and_then(|n| n.to_str()) != Some("README.md"))
+                .count() as u32
+        })
+        .sum()
 }
 
 /// Build a [`CatalogCandidate`] for `path` if it looks like a catalog.
@@ -1995,12 +1994,13 @@ echo done
         write_agent(root, "engineering", "a", "A", "x");
         write_agent(root, "engineering", "b", "B", "y");
         write_agent(root, "design", "c", "C", "z");
+        write_agent(root, "game-development/godot", "godot-shader", "Shader", "z");
         std::fs::write(root.join("engineering/README.md"), "# readme").unwrap();
 
-        assert_eq!(quick_agent_count(root), 3, "README excluded; 3 real agents");
+        assert_eq!(quick_agent_count(root), 4, "README excluded; nested agent counted");
         let cand = candidate_for(root, "userClone").unwrap();
         assert_eq!(cand.kind, "userClone");
-        assert_eq!(cand.agent_count, 3);
+        assert_eq!(cand.agent_count, 4);
         assert!(!cand.has_git, "no .git in this tempdir");
     }
 
