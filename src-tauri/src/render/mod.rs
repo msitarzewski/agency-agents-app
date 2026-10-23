@@ -113,7 +113,9 @@ fn source_field(source: &str, field: &str) -> String {
 fn unquote_scalar(raw: &str) -> String {
     let v = raw.trim_matches([' ', '\t']);
     if v.len() >= 2 && v.starts_with('"') && v.ends_with('"') {
-        v[1..v.len() - 1].replace("\\\"", "\"").replace("\\\\", "\\")
+        v[1..v.len() - 1]
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\")
     } else if v.len() >= 2 && v.starts_with('\'') && v.ends_with('\'') {
         v[1..v.len() - 1].replace("''", "'")
     } else {
@@ -150,6 +152,116 @@ fn source_body(source: &str) -> String {
 /// frontmatter (agency-agents #778).
 fn yaml_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "''"))
+}
+
+/// Read one known Agency string field, folding its optional aligned continuation.
+fn pi_field(source: &str, field: &str) -> String {
+    let mut fences = 0;
+    let mut found = false;
+    let mut value = String::new();
+    for line in source.lines() {
+        if line == "---" {
+            fences += 1;
+            if fences >= 2 {
+                break;
+            }
+            continue;
+        }
+        if fences != 1 {
+            continue;
+        }
+        if found {
+            if line.as_bytes().first().is_some_and(u8::is_ascii_whitespace) {
+                if !value.is_empty() {
+                    value.push(' ');
+                }
+                value.push_str(line.trim());
+                continue;
+            }
+            break;
+        }
+        let Some((key, raw_value)) = line.split_once(':') else {
+            continue;
+        };
+        if key.trim() == field {
+            found = true;
+            value.push_str(raw_value.trim());
+        }
+    }
+    value
+}
+
+fn yaml_string(value: &str) -> String {
+    if (value.starts_with('\'') && value.ends_with('\''))
+        || (value.starts_with('"') && value.ends_with('"'))
+    {
+        value.to_string()
+    } else {
+        yaml_quote(value)
+    }
+}
+
+fn pi_tool_mapping(value: &str) -> (Vec<&'static str>, Vec<&str>) {
+    let mut mapped = Vec::new();
+    let mut unmapped = Vec::new();
+    for tool in value
+        .split(',')
+        .map(str::trim)
+        .filter(|tool| !tool.is_empty())
+    {
+        let mapped_tool = match tool {
+            "Read" => Some("read"),
+            "Write" => Some("write"),
+            "Edit" => Some("edit"),
+            "Bash" => Some("bash"),
+            "Grep" => Some("grep"),
+            "Glob" => Some("find"),
+            _ => None,
+        };
+        if let Some(mapped_tool) = mapped_tool {
+            mapped.push(mapped_tool);
+        } else {
+            unmapped.push(tool);
+        }
+    }
+    (mapped, unmapped)
+}
+
+fn render_pi_agent(source: &str) -> String {
+    let mut out = String::from("---\n");
+    for field in ["name", "description", "color", "emoji", "vibe"] {
+        let value = pi_field(source, field);
+        if !value.is_empty() {
+            out.push_str(field);
+            out.push_str(": ");
+            out.push_str(&yaml_string(&value));
+            out.push('\n');
+        }
+    }
+    let tools = unquote_scalar(&pi_field(source, "tools"));
+    if !tools.is_empty() {
+        let (mapped, unmapped) = pi_tool_mapping(&tools);
+        out.push_str("x-agency-claude-tools: ");
+        out.push_str(&yaml_quote(&tools));
+        out.push('\n');
+        out.push_str("tools: ");
+        let mapped = if mapped.is_empty() {
+            "none".to_string()
+        } else {
+            mapped.join(", ")
+        };
+        out.push_str(&mapped);
+        out.push_str("\nextensions: false\n");
+        if !unmapped.is_empty() {
+            out.push_str("x-agency-unmapped-tools: ");
+            out.push_str(&yaml_quote(&unmapped.join(", ")));
+            out.push('\n');
+        }
+    }
+    out.push_str("---\n");
+    out.push_str(&source_body(source));
+    out.push('\n');
+    out
 }
 
 /// Match `convert.sh#qwen_tools`: rename a source agent's Claude Code tool list
@@ -223,11 +335,11 @@ pub fn output_slug(agent: &Agent, raw_source: &str, tool: &str) -> String {
 fn unsupported(tool: &str) -> AppError {
     // Error messages use the kebab id (matching `scripts/install.sh`); fall back
     // to the raw id for an unrecognized tool.
-    let kebab = registry::get(tool).map(|m| m.kebab.as_str()).unwrap_or(tool);
+    let kebab = registry::get(tool)
+        .map(|m| m.kebab.as_str())
+        .unwrap_or(tool);
     AppError::Io {
-        message: format!(
-            "tool '{kebab}' is not supported for install yet (multi-file format)"
-        ),
+        message: format!("tool '{kebab}' is not supported for install yet (multi-file format)"),
     }
 }
 
@@ -266,6 +378,10 @@ pub fn render(_agent: &Agent, raw_source: &str, tool: &str) -> Result<String, Ap
             name = yaml_quote(&slug),
             desc = yaml_quote(&description),
         ),
+
+        // Pi custom subagent `.md`: preserve the five Claude-facing metadata
+        // fields and prompt body; translate only the current tools vocabulary.
+        Some("pi-agent-md") => render_pi_agent(raw_source),
 
         // Qwen Code SubAgent `.md`: the optional tool list is renamed to Qwen's
         // own tool names (see `qwen_tools`).
@@ -378,7 +494,9 @@ pub fn dests(
     // project root) request must surface the existing "project path required"
     // error rather than a multi-file `unsupported`.
     if templates.is_empty() {
-        let kebab = registry::get(tool).map(|m| m.kebab.as_str()).unwrap_or(tool);
+        let kebab = registry::get(tool)
+            .map(|m| m.kebab.as_str())
+            .unwrap_or(tool);
         return Err(AppError::Io {
             message: format!("tool '{kebab}' is project-scoped; a project path is required"),
         });
@@ -484,7 +602,9 @@ mod tests {
     #[test]
     fn cursor_mdc_shape() {
         let out = render(&agent(), raw(), "cursor").unwrap();
-        assert!(out.starts_with("---\ndescription: 'Builds UIs.'\nglobs: \"\"\nalwaysApply: false\n---\n"));
+        assert!(out.starts_with(
+            "---\ndescription: 'Builds UIs.'\nglobs: \"\"\nalwaysApply: false\n---\n"
+        ));
         assert!(out.contains("You are a frontend dev."));
     }
 
@@ -516,12 +636,23 @@ mod tests {
             "---\nname: 'agency-frontend-developer'\ndescription: 'Builds UIs.'\n---\nYou are a frontend dev.\n"
         );
         // output_slug carries the prefix → it names the skill directory.
-        assert_eq!(output_slug(&agent(), raw(), "osaurus"), "agency-frontend-developer");
+        assert_eq!(
+            output_slug(&agent(), raw(), "osaurus"),
+            "agency-frontend-developer"
+        );
         // dest is the nested ~/.osaurus/skills/<name>/SKILL.md (user-scope).
-        let d = dests("osaurus", "agency-frontend-developer", Path::new("/home"), None).unwrap();
+        let d = dests(
+            "osaurus",
+            "agency-frontend-developer",
+            Path::new("/home"),
+            None,
+        )
+        .unwrap();
         assert_eq!(
             d,
-            vec![PathBuf::from("/home/.osaurus/skills/agency-frontend-developer/SKILL.md")]
+            vec![PathBuf::from(
+                "/home/.osaurus/skills/agency-frontend-developer/SKILL.md"
+            )]
         );
     }
 
@@ -535,12 +666,23 @@ mod tests {
             out,
             "---\nname: 'agency-frontend-developer'\ndescription: 'Builds UIs.'\n---\nYou are a frontend dev.\n"
         );
-        assert_eq!(output_slug(&agent(), raw(), "antigravity"), "agency-frontend-developer");
+        assert_eq!(
+            output_slug(&agent(), raw(), "antigravity"),
+            "agency-frontend-developer"
+        );
         // user-scope → ~/.gemini/config/skills/<name>/SKILL.md
-        let user = dests("antigravity", "agency-frontend-developer", Path::new("/home"), None).unwrap();
+        let user = dests(
+            "antigravity",
+            "agency-frontend-developer",
+            Path::new("/home"),
+            None,
+        )
+        .unwrap();
         assert_eq!(
             user,
-            vec![PathBuf::from("/home/.gemini/config/skills/agency-frontend-developer/SKILL.md")]
+            vec![PathBuf::from(
+                "/home/.gemini/config/skills/agency-frontend-developer/SKILL.md"
+            )]
         );
         // project-scope → <project>/.agents/skills/<name>/SKILL.md
         let proj = dests(
@@ -552,7 +694,9 @@ mod tests {
         .unwrap();
         assert_eq!(
             proj,
-            vec![PathBuf::from("/proj/.agents/skills/agency-frontend-developer/SKILL.md")]
+            vec![PathBuf::from(
+                "/proj/.agents/skills/agency-frontend-developer/SKILL.md"
+            )]
         );
     }
 
@@ -568,7 +712,26 @@ mod tests {
     #[test]
     fn gemini_uses_slug_as_name() {
         let out = render(&agent(), raw(), "geminiCli").unwrap();
-        assert!(out.starts_with("---\nname: 'frontend-developer'\ndescription: 'Builds UIs.'\n---\n"));
+        assert!(
+            out.starts_with("---\nname: 'frontend-developer'\ndescription: 'Builds UIs.'\n---\n")
+        );
+    }
+
+    #[test]
+    fn pi_preserves_metadata_and_maps_current_tools() {
+        let source = "---\nname: Frontend Developer\ndescription: Builds Bob's UIs: safely.\n             Across lines.\ncolor: blue\nemoji: 🎨\nvibe: Ships pixels.\ntools: WebFetch, WebSearch, Read, Write, Edit\n---\nYou are a frontend dev.\n---\nKeep this separator.\n";
+        let expected = "---\nname: 'Frontend Developer'\ndescription: 'Builds Bob''s UIs: safely. Across lines.'\ncolor: 'blue'\nemoji: '🎨'\nvibe: 'Ships pixels.'\nx-agency-claude-tools: 'WebFetch, WebSearch, Read, Write, Edit'\ntools: read, write, edit\nextensions: false\nx-agency-unmapped-tools: 'WebFetch, WebSearch'\n---\nYou are a frontend dev.\n---\nKeep this separator.\n";
+        let mut a = agent();
+        a.slug = "engineering-frontend-developer".into();
+        assert_eq!(render(&a, source, "pi").unwrap(), expected);
+        let quoted = "---\nname: Scout\ndescription: Looks.\ntools: \"Read, Grep, Glob, Bash\"\n---\nLook.\n";
+        let quoted_out = render(&a, quoted, "pi").unwrap();
+        assert!(quoted_out.contains("\ntools: read, grep, find, bash\n"), "{quoted_out}");
+        assert!(quoted_out.contains("\nx-agency-claude-tools: 'Read, Grep, Glob, Bash'\n"), "{quoted_out}");
+        assert_eq!(
+            output_slug(&a, source, "pi"),
+            "engineering-frontend-developer"
+        );
     }
 
     #[test]
@@ -607,7 +770,10 @@ mod tests {
     #[test]
     fn yaml_quote_keeps_colon_descriptions_valid() {
         // Unquoted, `Tools: X` after `description: ` is invalid YAML (#778).
-        assert_eq!(yaml_quote("Builds tools: CLIs, SDKs"), "'Builds tools: CLIs, SDKs'");
+        assert_eq!(
+            yaml_quote("Builds tools: CLIs, SDKs"),
+            "'Builds tools: CLIs, SDKs'"
+        );
         assert_eq!(yaml_quote("It's fine"), "'It''s fine'");
         let src = "---\nname: Tooling\ndescription: Builds tools: CLIs\n---\nB\n";
         let out = render(&agent(), src, "geminiCli").unwrap();
@@ -621,14 +787,20 @@ mod tests {
             "web_fetch, web_search, read_file, write_file, edit, run_shell_command"
         );
         // MultiEdit and Edit both become one `edit`; unknown names pass through.
-        assert_eq!(qwen_tools(" Edit,MultiEdit , mcp__github__issues ,, "), "edit, mcp__github__issues");
+        assert_eq!(
+            qwen_tools(" Edit,MultiEdit , mcp__github__issues ,, "),
+            "edit, mcp__github__issues"
+        );
         assert_eq!(qwen_tools(""), "");
     }
 
     #[test]
     fn zcode_user_dest_is_where_zcode_reads_subagents() {
         let d = dests("zcode", "frontend-developer", Path::new("/home"), None).unwrap();
-        assert_eq!(d, vec![PathBuf::from("/home/.zcode/agents/frontend-developer.md")]);
+        assert_eq!(
+            d,
+            vec![PathBuf::from("/home/.zcode/agents/frontend-developer.md")]
+        );
     }
 
     #[test]
@@ -639,8 +811,19 @@ mod tests {
             out,
             "---\nname: 'agency-frontend-developer'\ndescription: 'Builds UIs.'\n---\nYou are a frontend dev.\n"
         );
-        let d = dests("deepseekHarness", "agency-frontend-developer", Path::new("/home"), None).unwrap();
-        assert_eq!(d, vec![PathBuf::from("/home/.dsh/skills/agency-frontend-developer/SKILL.md")]);
+        let d = dests(
+            "deepseekHarness",
+            "agency-frontend-developer",
+            Path::new("/home"),
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            d,
+            vec![PathBuf::from(
+                "/home/.dsh/skills/agency-frontend-developer/SKILL.md"
+            )]
+        );
         // Vibe is recognized (its format has no native renderer yet), not installable.
         assert!(render(&agent(), raw(), "vibe").is_err());
     }
@@ -666,7 +849,9 @@ mod tests {
     fn zcode_uses_slug_name_and_optional_tools() {
         // ZCode agent .md: name(=slug) + description frontmatter, optional tools.
         let out = render(&agent(), raw(), "zcode").unwrap();
-        assert!(out.starts_with("---\nname: 'frontend-developer'\ndescription: 'Builds UIs.'\n---\n"));
+        assert!(
+            out.starts_with("---\nname: 'frontend-developer'\ndescription: 'Builds UIs.'\n---\n")
+        );
         assert!(!out.contains("\ntools: "));
 
         let source = "---\nname: Frontend Developer\ndescription: Builds UIs.\ntools: Read, Write\n---\nBody\n";
@@ -725,8 +910,16 @@ mod tests {
             ("zcode", "zcode/agents", "md"),
         ];
         // Agent-Skills tools write `<tool>/agency-<slug>/SKILL.md`.
-        let skill_tools = [("antigravity", "antigravity"), ("osaurus", "osaurus"), ("deepseekHarness", "dsh")];
-        for tool in tools.iter().map(|(_, dir, _)| dir.split('/').next().unwrap()).chain(skill_tools.iter().map(|(_, cli)| *cli)) {
+        let skill_tools = [
+            ("antigravity", "antigravity"),
+            ("osaurus", "osaurus"),
+            ("deepseekHarness", "dsh"),
+        ];
+        for tool in tools
+            .iter()
+            .map(|(_, dir, _)| dir.split('/').next().unwrap())
+            .chain(skill_tools.iter().map(|(_, cli)| *cli))
+        {
             let status = Command::new("bash")
                 .arg(&script)
                 .args(["--tool", tool, "--out"])
@@ -767,8 +960,10 @@ mod tests {
                 "duplicate conversion slug: {converted_slug}"
             );
             for (tool, subdir, ext) in tools {
-                let expected_path =
-                    temp.path().join(subdir).join(format!("{converted_slug}.{ext}"));
+                let expected_path = temp
+                    .path()
+                    .join(subdir)
+                    .join(format!("{converted_slug}.{ext}"));
                 let expected = fs::read(&expected_path)
                     .unwrap_or_else(|e| panic!("read {}: {e}", expected_path.display()));
                 let actual = render(&agent, &raw, tool).unwrap();
@@ -781,12 +976,20 @@ mod tests {
                 compared += 1;
             }
             for (tool, cli) in skill_tools {
-                let expected_path = temp.path().join(cli)
-                    .join(format!("agency-{converted_slug}")).join("SKILL.md");
+                let expected_path = temp
+                    .path()
+                    .join(cli)
+                    .join(format!("agency-{converted_slug}"))
+                    .join("SKILL.md");
                 let expected = fs::read(&expected_path)
                     .unwrap_or_else(|e| panic!("read {}: {e}", expected_path.display()));
                 let actual = render(&agent, &raw, tool).unwrap();
-                assert_eq!(actual.as_bytes(), expected, "{tool} parity mismatch for {}", path.display());
+                assert_eq!(
+                    actual.as_bytes(),
+                    expected,
+                    "{tool} parity mismatch for {}",
+                    path.display()
+                );
                 compared += 1;
             }
         }
@@ -799,13 +1002,88 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires AGENCY_AGENTS_PARITY_ROOT and executes upstream convert.sh"]
+    fn upstream_pi_is_byte_identical_for_all_agents() {
+        let root = PathBuf::from(
+            std::env::var("AGENCY_AGENTS_PARITY_ROOT")
+                .expect("set AGENCY_AGENTS_PARITY_ROOT to an agency-agents clone"),
+        );
+        let script = root.join("scripts/convert.sh");
+        assert!(script.is_file(), "missing {}", script.display());
+
+        let script_text = fs::read_to_string(&script).unwrap();
+        let dirs_start = script_text.find("AGENT_DIRS=(").expect("AGENT_DIRS");
+        let dirs_tail = &script_text[dirs_start + "AGENT_DIRS=(".len()..];
+        let categories: Vec<&str> = dirs_tail
+            .split(')')
+            .next()
+            .expect("AGENT_DIRS close")
+            .split_whitespace()
+            .collect();
+
+        let temp = tempfile::tempdir().unwrap();
+        let status = Command::new("bash")
+            .arg(&script)
+            .args(["--tool", "pi", "--out"])
+            .arg(temp.path())
+            .status()
+            .unwrap();
+        assert!(status.success(), "convert.sh failed for pi");
+
+        let mut files = Vec::new();
+        for category in categories {
+            collect_markdown(&root.join(category), &mut files);
+        }
+        files.sort();
+
+        let mut compared = 0usize;
+        for path in files {
+            let raw = fs::read_to_string(&path).unwrap();
+            let name = source_field(&raw, "name");
+            if name.is_empty() || !raw.starts_with("---\n") {
+                continue;
+            }
+            let source_slug = path.file_stem().unwrap().to_string_lossy().to_string();
+            let agent = Agent {
+                slug: source_slug.clone(),
+                name: name.to_string(),
+                description: String::new(),
+                category: String::new(),
+                emoji: None,
+                color: None,
+                vibe: None,
+                body: String::new(),
+            };
+            let expected_path = temp
+                .path()
+                .join("pi/agents")
+                .join(format!("{source_slug}.md"));
+            let expected = fs::read(&expected_path)
+                .unwrap_or_else(|e| panic!("read {}: {e}", expected_path.display()));
+            let actual = render(&agent, &raw, "pi").unwrap();
+            assert_eq!(
+                actual.as_bytes(),
+                expected,
+                "pi parity mismatch for {}",
+                path.display()
+            );
+            compared += 1;
+        }
+        assert!(compared > 0);
+        eprintln!("pi renderer parity: {compared} agents");
+    }
+
+    #[test]
     fn unsupported_tools_error() {
         // These tools are in the catalog (upstream truth: real format + dest), but
         // this app ships no renderer for their format — so render() must refuse.
         // dests() legitimately returns the upstream templates; the install path is
         // gated on render(), and these tools aren't in the installable set anyway.
         for tool in ["windsurf", "aider", "openclaw", "kimi"] {
-            assert!(render(&agent(), "raw", tool).is_err(), "{tool} has no app renderer");
+            assert!(
+                render(&agent(), "raw", tool).is_err(),
+                "{tool} has no app renderer"
+            );
         }
     }
 
@@ -863,6 +1141,15 @@ mod tests {
         assert_eq!(
             dests("opencode", "x", home, Some(proj)).unwrap()[0],
             proj.join(".opencode/agents/x.md")
+        );
+        // Pi custom subagents use Pi-specific directories in both scopes.
+        assert_eq!(
+            dests("pi", "x", home, None).unwrap()[0],
+            home.join(".pi/agent/agents/x.md")
+        );
+        assert_eq!(
+            dests("pi", "x", home, Some(proj)).unwrap()[0],
+            proj.join(".pi/agents/x.md")
         );
         // Cursor is project-only: a global (no project root) request errors.
         assert!(dests("cursor", "x", home, None).is_err());

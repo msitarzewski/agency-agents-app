@@ -47,6 +47,7 @@ const IMPLEMENTED_FORMATS = new Set([
   "identity",
   "codex-toml",
   "gemini-md",
+  "pi-agent-md",
   "qwen-md",
   "zcode-md",
   "cursor-mdc",
@@ -67,6 +68,7 @@ for (const [path, svg] of Object.entries(iconMods)) {
   ICONS[stem] = svg;
 }
 
+// SAFETY: the bundled tools.json shape is validated by the Rust registry tests and upstream CI.
 const TOOLS_MAP = (catalog as unknown as { tools: Record<string, ToolMeta> }).tools;
 
 /** All tools — by explicit install-menu `order` first, then label. */

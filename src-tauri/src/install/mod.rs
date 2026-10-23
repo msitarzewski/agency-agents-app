@@ -461,6 +461,13 @@ async fn write_agent_files_to(
         }
     }
     for dest in &paths {
+        if let Ok(meta) = std::fs::symlink_metadata(dest) {
+            if meta.file_type().is_symlink() || !meta.is_file() {
+                return Err(AppError::Io {
+                    message: format!("refusing to overwrite non-file {}", dest.display()),
+                });
+            }
+        }
         if let Some(bdir) = backup_dir {
             backup_if_differs(dest, bytes.as_bytes(), bdir, installed_at).await?;
         }
@@ -1540,6 +1547,35 @@ mod tests {
         assert_eq!(before, after, "identical render leaves the file unchanged");
         let count = std::fs::read_dir(backups.path()).unwrap().count();
         assert_eq!(count, 1, "no-op write adds no backup");
+    }
+
+    #[tokio::test]
+    async fn write_refuses_symlink_destination() {
+        let home = tempfile::tempdir().unwrap();
+        let agent = sample_agent();
+        let dest = home.path().join(".pi/agent/agents/frontend-developer.md");
+        let target = home.path().join("outside.md");
+        std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+        std::fs::write(&target, b"KEEP").unwrap();
+        std::os::unix::fs::symlink(&target, &dest).unwrap();
+
+        let err = write_agent_files(
+            &agent,
+            "---\nname: Frontend Developer\n---\nNEW\n",
+            "pi",
+            home.path(),
+            None,
+            None,
+            "src",
+            "body",
+            "v1",
+            "2026-08-29T00:00:00Z",
+        )
+        .await
+        .unwrap_err();
+        assert!(format!("{err:?}").contains("non-file"), "{err:?}");
+        assert!(dest.symlink_metadata().unwrap().file_type().is_symlink());
+        assert_eq!(std::fs::read(&target).unwrap(), b"KEEP");
     }
 
     #[tokio::test]
