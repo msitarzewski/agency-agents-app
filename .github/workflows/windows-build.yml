@@ -3,10 +3,10 @@
 # the aarch64-pc-windows-msvc target (the same trick the local VM matrix uses),
 # so one runner yields both installers.
 #
-# Signing: DEFERRED for v0.1.0 (see memory-bank/decisions.md 2026-06-16). The
-# installers are unsigned, so Windows SmartScreen warns on first launch
-# ("More info -> Run anyway"). When a code-signing cert (EV or Azure Trusted
-# Signing) is in place, signing slots in after each build step. Updater
+# Signing: these installers are UNSIGNED and are a build check only, never
+# release assets. Release installers are built and signed with Azure Artifact
+# Signing in the Windows VM by scripts/release-windows.ps1, so no signing
+# credential lives in GitHub (memory-bank/decisions.md 2026-10-27). Updater
 # artifacts are disabled (auto-update deferred), so no signing key is needed.
 #
 # Output: the x64 + arm64 NSIS .exe installers uploaded to the workflow run.

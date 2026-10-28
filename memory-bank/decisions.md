@@ -181,6 +181,8 @@ wiring when we do it: a `tauri.windows.conf.json` (mirroring the macOS split) wi
 `--no-bundle`), sign exe + installer for both arm64 and x64, and verify on the Parallels Windows 11 VM with
 a Mark-of-the-Web download.
 
+**Superseded 2026-10-27**: Windows releases are signed with Azure Artifact Signing (see that entry).
+
 ### 2026-06-21: Tool registry as the single source of truth (drop the `Tool` enum)
 **Status**: Approved (PRs #18 + #19). **Context**: tool knowledge was scattered — a Rust `Tool` enum + 8
 hardcoded match-arm functions (label/detect/version/dests/scope/render), and on the frontend `ACCENTS`/
@@ -277,3 +279,38 @@ accepted as **x64-only on Windows**; any ARM64 Windows build must pass `--bundle
 **Consequences**: two gaps to document — the build requires **clang**, which the VC workload omits and CI only
 satisfies because the runner image ships LLVM; and a from-scratch Windows build host cannot produce installers.
 **References**: `activeContext.md` § Windows build box.
+
+**Superseded 2026-10-27** for releases: `makensis` runs in the VM now, and release installers are built and signed
+there (next entry). CI keeps building unsigned installers as a check.
+
+---
+
+## 2026-10-27 — Sign Windows releases with Azure Artifact Signing, built and signed in the VM
+
+**Status**: Approved (user: "yes, wire it in, sign in the VM"). Supersedes the 2026-06-16 deferral and, for
+releases, the 2026-09-14 packaging decision. **Context**: issue msitarzewski/agency-agents#1181 — Smart App Control
+blocked the unsigned v0.3.2 installer outright. SAC has no "Run anyway" and no per-app exception; it lets an app it
+can't classify run only when a certificate from a trusted root signs it, and it checks every binary that loads.
+Both v0.3.2 installers carry no Authenticode signature at all. The user's Artifact Signing account
+(`msitarzewski-signing`, East US, Basic) already signs AutoPaper; its certificate names the person
+(`CN=Michael Sitarzewski, O=Michael Sitarzewski, L=Dallas, S=tx, C=US`, RSA 3072, chained through
+Microsoft ID Verified CS EOC CA 04 to Microsoft Identity Verification Root CA 2020), not the app, so the account's
+one Public Trust profile (`autopaper`) signs this app as-is. Basic allows one profile of each type; a second would
+need Premium.
+
+**Decision**: `scripts/release-windows.ps1`, run inside the Windows 11 VM, builds the x64 and arm64 NSIS installers
+and sets `bundle.windows.signCommand` through a `--config` file (SignTool + the Artifact Signing dlib, pinned by
+SHA-256, timestamped). With a sign command, Tauri 2.11 signs the app executable, the five NSIS plugin DLLs, the
+uninstaller and the installer. The script checks the installer's and the plugins' signer and timestamp; Tauri puts
+the unsigned executable back in `target\` after packing, so the app's and uninstaller's signatures show only in an
+install. The Azure credential stays in the VM (`az login`); none goes into GitHub. `-TestCert` exercises the whole
+path with a self-signed certificate and no Azure.
+
+**Consequences**: Windows release assets come from the VM, not CI; the tag-triggered CI build stays as an unsigned
+check. The VM sees only `~/vm-exchange` (`\\Mac\Exchange`), as for AutoPaper. Windows auto-update is still off.
+
+**Verified 2026-10-28** in the VM with SAC enforcing (`VerifiedAndReputableDesktop`; it blocked another app at
+logon): both signed installers installed, the installed app and uninstaller verified Valid and timestamped, and the
+app ran and uninstalled. The VM did not reproduce #1181's block: the unsigned v0.3.2 installers and a never-seen
+unsigned build also ran there, even launched from the desktop with Mark of the Web. So the fix is confirmed only once
+a user who hit the block installs a signed build.
