@@ -1,0 +1,6 @@
+# Commits that only reformat code, skipped by `git blame`.
+# GitHub's blame view reads this file automatically. Locally, run once:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style(backend): apply cargo fmt to src-tauri and check it on every PR (#122)
+90fb372dd3b2934eb3707c285a57d188d38d08fe
