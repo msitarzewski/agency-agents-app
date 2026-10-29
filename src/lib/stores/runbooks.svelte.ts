@@ -35,6 +35,22 @@ class RunbooksStore {
       this.loading = false;
     }
   }
+
+  /** Prose scenario doc (raw markdown) for one runbook, memoised per slug. Empty
+   *  string when the doc is absent (bundled/unsynced) or the backend errors. */
+  private docs = new Map<string, string>();
+  async doc(slug: string): Promise<string> {
+    const cached = this.docs.get(slug);
+    if (cached !== undefined) return cached;
+    let md = "";
+    try {
+      md = await invoke<string>("runbook_doc", { slug });
+    } catch {
+      md = "";
+    }
+    this.docs.set(slug, md);
+    return md;
+  }
 }
 
 export const runbooks = new RunbooksStore();
