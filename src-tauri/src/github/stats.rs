@@ -182,18 +182,14 @@ pub async fn fetch_repo_stats(
     if (bytes.len() as u64) > MAX_RESPONSE_BYTES {
         return Err(AppError::Network {
             url,
-            message: format!(
-                "body length {} exceeds {MAX_RESPONSE_BYTES}",
-                bytes.len()
-            ),
+            message: format!("body length {} exceeds {MAX_RESPONSE_BYTES}", bytes.len()),
         });
     }
 
     let raw: RawRepo = serde_json::from_slice(&bytes).map_err(|e| AppError::JsonParse {
         command: url.clone(),
         message: e.to_string(),
-        raw_excerpt: String::from_utf8_lossy(&bytes[..bytes.len().min(256)])
-            .into_owned(),
+        raw_excerpt: String::from_utf8_lossy(&bytes[..bytes.len().min(256)]).into_owned(),
     })?;
 
     // Latest release (optional — many repos have none).
@@ -228,7 +224,10 @@ async fn fetch_latest_release(
     repo: &GithubRepo,
     auth_token: Option<&Token>,
 ) -> (Option<String>, Option<String>) {
-    let url = format!("{}/repos/{}/{}/releases/latest", API_BASE, repo.owner, repo.repo);
+    let url = format!(
+        "{}/repos/{}/{}/releases/latest",
+        API_BASE, repo.owner, repo.repo
+    );
     let resp = match send_with_optional_auth(client, &url, auth_token).await {
         Ok(r) => r,
         Err(_) => return (None, None),
@@ -378,9 +377,11 @@ async fn read_fresh_cache(path: &Path) -> Result<Option<RepoStats>, AppError> {
 async fn write_cache(path: &Path, stats: &RepoStats) -> Result<(), AppError> {
     if let Some(parent) = path.parent() {
         if !parent.exists() {
-            tokio::fs::create_dir_all(parent).await.map_err(|e| AppError::Io {
-                message: format!("create {}: {e}", parent.display()),
-            })?;
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|e| AppError::Io {
+                    message: format!("create {}: {e}", parent.display()),
+                })?;
         }
     }
     let bytes = serde_json::to_vec(stats).map_err(|e| AppError::Internal {
@@ -425,7 +426,9 @@ mod tests {
             repo: "bar".into(),
         };
         let path = cache_path_for(tmp.path(), &repo);
-        write_cache(&path, &sample_stats("foo", "bar")).await.unwrap();
+        write_cache(&path, &sample_stats("foo", "bar"))
+            .await
+            .unwrap();
 
         let loaded = read_fresh_cache(&path).await.unwrap();
         assert_eq!(loaded.as_ref(), Some(&sample_stats("foo", "bar")));
@@ -446,10 +449,7 @@ mod tests {
         };
         let path = cache_path_for(tmp.path(), &repo);
         assert!(path.starts_with(tmp.path()));
-        assert_eq!(
-            path.file_name().unwrap().to_string_lossy(),
-            "foo__bar.json"
-        );
+        assert_eq!(path.file_name().unwrap().to_string_lossy(), "foo__bar.json");
         // No directory traversal.
         assert!(!path.to_string_lossy().contains(".."));
     }
@@ -472,7 +472,9 @@ mod tests {
     async fn fresh_cache_within_ttl_returns_value() {
         let tmp = tempfile::tempdir().unwrap();
         let path = tmp.path().join("fresh.json");
-        write_cache(&path, &sample_stats("foo", "bar")).await.unwrap();
+        write_cache(&path, &sample_stats("foo", "bar"))
+            .await
+            .unwrap();
         // Just-written = mtime ~ now → age << TTL → cache hit.
         let r = read_fresh_cache(&path).await.unwrap();
         assert!(r.is_some(), "fresh file must be a cache hit");

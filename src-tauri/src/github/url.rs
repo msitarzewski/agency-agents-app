@@ -73,15 +73,14 @@ pub fn parse_github_url(homepage: &str) -> Option<GithubRepo> {
     //    We *do* reuse `is_public_host` so the SSRF defense the rest of
     //    the codebase uses is the one we use too — even though
     //    `github.com` is always public.
-    let (scheme_len, scheme_is_https) = if homepage.len() >= 8
-        && homepage[..8].eq_ignore_ascii_case("https://")
-    {
-        (8usize, true)
-    } else if homepage.len() >= 7 && homepage[..7].eq_ignore_ascii_case("http://") {
-        (7usize, false)
-    } else {
-        return None;
-    };
+    let (scheme_len, scheme_is_https) =
+        if homepage.len() >= 8 && homepage[..8].eq_ignore_ascii_case("https://") {
+            (8usize, true)
+        } else if homepage.len() >= 7 && homepage[..7].eq_ignore_ascii_case("http://") {
+            (7usize, false)
+        } else {
+            return None;
+        };
     // Suppress the "unused" warning while still keeping the variable so a
     // future audit can extend the parser to reject `http://` if we ever
     // want to be even stricter (currently allowed, matching `parse_http_url`).
@@ -154,7 +153,9 @@ pub fn parse_github_url(homepage: &str) -> Option<GithubRepo> {
     let trimmed_path: String = {
         // Split into non-empty segments.
         let segs: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        if segs.len() >= 3 && (segs[2].eq_ignore_ascii_case("tree") || segs[2].eq_ignore_ascii_case("blob")) {
+        if segs.len() >= 3
+            && (segs[2].eq_ignore_ascii_case("tree") || segs[2].eq_ignore_ascii_case("blob"))
+        {
             format!("/{}/{}", segs[0], segs[1])
         } else {
             path.to_string()
@@ -272,10 +273,7 @@ pub fn extract_github_repo(url: &str) -> Option<GithubRepo> {
 
     // Split off query/fragment so a `?ref=main` on an archive URL
     // doesn't pollute the segment list.
-    let path_without_query = path
-        .split(['?', '#'])
-        .next()
-        .unwrap_or(path);
+    let path_without_query = path.split(['?', '#']).next().unwrap_or(path);
 
     let segs: Vec<&str> = path_without_query
         .split('/')
@@ -342,19 +340,37 @@ mod tests {
     #[test]
     fn accepts_trailing_slash() {
         let r = parse_github_url("https://github.com/foo/bar/").expect("parse");
-        assert_eq!(r, GithubRepo { owner: "foo".into(), repo: "bar".into() });
+        assert_eq!(
+            r,
+            GithubRepo {
+                owner: "foo".into(),
+                repo: "bar".into()
+            }
+        );
     }
 
     #[test]
     fn accepts_tree_ref_suffix() {
         let r = parse_github_url("https://github.com/foo/bar/tree/main").expect("parse");
-        assert_eq!(r, GithubRepo { owner: "foo".into(), repo: "bar".into() });
+        assert_eq!(
+            r,
+            GithubRepo {
+                owner: "foo".into(),
+                repo: "bar".into()
+            }
+        );
     }
 
     #[test]
     fn accepts_blob_ref_suffix() {
         let r = parse_github_url("https://github.com/foo/bar/blob/main/README.md").expect("parse");
-        assert_eq!(r, GithubRepo { owner: "foo".into(), repo: "bar".into() });
+        assert_eq!(
+            r,
+            GithubRepo {
+                owner: "foo".into(),
+                repo: "bar".into()
+            }
+        );
     }
 
     #[test]
@@ -372,8 +388,8 @@ mod tests {
 
     #[test]
     fn accepts_dots_and_underscores_in_names() {
-        let r = parse_github_url("https://github.com/scoped-name/under_score.dot-name")
-            .expect("parse");
+        let r =
+            parse_github_url("https://github.com/scoped-name/under_score.dot-name").expect("parse");
         assert_eq!(r.owner, "scoped-name");
         assert_eq!(r.repo, "under_score.dot-name");
     }
@@ -511,17 +527,27 @@ mod tests {
     #[test]
     fn extract_handles_canonical_url_via_strict_fast_path() {
         let r = extract_github_repo("https://github.com/foo/bar").expect("extract");
-        assert_eq!(r, GithubRepo { owner: "foo".into(), repo: "bar".into() });
+        assert_eq!(
+            r,
+            GithubRepo {
+                owner: "foo".into(),
+                repo: "bar".into()
+            }
+        );
     }
 
     #[test]
     fn extract_handles_archive_tag_url() {
         // The shape formulae routinely have in `urls.stable.url`.
-        let r = extract_github_repo(
-            "https://github.com/foo/bar/archive/refs/tags/v1.2.3.tar.gz",
-        )
-        .expect("extract");
-        assert_eq!(r, GithubRepo { owner: "foo".into(), repo: "bar".into() });
+        let r = extract_github_repo("https://github.com/foo/bar/archive/refs/tags/v1.2.3.tar.gz")
+            .expect("extract");
+        assert_eq!(
+            r,
+            GithubRepo {
+                owner: "foo".into(),
+                repo: "bar".into()
+            }
+        );
     }
 
     #[test]
@@ -531,15 +557,20 @@ mod tests {
             "https://github.com/foo/bar/releases/download/v1.2.3/foo-1.2.3.dmg",
         )
         .expect("extract");
-        assert_eq!(r, GithubRepo { owner: "foo".into(), repo: "bar".into() });
+        assert_eq!(
+            r,
+            GithubRepo {
+                owner: "foo".into(),
+                repo: "bar".into()
+            }
+        );
     }
 
     #[test]
     fn extract_handles_archive_url_with_dot_git_segment() {
-        let r = extract_github_repo(
-            "https://github.com/foo/bar.git/archive/refs/tags/v1.0.0.tar.gz",
-        )
-        .expect("extract");
+        let r =
+            extract_github_repo("https://github.com/foo/bar.git/archive/refs/tags/v1.0.0.tar.gz")
+                .expect("extract");
         assert_eq!(r.repo, "bar");
     }
 
@@ -551,14 +582,21 @@ mod tests {
 
     #[test]
     fn extract_rejects_subdomain_in_archive_url() {
-        assert!(extract_github_repo("https://raw.githubusercontent.com/foo/bar/main/file").is_none());
+        assert!(
+            extract_github_repo("https://raw.githubusercontent.com/foo/bar/main/file").is_none()
+        );
         assert!(extract_github_repo("https://gist.github.com/foo/bar/archive/x.tar.gz").is_none());
     }
 
     #[test]
     fn extract_rejects_disallowed_owner_chars_in_archive_url() {
-        assert!(extract_github_repo("https://github.com/foo!/bar/archive/refs/tags/v1.tar.gz").is_none());
-        assert!(extract_github_repo("https://github.com/föö/bar/archive/refs/tags/v1.tar.gz").is_none());
+        assert!(
+            extract_github_repo("https://github.com/foo!/bar/archive/refs/tags/v1.tar.gz")
+                .is_none()
+        );
+        assert!(
+            extract_github_repo("https://github.com/föö/bar/archive/refs/tags/v1.tar.gz").is_none()
+        );
     }
 
     #[test]
@@ -567,14 +605,26 @@ mod tests {
         // The strict parser already trims the `/tree/<ref>` suffix so
         // this resolves to foo/bar (not foo/tree).
         let r = extract_github_repo("https://github.com/foo/bar/tree/main").expect("extract");
-        assert_eq!(r, GithubRepo { owner: "foo".into(), repo: "bar".into() });
+        assert_eq!(
+            r,
+            GithubRepo {
+                owner: "foo".into(),
+                repo: "bar".into()
+            }
+        );
     }
 
     #[test]
     fn extract_strips_query_and_fragment_in_archive_url() {
         let r = extract_github_repo("https://github.com/foo/bar/releases?tab=releases#v1")
             .expect("extract");
-        assert_eq!(r, GithubRepo { owner: "foo".into(), repo: "bar".into() });
+        assert_eq!(
+            r,
+            GithubRepo {
+                owner: "foo".into(),
+                repo: "bar".into()
+            }
+        );
     }
 
     #[test]
@@ -589,5 +639,4 @@ mod tests {
         assert!(extract_github_repo("not-a-url").is_none());
         assert!(extract_github_repo("ftp://github.com/foo/bar").is_none());
     }
-
 }

@@ -180,7 +180,10 @@ pub async fn watch(
     token: &Token,
 ) -> Result<(), AppError> {
     revalidate_repo(repo)?;
-    let url = format!("{}/repos/{}/{}/subscription", API_BASE, repo.owner, repo.repo);
+    let url = format!(
+        "{}/repos/{}/{}/subscription",
+        API_BASE, repo.owner, repo.repo
+    );
     let body = serde_json::json!({ "subscribed": true, "ignored": false });
     let resp = send(client.put(&url).json(&body), token).await?;
     let status = resp.status().as_u16();
@@ -212,7 +215,10 @@ pub async fn unwatch(
     token: &Token,
 ) -> Result<(), AppError> {
     revalidate_repo(repo)?;
-    let url = format!("{}/repos/{}/{}/subscription", API_BASE, repo.owner, repo.repo);
+    let url = format!(
+        "{}/repos/{}/{}/subscription",
+        API_BASE, repo.owner, repo.repo
+    );
     let resp = send(client.delete(&url), token).await?;
     match resp.status().as_u16() {
         204 => Ok(()),
@@ -436,9 +442,7 @@ fn sanitise_body(raw: &str) -> Result<String, AppError> {
     let cleaned: String = raw.chars().filter(|c| *c != '\0').collect();
     if cleaned.len() > ISSUE_BODY_MAX_BYTES {
         return Err(AppError::InvalidArgument {
-            message: format!(
-                "issue body exceeds {ISSUE_BODY_MAX_BYTES}-byte cap"
-            ),
+            message: format!("issue body exceeds {ISSUE_BODY_MAX_BYTES}-byte cap"),
         });
     }
     Ok(cleaned)
@@ -449,10 +453,7 @@ fn sanitise_body(raw: &str) -> Result<String, AppError> {
 fn sanitise_labels(raw: &[&str]) -> Result<Vec<String>, AppError> {
     if raw.len() > ISSUE_LABELS_MAX_COUNT {
         return Err(AppError::InvalidArgument {
-            message: format!(
-                "too many labels ({} > {ISSUE_LABELS_MAX_COUNT})",
-                raw.len()
-            ),
+            message: format!("too many labels ({} > {ISSUE_LABELS_MAX_COUNT})", raw.len()),
         });
     }
     let mut out = Vec::with_capacity(raw.len());
@@ -466,8 +467,7 @@ fn sanitise_labels(raw: &[&str]) -> Result<Vec<String>, AppError> {
             });
         }
         for b in label.bytes() {
-            let ok =
-                b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.' || b == b'/';
+            let ok = b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.' || b == b'/';
             if !ok {
                 return Err(AppError::InvalidArgument {
                     message: format!("label contains invalid character: {label:?}"),
@@ -556,7 +556,14 @@ mod tests {
         }
         let oversize = "a".repeat(40);
         let url_mod_rejects: &[&str] = &[
-            "", ".", "..", ".foo", "-foo", "foo bar", "foo!bar", "föö",
+            "",
+            ".",
+            "..",
+            ".foo",
+            "-foo",
+            "foo bar",
+            "foo!bar",
+            "föö",
             oversize.as_str(),
         ];
         for name in url_mod_rejects {
@@ -642,9 +649,7 @@ mod tests {
 
     #[test]
     fn sanitise_labels_rejects_more_than_10() {
-        let labels: Vec<&str> = (0..(ISSUE_LABELS_MAX_COUNT + 1))
-            .map(|_| "bug")
-            .collect();
+        let labels: Vec<&str> = (0..(ISSUE_LABELS_MAX_COUNT + 1)).map(|_| "bug").collect();
         match sanitise_labels(&labels) {
             Err(AppError::InvalidArgument { message }) => {
                 assert!(message.contains("too many"), "{message}");

@@ -47,7 +47,11 @@ fn brew_version_runs_and_reports_a_version() {
         .arg("--version")
         .output()
         .expect("spawn brew");
-    assert!(out.status.success(), "brew --version exit: {:?}", out.status);
+    assert!(
+        out.status.success(),
+        "brew --version exit: {:?}",
+        out.status
+    );
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.starts_with("Homebrew "), "got: {:?}", stdout);
 }
@@ -83,9 +87,7 @@ fn brew_info_wget_returns_single_formula_entry() {
     assert!(out.status.success(), "exit {:?}", out.status);
     let raw = String::from_utf8_lossy(&out.stdout);
     let v: serde_json::Value = serde_json::from_str(&raw).expect("valid json");
-    let formulae = v["formulae"]
-        .as_array()
-        .expect("formulae array present");
+    let formulae = v["formulae"].as_array().expect("formulae array present");
     assert_eq!(formulae.len(), 1, "expected one formula for `wget`");
     assert_eq!(formulae[0]["name"].as_str(), Some("wget"));
 }

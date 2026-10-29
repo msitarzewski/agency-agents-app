@@ -1,0 +1,39 @@
+# PR check — runs on every pull request and every push to main.
+#
+# For now it checks Rust formatting only: `cargo fmt --check` over src-tauri.
+# rustfmt reads source files alone, so this job needs no system libraries and
+# no dependency build, and it finishes in seconds. svelte-check and
+# `cargo test` (memory-bank/decisions.md 2026-09-14) belong here as further
+# jobs; they need the Tauri Linux libraries, so they're a separate step.
+#
+# Formatting is rustfmt's defaults (no rustfmt.toml), edition 2021. A PR that
+# fails here needs `cargo fmt --manifest-path src-tauri/Cargo.toml`.
+
+name: PR Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  fmt:
+    name: Rust formatting (cargo fmt --check)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Rust stable (+ rustfmt)
+        uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
+        with:
+          toolchain: stable
+          components: rustfmt
+
+      - name: cargo fmt --check
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check

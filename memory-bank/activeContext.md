@@ -95,8 +95,8 @@ cask trust). @mrKlar filed #92/#93/#94 in one sitting — high-quality, mechanis
 
 **Gates, and their traps.** `npm run check` (svelte-check) is **0 errors on clean `main`** — take a baseline before
 blaming your own diff. `cargo test` for the backend. There is **no `lint` and no `test` npm script**. `cargo fmt` is
-**not** clean on `main` (that is what #100 is for), so format only files you *add* or your diff drowns in unrelated
-churn. A fresh worktree needs `npm ci` before `npm run check` can run. Linux work has a real test bed now: `ssh
+clean on `main` since the backend-wide reformat that replaced #100, and `pr-check.yml` enforces it: run `cargo fmt`
+before pushing. A fresh worktree needs `npm ci` before `npm run check` can run. Linux work has a real test bed now: `ssh
 scratch`, Ubuntu 26.04 aarch64, passwordless root. Note releases ship an **amd64-only** AppImage, so the shipped
 Linux artifact cannot be executed there — reproduce mechanisms instead.
 

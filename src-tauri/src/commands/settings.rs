@@ -429,7 +429,10 @@ async fn load_async(app_data_dir: &Path) -> SettingsLoadState {
 /// to bytes, (3) reject if the byte length exceeds the cap, (4)
 /// `atomic_write` into place, (5) return the clamped struct so callers
 /// can re-broadcast the canonicalized values.
-pub(crate) async fn persist(app_data_dir: &Path, mut settings: Settings) -> Result<Settings, AppError> {
+pub(crate) async fn persist(
+    app_data_dir: &Path,
+    mut settings: Settings,
+) -> Result<Settings, AppError> {
     settings.clamp();
     let bytes = serde_json::to_vec_pretty(&settings).map_err(|e| AppError::Internal {
         message: format!("serialize settings: {e}"),
@@ -448,14 +451,11 @@ pub(crate) async fn persist(app_data_dir: &Path, mut settings: Settings) -> Resu
     // already mkdir_p'd it, but a fresh checkout of the app on a system
     // that's never run Agency Agents could plausibly hit this otherwise.
     if !app_data_dir.exists() {
-        tokio::fs::create_dir_all(app_data_dir).await.map_err(|e| {
-            AppError::Io {
-                message: format!(
-                    "create settings parent {}: {e}",
-                    app_data_dir.display()
-                ),
-            }
-        })?;
+        tokio::fs::create_dir_all(app_data_dir)
+            .await
+            .map_err(|e| AppError::Io {
+                message: format!("create settings parent {}: {e}", app_data_dir.display()),
+            })?;
     }
 
     let path = settings_path(app_data_dir);
@@ -540,7 +540,9 @@ mod tests {
             other => panic!("expected FirstLaunch, got {other:?}"),
         }
         // Defaults must have paranoid OFF.
-        let effective = state.effective_settings().expect("first launch has defaults");
+        let effective = state
+            .effective_settings()
+            .expect("first launch has defaults");
         assert!(!effective.paranoid_mode);
     }
 
@@ -660,7 +662,10 @@ mod tests {
             tool_paths: HashMap::new(),
         };
         let written = persist(tmp.path(), s).await.expect("persist");
-        assert_eq!(written.catalog_stale_banner_days, Settings::CATALOG_STALE_DAYS_MAX);
+        assert_eq!(
+            written.catalog_stale_banner_days,
+            Settings::CATALOG_STALE_DAYS_MAX
+        );
         assert_eq!(written.trending_ttl_minutes, Settings::TRENDING_TTL_MIN);
     }
 
@@ -682,7 +687,10 @@ mod tests {
         let state = load_at_startup(tmp.path());
         match state {
             SettingsLoadState::Loaded(s) => {
-                assert_eq!(s.catalog_stale_banner_days, Settings::CATALOG_STALE_DAYS_MAX);
+                assert_eq!(
+                    s.catalog_stale_banner_days,
+                    Settings::CATALOG_STALE_DAYS_MAX
+                );
                 assert_eq!(s.trending_ttl_minutes, Settings::TRENDING_TTL_MIN);
             }
             other => panic!("expected Loaded, got {other:?}"),
@@ -840,8 +848,7 @@ mod tests {
         );
         // The most-recent half is retained; the oldest two-thirds are dropped.
         assert!(
-            !s.skipped_update_versions
-                .contains(&"v0".to_string()),
+            !s.skipped_update_versions.contains(&"v0".to_string()),
             "oldest entries should have been dropped"
         );
     }
@@ -889,7 +896,10 @@ mod tests {
     #[test]
     fn ai_features_enabled_defaults_to_true() {
         let s = Settings::default();
-        assert!(s.ai_features_enabled, "AI features ON by default per Phase 13 plan");
+        assert!(
+            s.ai_features_enabled,
+            "AI features ON by default per Phase 13 plan"
+        );
     }
 
     /// Phase 13 — `ai_features_enabled` round-trips on the wire as
@@ -1111,7 +1121,9 @@ mod tests {
         assert!(matches!(state_before, SettingsLoadState::Corrupt { .. }));
 
         // Write defaults via persist (what settings_reset uses).
-        let written = persist(tmp.path(), Settings::default()).await.expect("reset");
+        let written = persist(tmp.path(), Settings::default())
+            .await
+            .expect("reset");
         assert_eq!(written, Settings::default());
 
         // Reload — must now be Loaded(defaults).
@@ -1126,7 +1138,9 @@ mod tests {
     #[test]
     fn effective_settings_first_launch_returns_defaults() {
         let state = SettingsLoadState::FirstLaunch;
-        let s = state.effective_settings().expect("first launch yields defaults");
+        let s = state
+            .effective_settings()
+            .expect("first launch yields defaults");
         assert_eq!(s, Settings::default());
         assert!(!s.paranoid_mode);
     }

@@ -55,7 +55,11 @@ use crate::state::AppState;
 /// mode surfaces as `Err(AppError::ParanoidModeBlocked)` instead, so
 /// the toast routes through the same channel as every other gated call.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum UpdateCheckOutcome {
     /// Plugin returned no update — running version is current.
     UpToDate,
@@ -167,11 +171,9 @@ impl<R: tauri::Runtime> PluginBackend<R> {
     /// setup hook (failing builds with a malformed endpoint).
     fn updater(&self) -> Result<tauri_plugin_updater::Updater, AppError> {
         use tauri_plugin_updater::UpdaterExt;
-        self.app
-            .updater()
-            .map_err(|e| AppError::Internal {
-                message: format!("updater plugin init: {e}"),
-            })
+        self.app.updater().map_err(|e| AppError::Internal {
+            message: format!("updater plugin init: {e}"),
+        })
     }
 }
 
@@ -288,10 +290,7 @@ fn parse_semver(s: &str) -> Option<(u32, u32, u32)> {
     let minor: u32 = iter.next()?.parse().ok()?;
     let patch_raw = iter.next()?;
     // Drop pre-release / metadata suffix (`0.3.1-beta.1`).
-    let patch_str = patch_raw
-        .split(['-', '+'])
-        .next()
-        .unwrap_or(patch_raw);
+    let patch_str = patch_raw.split(['-', '+']).next().unwrap_or(patch_raw);
     let patch: u32 = patch_str.parse().ok()?;
     Some((major, minor, patch))
 }
@@ -329,14 +328,18 @@ pub async fn run_check(
         guard.last_checked_at = Some(now);
         guard.cached_available = match &outcome {
             UpdateCheckOutcome::UpToDate => None,
-            UpdateCheckOutcome::Available { version, current_version, notes, pub_date, .. } => {
-                Some(CachedUpdate {
-                    version: version.clone(),
-                    current_version: current_version.clone(),
-                    notes: notes.clone(),
-                    pub_date: pub_date.clone(),
-                })
-            }
+            UpdateCheckOutcome::Available {
+                version,
+                current_version,
+                notes,
+                pub_date,
+                ..
+            } => Some(CachedUpdate {
+                version: version.clone(),
+                current_version: current_version.clone(),
+                notes: notes.clone(),
+                pub_date: pub_date.clone(),
+            }),
         };
     }
 
@@ -348,10 +351,7 @@ async fn is_version_skipped(state: &AppState, version: &str) -> bool {
     use crate::commands::settings::SettingsLoadState;
     let guard = state.settings.read().await;
     match &*guard {
-        SettingsLoadState::Loaded(s) => s
-            .skipped_update_versions
-            .iter()
-            .any(|v| v == version),
+        SettingsLoadState::Loaded(s) => s.skipped_update_versions.iter().any(|v| v == version),
         _ => false,
     }
 }
@@ -560,10 +560,7 @@ pub async fn run_skip(state: &AppState, version: &str) -> Result<(), AppError> {
 /// the network. Sane to allow even when Offline Mode is on (the user
 /// might be reviewing accumulated update notices while offline).
 #[tauri::command]
-pub async fn update_skip(
-    version: String,
-    state: State<'_, AppState>,
-) -> Result<(), AppError> {
+pub async fn update_skip(version: String, state: State<'_, AppState>) -> Result<(), AppError> {
     run_skip(&state, &version).await
 }
 
@@ -828,7 +825,12 @@ mod tests {
         })));
         let outcome = run_check(&state, &backend).await.expect("check");
         match outcome {
-            UpdateCheckOutcome::Available { version, notes, skipped, .. } => {
+            UpdateCheckOutcome::Available {
+                version,
+                notes,
+                skipped,
+                ..
+            } => {
                 assert_eq!(version, "9.9.9");
                 assert_eq!(notes.as_deref(), Some("hotfix"));
                 assert!(!skipped, "fresh version must not be marked skipped");
@@ -939,7 +941,10 @@ mod tests {
 
         let r = run_install(&state, &backend, &current).await;
         match r {
-            Err(AppError::DowngradeRejected { current: c, target: t }) => {
+            Err(AppError::DowngradeRejected {
+                current: c,
+                target: t,
+            }) => {
                 assert_eq!(c, current);
                 assert_eq!(t, current);
             }
@@ -1072,7 +1077,9 @@ mod tests {
             assert!(guard.cached_available.is_some());
         }
 
-        run_install(&state, &backend, "9.9.9").await.expect("install");
+        run_install(&state, &backend, "9.9.9")
+            .await
+            .expect("install");
 
         let guard = state.updater_state.read().await;
         assert!(
