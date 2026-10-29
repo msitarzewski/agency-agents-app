@@ -31,11 +31,11 @@
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
-use crate::types::{Agent, CorpusEntry};
+use crate::types::{Agent, CorpusEntry, SkipReason};
 
 /// The subset of frontmatter keys we surface. Unknown keys are ignored
-/// (tolerant parse). `name` is the only required field — a file without
-/// it is not an agent (READMEs, workflow docs) and is skipped upstream.
+/// (tolerant parse). `name` is the only required field — frontmatter
+/// without it is reported as [`SkipReason::MissingName`].
 #[derive(Debug, Deserialize)]
 struct Frontmatter {
     name: Option<String>,
@@ -54,13 +54,21 @@ struct Split<'a> {
     body: &'a str,
 }
 
+/// Why [`split_frontmatter`] found no frontmatter block.
+enum NoSplit {
+    /// The first line isn't `---`: a README or plain doc, not an agent.
+    NotAgent,
+    /// The first line is `---`, but no closing fence follows.
+    Unclosed,
+}
+
 /// Split a raw agent `.md` into frontmatter + body.
 ///
-/// Returns `None` when there is no well-formed `---`-fenced frontmatter
-/// block at the head of the file (the file is not an agent). We accept a
-/// leading UTF-8 BOM and trailing whitespace on the fence lines so files
-/// authored on different editors still parse.
-fn split_frontmatter(source: &str) -> Option<Split<'_>> {
+/// Fails with [`NoSplit::NotAgent`] when the file doesn't open with a `---`
+/// fence, and with [`NoSplit::Unclosed`] when it opens one that never
+/// closes. We accept a leading UTF-8 BOM and trailing whitespace on the
+/// fence lines so files authored on different editors still parse.
+fn split_frontmatter(source: &str) -> Result<Split<'_>, NoSplit> {
     // Tolerate a leading BOM.
     let s = source.strip_prefix('\u{feff}').unwrap_or(source);
 
@@ -68,10 +76,17 @@ fn split_frontmatter(source: &str) -> Option<Split<'_>> {
     // BOM). We match a line that is exactly `---` ignoring trailing
     // whitespace.
     let mut rest = s;
-    let first_line_end = rest.find('\n')?;
+    let Some(first_line_end) = rest.find('\n') else {
+        // One line only: a lone fence opens a block it can't close.
+        return Err(if rest.trim_end() == "---" {
+            NoSplit::Unclosed
+        } else {
+            NoSplit::NotAgent
+        });
+    };
     let first_line = rest[..first_line_end].trim_end();
     if first_line != "---" {
-        return None;
+        return Err(NoSplit::NotAgent);
     }
     rest = &rest[first_line_end + 1..];
 
@@ -95,11 +110,11 @@ fn split_frontmatter(source: &str) -> Option<Split<'_>> {
                 s.len()
             };
             let body = &s[body_offset..];
-            return Some(Split { frontmatter, body });
+            return Ok(Split { frontmatter, body });
         }
         if line_end >= rest.len() {
-            // Hit EOF without a closing fence — malformed, not an agent.
-            return None;
+            // Hit EOF without a closing fence.
+            return Err(NoSplit::Unclosed);
         }
         search_from = line_end + 1;
     }
@@ -112,13 +127,45 @@ fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
+/// Why a file that opens a frontmatter block still isn't an agent. The
+/// indexer reports these rather than dropping the file silently (#79).
+#[derive(Debug, PartialEq, Eq)]
+pub struct ParseError {
+    pub reason: SkipReason,
+    /// The YAML parser's message, for [`SkipReason::InvalidYaml`].
+    pub detail: Option<String>,
+}
+
+impl ParseError {
+    fn of(reason: SkipReason) -> Self {
+        ParseError {
+            reason,
+            detail: None,
+        }
+    }
+}
+
+/// [`ParseError`] for frontmatter that `serde_yaml` rejected. The parser
+/// counts lines from the top of the block, one below the file's own line
+/// numbers; re-parsing with a leading newline makes its "at line N column M"
+/// match the file, so a catalog author can go straight to the spot.
+fn invalid_yaml(frontmatter: &str) -> ParseError {
+    let detail = serde_yaml::from_str::<Frontmatter>(&format!("\n{frontmatter}"))
+        .err()
+        .map(|e| e.to_string());
+    ParseError {
+        reason: SkipReason::InvalidYaml,
+        detail,
+    }
+}
+
 /// Parse one agent `.md`.
 ///
 /// `slug` is the filename without `.md` (contracts.md §A); `category` is
-/// the parent directory name. Returns `Ok(None)` for files that are not
-/// agents (no frontmatter, or no `name`) so callers can skip them without
-/// treating it as an error. Returns `Err` only when the frontmatter is
-/// present but is not valid YAML.
+/// the parent directory name. Returns `Ok(None)` for files with no
+/// frontmatter (READMEs, plain docs), which aren't agents. Returns `Err`
+/// when the file opens a frontmatter block but can't be an agent: the block
+/// never closes, isn't valid YAML, or has no `name`.
 ///
 /// Both the [`Agent`] (with body) and the [`CorpusEntry`] (index row with
 /// the three split hashes) are returned together so a single parse feeds
@@ -127,17 +174,19 @@ pub fn parse_agent(
     slug: &str,
     category: &str,
     source: &str,
-) -> Result<Option<(Agent, CorpusEntry)>, String> {
-    let Some(split) = split_frontmatter(source) else {
-        return Ok(None);
+) -> Result<Option<(Agent, CorpusEntry)>, ParseError> {
+    let split = match split_frontmatter(source) {
+        Ok(split) => split,
+        Err(NoSplit::NotAgent) => return Ok(None),
+        Err(NoSplit::Unclosed) => return Err(ParseError::of(SkipReason::UnclosedFrontmatter)),
     };
 
-    let fm: Frontmatter = serde_yaml::from_str(split.frontmatter)
-        .map_err(|e| format!("{slug}: frontmatter YAML parse error: {e}"))?;
+    let fm: Frontmatter =
+        serde_yaml::from_str(split.frontmatter).map_err(|_| invalid_yaml(split.frontmatter))?;
 
-    // `name` is required; without it the file is not an agent.
+    // `name` is required.
     let Some(name) = fm.name.filter(|n| !n.trim().is_empty()) else {
-        return Ok(None);
+        return Err(ParseError::of(SkipReason::MissingName));
     };
 
     let description = fm.description.unwrap_or_default();
@@ -245,9 +294,32 @@ mod tests {
     }
 
     #[test]
-    fn frontmatter_without_name_is_not_an_agent() {
+    fn empty_file_is_not_an_agent() {
+        assert!(parse_agent("empty", "examples", "").unwrap().is_none());
+    }
+
+    #[test]
+    fn frontmatter_without_name_is_reported() {
         let md = "---\ndescription: orphan\n---\nbody\n";
-        assert!(parse_agent("orphan", "examples", md).unwrap().is_none());
+        let err = parse_agent("orphan", "examples", md).unwrap_err();
+        assert_eq!(err, ParseError::of(SkipReason::MissingName));
+    }
+
+    #[test]
+    fn invalid_yaml_is_reported_with_the_files_line_number() {
+        // #79: an unquoted colon inside a description. The description is
+        // line 3 of the file (line 2 of the frontmatter block).
+        let md = "---\nname: Tooling\ndescription: Builds CLIs: fast ones\n---\nbody\n";
+        let err = parse_agent("tooling", "engineering", md).unwrap_err();
+        assert_eq!(err.reason, SkipReason::InvalidYaml);
+        let detail = err.detail.expect("parser message");
+        assert!(detail.contains("at line 3 column"), "{detail}");
+    }
+
+    #[test]
+    fn lone_fence_is_unclosed() {
+        let err = parse_agent("x", "c", "---").unwrap_err();
+        assert_eq!(err, ParseError::of(SkipReason::UnclosedFrontmatter));
     }
 
     #[test]
@@ -259,9 +331,10 @@ mod tests {
     }
 
     #[test]
-    fn unclosed_frontmatter_is_not_an_agent() {
+    fn unclosed_frontmatter_is_reported() {
         let md = "---\nname: X\nstill in frontmatter\n";
-        assert!(parse_agent("x", "c", md).unwrap().is_none());
+        let err = parse_agent("x", "c", md).unwrap_err();
+        assert_eq!(err, ParseError::of(SkipReason::UnclosedFrontmatter));
     }
 
     #[test]

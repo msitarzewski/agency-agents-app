@@ -110,6 +110,40 @@ pub struct CatalogStatus {
     pub version: String,
     pub fetched_at: String,
     pub agent_count: u32,
+    /// Files under the catalog's divisions that the indexer left out, and why.
+    /// Empty when every file that looks like an agent parsed (#79).
+    pub skipped: Vec<SkippedFile>,
+}
+
+/// Why the indexer left a catalog file out of the agent list. Files with no
+/// frontmatter at all (READMEs, plain docs) aren't agents and aren't listed.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
+pub enum SkipReason {
+    /// Couldn't be opened, or is over the size cap.
+    Unreadable,
+    /// Not UTF-8 text.
+    NotUtf8,
+    /// Opens a `---` frontmatter block that never closes.
+    UnclosedFrontmatter,
+    /// The frontmatter isn't valid YAML.
+    InvalidYaml,
+    /// The frontmatter has no `name`.
+    MissingName,
+    /// An earlier file already uses this file name (the agent's slug).
+    DuplicateSlug,
+}
+
+/// One file the indexer skipped (`CatalogStatus::skipped`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SkippedFile {
+    /// Path relative to the catalog root, `/`-separated.
+    pub path: String,
+    pub reason: SkipReason,
+    /// The YAML parser's message (its line numbers count from the top of the
+    /// file), the read error, or for a duplicate the path of the file kept.
+    pub detail: Option<String>,
 }
 
 /// Result of checking the active catalog for upstream updates — the "stats on
