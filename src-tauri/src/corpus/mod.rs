@@ -29,7 +29,7 @@
 
 mod parse;
 
-use std::collections::BTreeMap;
+use std::collections::{btree_map, BTreeMap};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -39,7 +39,7 @@ use crate::error::AppError;
 use crate::github::extract_github_repo;
 use crate::types::{
     Agent, CatalogCandidate, CatalogDetection, CatalogSource, CatalogStatus, CatalogUpdateCheck,
-    Category, CorpusEntry, CorpusMeta,
+    Category, CorpusEntry, CorpusMeta, SkipReason, SkippedFile,
 };
 use crate::util::fs::atomic_write;
 use crate::util::process::headless_command;
@@ -195,6 +195,9 @@ pub struct Corpus {
     /// update.
     division_meta: BTreeMap<String, CategoryMetaRow>,
     meta: CorpusMeta,
+    /// Files under the divisions that look like agents but weren't indexed,
+    /// in build order (see [`build_from_dir`]).
+    skipped: Vec<SkippedFile>,
 }
 
 impl Corpus {
@@ -206,6 +209,11 @@ impl Corpus {
     /// [`CorpusMeta`] for `corpus_status`.
     pub fn meta(&self) -> CorpusMeta {
         self.meta.clone()
+    }
+
+    /// Files the build left out, and why — for `catalog_status`.
+    pub fn skipped(&self) -> &[SkippedFile] {
+        &self.skipped
     }
 
     /// List view — agents (optionally filtered to one `category`) with the
@@ -572,17 +580,36 @@ fn find_md_under(dir: &Path, file_name: &str) -> Option<PathBuf> {
     None
 }
 
+/// `path` relative to the catalog root `dir`, `/`-separated on every platform,
+/// for showing the user which file was skipped.
+fn catalog_relative(dir: &Path, path: &Path) -> String {
+    path.strip_prefix(dir)
+        .unwrap_or(path)
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
 /// Build an in-memory [`Corpus`] by walking `<dir>/<category>/**/<slug>.md`
 /// for every known category (recursively — real clones nest agents in
-/// subdirs). Files without valid frontmatter (READMEs, workflow docs) are
-/// skipped. The category is the top-level dir; the resulting `agents` vec and
-/// `index` map are ordered deterministically by `(category, path)`.
+/// subdirs). The category is the top-level dir; the resulting `agents` vec
+/// and `index` map are ordered deterministically by `(category, path)`.
+///
+/// Files with no frontmatter (READMEs, plain docs) aren't agents and are
+/// passed over. Every other file that can't be indexed is recorded in
+/// `skipped` with its reason, so the UI can say so instead of showing a
+/// count that's quietly short (#79): unreadable, not UTF-8, frontmatter that
+/// doesn't parse, or a slug an earlier file already took (the first wins).
 async fn build_from_dir(
     dir: &Path,
     version: &str,
     categories: &[String],
 ) -> Result<Corpus, AppError> {
     let mut rows: Vec<(Agent, CorpusEntry)> = Vec::new();
+    let mut skipped: Vec<SkippedFile> = Vec::new();
+    // slug → path of the file that claimed it first.
+    let mut claimed: BTreeMap<String, String> = BTreeMap::new();
 
     for category in categories.iter() {
         let category = category.as_str();
@@ -597,10 +624,20 @@ async fn build_from_dir(
             let Some(slug) = path.file_stem().and_then(|s| s.to_str()) else {
                 continue;
             };
+            let rel = catalog_relative(dir, &path);
             let raw = match read_capped(&path, MAX_AGENT_BYTES).await {
                 Ok(bytes) => bytes,
                 Err(e) => {
                     tracing::warn!("corpus: skip {} ({e})", path.display());
+                    let detail = match e {
+                        AppError::Io { message } => message,
+                        other => other.to_string(),
+                    };
+                    skipped.push(SkippedFile {
+                        path: rel,
+                        reason: SkipReason::Unreadable,
+                        detail: Some(detail),
+                    });
                     continue;
                 }
             };
@@ -608,13 +645,38 @@ async fn build_from_dir(
                 Ok(s) => s,
                 Err(_) => {
                     tracing::warn!("corpus: skip {} (non-utf8)", path.display());
+                    skipped.push(SkippedFile {
+                        path: rel,
+                        reason: SkipReason::NotUtf8,
+                        detail: None,
+                    });
                     continue;
                 }
             };
             match parse::parse_agent(slug, category, &source) {
-                Ok(Some(pair)) => rows.push(pair),
+                Ok(Some(pair)) => match claimed.entry(slug.to_string()) {
+                    btree_map::Entry::Vacant(slot) => {
+                        slot.insert(rel);
+                        rows.push(pair);
+                    }
+                    btree_map::Entry::Occupied(first) => {
+                        tracing::warn!("corpus: skip {rel} (slug taken by {})", first.get());
+                        skipped.push(SkippedFile {
+                            path: rel,
+                            reason: SkipReason::DuplicateSlug,
+                            detail: Some(first.get().clone()),
+                        });
+                    }
+                },
                 Ok(None) => {} // not an agent (no frontmatter) — skip silently.
-                Err(e) => tracing::warn!("corpus: {e}"),
+                Err(e) => {
+                    tracing::warn!("corpus: skip {rel} ({:?})", e.reason);
+                    skipped.push(SkippedFile {
+                        path: rel,
+                        reason: e.reason,
+                        detail: e.detail,
+                    });
+                }
             }
         }
     }
@@ -645,6 +707,7 @@ async fn build_from_dir(
             fetched_at: String::new(),
             count,
         },
+        skipped,
     })
 }
 
@@ -660,6 +723,7 @@ fn empty_corpus(version: &str, categories: &[String]) -> Corpus {
             fetched_at: String::new(),
             count: 0,
         },
+        skipped: Vec::new(),
     }
 }
 
@@ -1529,6 +1593,7 @@ pub async fn catalog_status(
         version: meta.version,
         fetched_at: meta.fetched_at,
         agent_count: corpus.count(),
+        skipped: corpus.skipped().to_vec(),
     })
 }
 
@@ -1728,6 +1793,77 @@ mod tests {
         // design < engineering, and within engineering alpha < zeta.
         let order: Vec<&str> = corpus.agents.iter().map(|a| a.slug.as_str()).collect();
         assert_eq!(order, vec!["mid", "alpha", "zeta"]);
+        assert!(corpus.skipped().is_empty());
+    }
+
+    #[tokio::test]
+    async fn build_reports_files_it_cannot_index() {
+        // #79: a file that looks like an agent but can't be indexed is
+        // reported, not silently dropped. READMEs and plain docs are not.
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+        write_agent(dir, "engineering", "good", "Good", "g");
+        let eng = dir.join("engineering");
+        std::fs::write(eng.join("README.md"), "# Engineering\n").unwrap();
+        std::fs::write(eng.join("notes.md"), "Plain notes, no frontmatter.\n").unwrap();
+        std::fs::write(
+            eng.join("bad-yaml.md"),
+            "---\nname: Bad\ndescription: Builds CLIs: fast ones\n---\nbody\n",
+        )
+        .unwrap();
+        std::fs::write(eng.join("binary.md"), [0xff, 0xfe, 0x00]).unwrap();
+        std::fs::write(
+            eng.join("huge.md"),
+            vec![b'a'; MAX_AGENT_BYTES as usize + 1],
+        )
+        .unwrap();
+        std::fs::write(eng.join("nameless.md"), "---\ndescription: d\n---\nbody\n").unwrap();
+        std::fs::write(eng.join("unclosed.md"), "---\nname: Unclosed\nbody\n").unwrap();
+        // Same slug as engineering/good.md, nested in a later division.
+        let nested = dir.join("testing").join("sub");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(
+            nested.join("good.md"),
+            "---\nname: Good Again\ndescription: d\n---\nbody\n",
+        )
+        .unwrap();
+
+        let corpus = build_from_dir(dir, "v", &discover_categories(dir))
+            .await
+            .unwrap();
+
+        assert_eq!(corpus.count(), 1);
+        assert_eq!(
+            corpus.list(None).len(),
+            1,
+            "a duplicate slug is listed once, like the index"
+        );
+        assert_eq!(
+            corpus.get("good").unwrap().name,
+            "Good",
+            "the first file wins"
+        );
+
+        let got: Vec<(&str, SkipReason)> = corpus
+            .skipped()
+            .iter()
+            .map(|s| (s.path.as_str(), s.reason))
+            .collect();
+        assert_eq!(
+            got,
+            vec![
+                ("engineering/bad-yaml.md", SkipReason::InvalidYaml),
+                ("engineering/binary.md", SkipReason::NotUtf8),
+                ("engineering/huge.md", SkipReason::Unreadable),
+                ("engineering/nameless.md", SkipReason::MissingName),
+                ("engineering/unclosed.md", SkipReason::UnclosedFrontmatter),
+                ("testing/sub/good.md", SkipReason::DuplicateSlug),
+            ]
+        );
+        let detail = |i: usize| corpus.skipped()[i].detail.clone().unwrap_or_default();
+        assert!(detail(0).contains("at line 3 column"), "{}", detail(0));
+        assert!(detail(2).contains("byte cap"), "{}", detail(2));
+        assert_eq!(detail(5), "engineering/good.md");
     }
 
     #[tokio::test]
@@ -1996,6 +2132,11 @@ mod tests {
         // The baseline is agency-agents main @ d3f71c4 (2026-10-01): every
         // division's agents, flattened exactly as `corpus_refresh` extracts them.
         assert_eq!(corpus.count(), 282, "all bundled agent personas indexed");
+        assert!(
+            corpus.skipped().is_empty(),
+            "no bundled file skipped: {:?}",
+            corpus.skipped()
+        );
 
         // Every agent parsed real frontmatter: non-empty name + slug, real category.
         for a in &corpus.agents {

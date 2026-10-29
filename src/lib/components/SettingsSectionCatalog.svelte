@@ -27,7 +27,8 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { safeOpenUrl } from "$lib/util/url";
   import { i18n } from "$lib/stores/i18n.svelte";
-  import type { CatalogCandidate } from "$lib/types";
+  import type { MessageKey } from "$lib/i18n/messages";
+  import type { CatalogCandidate, SkippedFile } from "$lib/types";
 
   let manage = $state(true);
   let repoStats = $state<RepoStatsOutcome>({ kind: "loading" });
@@ -87,6 +88,12 @@
     const d = new Date(iso);
     return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString();
   }
+
+  /** Why a catalog file isn't listed (#79). A duplicate names the file kept. */
+  function skipReason(s: SkippedFile): string {
+    if (s.reason === "duplicateSlug") return i18n.t("catalog.skip.duplicateSlug", { path: s.detail ?? "" });
+    return i18n.t(`catalog.skip.${s.reason}` as MessageKey);
+  }
 </script>
 
 <div class="section">
@@ -99,6 +106,9 @@
       <div class="row"><dt>{i18n.t("catalog.path")}</dt><dd class="mono">{catalog.sourcePath}</dd></div>
     {/if}
     <div class="row"><dt>{i18n.t("catalog.agents")}</dt><dd>{st?.agentCount ?? catalog.status?.agentCount ?? "—"}</dd></div>
+    {#if st?.skipped.length}
+      <div class="row"><dt>{i18n.t("catalog.skipped")}</dt><dd class="warn">{i18n.count(st.skipped.length, "common.file.one", "common.file.many")}</dd></div>
+    {/if}
     {#if st?.isGit}
       <div class="row">
         <dt>{i18n.t("catalog.commit")}</dt>
@@ -116,6 +126,22 @@
       <div class="row"><dt>{i18n.t("catalog.fetched")}</dt><dd>{shortDate(st?.fetchedAt ?? null)}</dd></div>
     {/if}
   </dl>
+
+  <!-- Files that look like agents but couldn't be indexed (#79) -->
+  {#if st?.skipped.length}
+    <div class="skipped">
+      <p class="hint">{i18n.t("catalog.skippedHint")}</p>
+      <ul>
+        {#each st.skipped as s (s.path)}
+          <li>
+            <span class="mono">{s.path}</span>
+            <span class="skip-reason">{skipReason(s)}</span>
+            {#if s.detail && s.reason !== "duplicateSlug"}<span class="skip-detail mono">{s.detail}</span>{/if}
+          </li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
 
   <!-- Sync / updates -->
   <div class="sync">
@@ -244,6 +270,12 @@
   .mono { font-family: var(--font-mono); font-size: var(--text-mono); }
   .muted { color: var(--color-text-muted); }
   .warn { color: var(--color-warning); }
+  .skipped { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-sunken); }
+  .skipped ul { display: flex; flex-direction: column; gap: var(--space-2); }
+  .skipped li { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .skipped li .mono { color: var(--color-text-primary); overflow-wrap: anywhere; }
+  .skip-reason { font-size: var(--text-body-sm); color: var(--color-warning); }
+  .skip-detail { color: var(--color-text-muted); white-space: pre-wrap; overflow-wrap: anywhere; }
   .sync { display: flex; flex-direction: column; gap: var(--space-3); }
   .sync-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
   .hint { font-size: var(--text-caption); color: var(--color-text-muted); }

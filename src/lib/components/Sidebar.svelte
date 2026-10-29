@@ -9,6 +9,7 @@
 
   import { ui } from "$lib/stores/ui.svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
+  import { catalog } from "$lib/stores/catalog.svelte";
   import { install } from "$lib/stores/install.svelte";
   import { i18n } from "$lib/stores/i18n.svelte";
   import { shortcut } from "$lib/util/platform";
@@ -58,6 +59,14 @@
 
   /** Footer: live corpus size — the app's own at-a-glance status. */
   const agentCount = $derived(corpus.agents.length);
+  const statusText = $derived(i18n.t("nav.catalogStatus", { count: agentCount }));
+  /** Catalog files that look like agents but couldn't be indexed (#79). */
+  const skippedCount = $derived(catalog.status?.skipped.length ?? 0);
+  const skippedText = $derived(
+    i18n.t("nav.catalogStatusSkipped", {
+      skipped: i18n.count(skippedCount, "common.file.one", "common.file.many"),
+    }),
+  );
 </script>
 
 <aside
@@ -94,10 +103,24 @@
   </nav>
 
   <footer class="foot">
-    <div class="status status-ready" title={i18n.t("nav.catalogStatus", { count: agentCount })}>
-      <span class="dot" aria-hidden="true"></span>
-      <span class="status-label">{i18n.t("nav.catalogStatus", { count: agentCount })}</span>
-    </div>
+    {#if skippedCount > 0}
+      <button
+        class="status status-warn"
+        onclick={() => ui.openSettings("catalog")}
+        title={`${statusText} · ${skippedText}. ${i18n.t("nav.catalogSkippedTitle")}`}
+      >
+        <span class="dot" aria-hidden="true"></span>
+        <span class="status-lines">
+          <span class="status-label">{statusText}</span>
+          <span class="status-label status-sub">{skippedText}</span>
+        </span>
+      </button>
+    {:else}
+      <div class="status status-ready" title={statusText}>
+        <span class="dot" aria-hidden="true"></span>
+        <span class="status-label">{statusText}</span>
+      </div>
+    {/if}
   </footer>
 </aside>
 
@@ -196,6 +219,14 @@
     background: var(--color-text-muted);
   }
   .status-ready .dot { background: var(--color-success); }
+  /* Some catalog files couldn't be read (#79): a second line says so, and a
+     click opens Settings → Catalog, which lists them. */
+  .status-warn { cursor: pointer; align-items: flex-start; max-width: 100%; }
+  .status-warn:hover { background: var(--color-surface-sunken); color: var(--color-text-primary); }
+  .status-warn .dot { flex: none; margin-top: 0.35em; background: var(--color-warning); }
+  .status-lines { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .status-label { overflow: hidden; text-overflow: ellipsis; }
+  .status-sub { color: var(--color-warning); }
 
   /* ── Collapsed sidebar (icon-rail mode) ── */
   .sidebar.collapsed { width: 56px; }
