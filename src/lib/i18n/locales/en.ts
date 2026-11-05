@@ -690,6 +690,8 @@ const en = {
   "preset.ai-builders.description": "Ship AI features on a solid data + prompt foundation.",
   "teamExample.ai-builders.1": "Design and build [AI feature] on a solid data + prompt foundation: schema, retrieval, prompts, and evals — loop until the evals pass on a held-out set.",
   "teamExample.ai-builders.2": "Harden our prompts for [use case]: write a suite of test cases, measure the pass rate, and iterate until it's reliable.",
+  "preset.liyan-mitra-co.label": "Liyan Mitra.co",
+  "preset.liyan-mitra-co.description": "A full bookkeeping & tax services office, from client intake to filed returns.",
 } as const;
 
 export type MessageKey = keyof typeof en;
