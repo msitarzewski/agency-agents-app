@@ -723,3 +723,10 @@ Ubuntu 26.04 aarch64 VM with a real jammy `libnghttp2`, and proving the fix end 
 Surveyed both repos while here. The app's real problem is not code: **v0.3.0 has been the last release since
 2026-07-05**, `main` sat still 07-30 → 09-12, and 16 PRs / 16 issues are open with **every PR mergeable**. Next
 action is a v0.3.1, not more fixes. Full detail in `tasks/2026-09/README.md` and `activeContext.md`.
+
+## 2026-11-05 — Liyan Mitra.co office preset (PR #1)
+
+Added the `liyan-mitra-co` preset team: nine existing corpus agents arranged as a bookkeeping & tax office, plus two
+starter prompts (onboarding + month-end close; PPh/PPN/SPT compliance package). Three files, +28 lines, no new
+components. `npm run check` 0 errors, `npm run build` clean; not run in the Tauri app. Merged as PR #1 on the
+`ekafyudha-lang` fork. Detail in `tasks/2026-11/261105_liyan-mitra-office-preset.md`.
