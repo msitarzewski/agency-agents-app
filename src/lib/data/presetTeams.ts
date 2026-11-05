@@ -16,6 +16,7 @@ import Code from "@lucide/svelte/icons/code";
 import TrendingUp from "@lucide/svelte/icons/trending-up";
 import Compass from "@lucide/svelte/icons/compass";
 import Sparkles from "@lucide/svelte/icons/sparkles";
+import Building2 from "@lucide/svelte/icons/building-2";
 
 export interface PresetTeam {
   slug: string;
@@ -95,6 +96,27 @@ export const PRESET_TEAMS: PresetTeam[] = [
       "engineering-prompt-engineer",
       "engineering-data-engineer",
       "engineering-backend-architect",
+    ],
+  },
+  {
+    // A whole office, not a squad: staffed like a real bookkeeping & tax
+    // practice — partner, tax consultant, bookkeeping desk, payables, reporting,
+    // compliance, client relations, office operations, and document desk.
+    slug: "liyan-mitra-co",
+    label: "Liyan Mitra.co",
+    description: "A full bookkeeping & tax services office, from client intake to filed returns.",
+    icon: Building2,
+    color: "#0f766e",
+    agents: [
+      "chief-financial-officer",
+      "finance-tax-strategist",
+      "finance-bookkeeper-controller",
+      "accounts-payable-agent",
+      "finance-financial-analyst",
+      "support-legal-compliance-checker",
+      "customer-success-manager",
+      "operations-manager",
+      "specialized-document-generator",
     ],
   },
 ];

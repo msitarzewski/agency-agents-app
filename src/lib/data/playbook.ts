@@ -99,6 +99,10 @@ export const TEAM_EXAMPLES: Record<string, string[]> = {
     "Design and build [AI feature] on a solid data + prompt foundation: schema, retrieval, prompts, and evals — loop until the evals pass on a held-out set.",
     "Harden our prompts for [use case]: write a suite of test cases, measure the pass rate, and iterate until it's reliable.",
   ],
+  "liyan-mitra-co": [
+    "Onboard [client] as a new bookkeeping client: intake their business profile and documents, set up the chart of accounts, record [month]'s transactions, and loop until the bank reconciliation ties out and the month-end close checklist is signed off.",
+    "Prepare [client]'s [period] tax compliance package — monthly PPh 21/23/4(2) and PPN, plus the annual SPT — from the closed books; have compliance review every figure against current regulations and deliver filing-ready worksheets and a client summary letter.",
+  ],
 };
 
 /**
