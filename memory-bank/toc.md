@@ -14,3 +14,5 @@
   known issues, and hard-won gotchas (each_key_duplicate, icon re-embed, port 1430, screenshots).
 - `tasks/2026-06/` — monthly README + per-task docs (Phase 0 fork, Phase 1 corpus+discover, etc.).
 - [tasks/2026-09/README.md](tasks/2026-09/README.md) — September 2026 (AppImage child-env fix; the release backlog)
+- [tasks/2026-10/README.md](tasks/2026-10/README.md) — October 2026 (v0.3.2, Windows signing, PR Check, catalog
+  files the app can't read)

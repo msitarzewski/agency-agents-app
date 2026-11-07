@@ -41,7 +41,9 @@
     void settings.load();
     // Catalog source (#1) — load the persisted choice; if none has been made
     // the first-run picker renders over the app until the user chooses.
-    void catalog.load();
+    // Then its status (local only: no network), so the sidebar can say when
+    // catalog files couldn't be read (#79) without visiting Settings first.
+    void catalog.load().then(() => catalog.loadStatus());
     // NOTE: GitHub sign-in status is intentionally NOT hydrated here.
     // `github.loadStatus()` reads from macOS Keychain, which prompts
     // the user the first time a new app binary tries to access an
