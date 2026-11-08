@@ -35,3 +35,8 @@ succeed. Consequences worth knowing:
 - Runbooks are empty: `strategy/` only ships in a synced clone.
 
 Append `?tauriMock=0` to the URL to go back to the bare "no backend" state.
+That is precisely the unsupported case this mock exists to avoid: with no Tauri
+internals, the app's own `invoke`/window calls throw (for example
+`Cannot read properties of undefined (reading 'transformCallback')`), so expect
+console errors next to the empty catalog. That is the flag working, not a
+regression.
