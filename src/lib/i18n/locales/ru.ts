@@ -681,6 +681,22 @@ const ru = {
   "preset.ai-builders.description": "Запускайте AI-функции на прочной основе данных и промптов.",
   "teamExample.ai-builders.1": "Спроектируйте и создайте [AI-функцию] на прочной основе данных и промптов: схема, retrieval, промпты и evals — работайте в цикле, пока evals не пройдут на отложенной выборке.",
   "teamExample.ai-builders.2": "Укрепите наши промпты для [сценария]: напишите набор тест-кейсов, измерьте процент прохождения и итерируйте, пока результат не станет надежным.",
+  "agents.divisionOverview.one": "{count} агент · разверните весь раздел или откройте одного агента, чтобы установить только этого специалиста.",
+  "agents.divisionOverview.many": "{count} агентов · разверните весь раздел или откройте одного агента, чтобы установить только этого специалиста.",
+  "install.sub.one": "{count} агент · переключайте ячейки, чтобы установить его в инструмент глобально или для проекта.",
+  "install.sub.many": "{count} агентов · переключайте ячейки, чтобы установить их в инструмент глобально или для проекта.",
+  "deploy.currentRosterDesc.one": "{count} агент уже здесь",
+  "deploy.currentRosterDesc.many": "{count} агентов уже здесь",
+  "deploy.savedTeamDesc.one": "{count} агент · сохранено",
+  "deploy.savedTeamDesc.many": "{count} агентов · сохранено",
+  "agentUpdates.badge.one": "{count} обновление",
+  "agentUpdates.badge.many": "{count} обновлений",
+  "agentUpdates.title.one": "Доступно {count} обновление",
+  "agentUpdates.title.many": "Доступно {count} обновлений",
+  "agentUpdates.badgeTitle.one": "{count} установленный агент имеет более новую версию в каталоге",
+  "agentUpdates.badgeTitle.many": "{count} установленных агентов имеют более новую версию в каталоге",
+  "agentUpdates.done.one": "Обновлён {count} агент",
+  "agentUpdates.done.many": "Обновлено {count} агентов",
 } satisfies Partial<Messages>;
 
 export default ru;

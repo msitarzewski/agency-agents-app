@@ -701,6 +701,14 @@ const fr = {
   "preset.ai-builders.description": "Livrez des fonctionnalités d’IA sur des bases solides : données et prompts.",
   "teamExample.ai-builders.1": "Concevez et construisez [fonctionnalité IA] sur des bases solides en données et en prompts : schéma, retrieval, prompts et evals. Itérez jusqu’à ce que les evals passent sur un jeu de test mis de côté.",
   "teamExample.ai-builders.2": "Renforcez nos prompts pour [cas d’usage] : écrivez une série de cas de test, mesurez le taux de réussite et itérez jusqu’à obtenir des résultats fiables.",
+  "agents.divisionOverview.one": "{count} agent · déployez toute la division, ou ouvrez un agent pour n’installer que ce spécialiste.",
+  "agents.divisionOverview.many": "{count} agents · déployez toute la division, ou ouvrez un agent pour n’installer que ce spécialiste.",
+  "install.sub.one": "{count} agent · cochez une case pour installer dans cet outil, globalement ou par projet.",
+  "install.sub.many": "{count} agents · cochez une case pour installer dans cet outil, globalement ou par projet.",
+  "deploy.currentRosterDesc.one": "{count} agent déjà présent",
+  "deploy.currentRosterDesc.many": "{count} agents déjà présents",
+  "deploy.savedTeamDesc.one": "{count} agent · équipe enregistrée",
+  "deploy.savedTeamDesc.many": "{count} agents · équipe enregistrée",
 } satisfies Partial<Messages>;
 
 export default fr;

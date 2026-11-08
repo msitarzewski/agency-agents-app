@@ -626,6 +626,22 @@ const zhCN = {
   "tools.locationHint": "将 {tool} 指向自定义的基础目录——例如从 Windows 应用指向 WSL 主目录（{wsl}）。检测和用户全局安装都会使用该目录；项目安装不受影响。",
   "tools.locationChoose": "选择文件夹…",
   "tools.locationReset": "恢复默认",
+  "agents.divisionOverview.one": "{count} 个智能体 · 部署整个分类，或进入分类后只安装需要的专家。",
+  "agents.divisionOverview.many": "{count} 个智能体 · 部署整个分类，或进入分类后只安装需要的专家。",
+  "install.sub.one": "{count} 个智能体 · 切换单元以全局或按项目安装到该工具中。",
+  "install.sub.many": "{count} 个智能体 · 切换单元以全局或按项目安装到该工具中。",
+  "deploy.currentRosterDesc.one": "{count} 个智能体已在此",
+  "deploy.currentRosterDesc.many": "{count} 个智能体已在此",
+  "deploy.savedTeamDesc.one": "{count} 个智能体 · 已保存",
+  "deploy.savedTeamDesc.many": "{count} 个智能体 · 已保存",
+  "agentUpdates.badge.one": "{count} 个更新",
+  "agentUpdates.badge.many": "{count} 个更新",
+  "agentUpdates.title.one": "{count} 个更新可用",
+  "agentUpdates.title.many": "{count} 个更新可用",
+  "agentUpdates.badgeTitle.one": "已安装的 {count} 个智能体在目录中有更新版本",
+  "agentUpdates.badgeTitle.many": "已安装的 {count} 个智能体在目录中有更新版本",
+  "agentUpdates.done.one": "已更新 {count} 个智能体",
+  "agentUpdates.done.many": "已更新 {count} 个智能体",
 } satisfies Partial<Messages>;
 
 export default zhCN;

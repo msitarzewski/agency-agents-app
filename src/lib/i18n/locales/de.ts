@@ -626,6 +626,22 @@ const de = {
   "tools.locationHint": "Richten Sie {tool} auf ein benutzerdefiniertes Basisverzeichnis aus — z. B. ein WSL-Home ({wsl}) aus der Windows-App. Erkennung und benutzerglobale Installationen folgen ihm; Projektinstallationen sind nicht betroffen.",
   "tools.locationChoose": "Ordner wählen…",
   "tools.locationReset": "Auf Standard zurücksetzen",
+  "agents.divisionOverview.one": "{count} Agent · Setzen Sie die gesamte Abteilung ein oder eröffnen Sie eine, um nur diesen Spezialisten zu installieren.",
+  "agents.divisionOverview.many": "{count} Agenten · Setzen Sie die gesamte Abteilung ein oder eröffnen Sie eine, um nur diesen Spezialisten zu installieren.",
+  "install.sub.one": "{count} Agent · Schalten Sie eine Zelle um, um sie global oder pro Projekt in diesem Tool zu installieren.",
+  "install.sub.many": "{count} Agents · Schalten Sie eine Zelle um, um sie global oder pro Projekt in diesem Tool zu installieren.",
+  "deploy.currentRosterDesc.one": "{count} Agent ist bereits hier",
+  "deploy.currentRosterDesc.many": "{count} Agenten sind bereits hier",
+  "deploy.savedTeamDesc.one": "{count} Agent · gespeichert",
+  "deploy.savedTeamDesc.many": "{count} Agenten · gespeichert",
+  "agentUpdates.badge.one": "{count} Aktualisierung",
+  "agentUpdates.badge.many": "{count} Aktualisierungen",
+  "agentUpdates.title.one": "{count} Aktualisierung verfügbar",
+  "agentUpdates.title.many": "{count} Aktualisierungen verfügbar",
+  "agentUpdates.badgeTitle.one": "{count} installierter Agent hat eine neuere Version im Katalog",
+  "agentUpdates.badgeTitle.many": "{count} installierte Agents haben eine neuere Version im Katalog",
+  "agentUpdates.done.one": "{count} Agent aktualisiert",
+  "agentUpdates.done.many": "{count} Agents aktualisiert",
 } satisfies Partial<Messages>;
 
 export default de;

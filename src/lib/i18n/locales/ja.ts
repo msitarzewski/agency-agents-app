@@ -626,6 +626,22 @@ const ja = {
   "tools.locationHint": "{tool} をカスタムのベースディレクトリに向けます——例えば Windows アプリから WSL のホーム（{wsl}）へ。検出とユーザーグローバルのインストールがそこに従います。プロジェクトのインストールには影響しません。",
   "tools.locationChoose": "フォルダーを選択…",
   "tools.locationReset": "デフォルトに戻す",
+  "agents.divisionOverview.one": "{count} 人のエージェント · 分野全体をデプロイするか、分野を開いて必要な専門家だけをインストールします。",
+  "agents.divisionOverview.many": "{count} 人のエージェント · 分野全体をデプロイするか、分野を開いて必要な専門家だけをインストールします。",
+  "install.sub.one": "{count} 個のエージェント · グローバルまたはプロジェクトごとに、そのツールにインストールするセルを切り替えます。",
+  "install.sub.many": "{count} 個のエージェント · グローバルまたはプロジェクトごとに、そのツールにインストールするセルを切り替えます。",
+  "deploy.currentRosterDesc.one": "{count} 人のエージェントがすでにここにいます",
+  "deploy.currentRosterDesc.many": "{count} 人のエージェントがすでにここにいます",
+  "deploy.savedTeamDesc.one": "{count} 人のエージェント · 保存されました",
+  "deploy.savedTeamDesc.many": "{count} 人のエージェント · 保存されました",
+  "agentUpdates.badge.one": "{count} 件の更新",
+  "agentUpdates.badge.many": "{count} 件の更新",
+  "agentUpdates.title.one": "{count} 件の更新があります",
+  "agentUpdates.title.many": "{count} 件の更新があります",
+  "agentUpdates.badgeTitle.one": "インストール済みの {count} 人のエージェントにカタログの新しいバージョンがあります",
+  "agentUpdates.badgeTitle.many": "インストール済みの {count} 人のエージェントにカタログの新しいバージョンがあります",
+  "agentUpdates.done.one": "{count} 人のエージェントを更新しました",
+  "agentUpdates.done.many": "{count} 人のエージェントを更新しました",
 } satisfies Partial<Messages>;
 
 export default ja;

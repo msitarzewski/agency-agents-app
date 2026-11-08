@@ -626,6 +626,22 @@ const ko = {
   "tools.locationHint": "{tool}을(를) 사용자 지정 기본 디렉터리로 지정합니다 — 예: Windows 앱에서 WSL 홈({wsl}). 감지와 사용자 전역 설치가 이를 따릅니다. 프로젝트 설치에는 영향을 주지 않습니다.",
   "tools.locationChoose": "폴더 선택…",
   "tools.locationReset": "기본값으로 재설정",
+  "agents.divisionOverview.one": "{count}개 에이전트 · 전체 분야를 배포하거나 분야를 열어 필요한 전문가만 설치하세요.",
+  "agents.divisionOverview.many": "{count}개 에이전트 · 전체 분야를 배포하거나 분야를 열어 필요한 전문가만 설치하세요.",
+  "install.sub.one": "{count} 에이전트 · 셀을 전환하여 전역적으로 또는 프로젝트별로 해당 도구에 설치합니다.",
+  "install.sub.many": "{count} 에이전트 · 셀을 전환하여 전역적으로 또는 프로젝트별로 해당 도구에 설치합니다.",
+  "deploy.currentRosterDesc.one": "{count}개 에이전트가 이미 여기에 있습니다.",
+  "deploy.currentRosterDesc.many": "{count}개 에이전트가 이미 여기에 있습니다.",
+  "deploy.savedTeamDesc.one": "{count}개 에이전트 · 저장됨",
+  "deploy.savedTeamDesc.many": "{count}개 에이전트 · 저장됨",
+  "agentUpdates.badge.one": "{count}개 업데이트",
+  "agentUpdates.badge.many": "{count}개 업데이트",
+  "agentUpdates.title.one": "{count}개 업데이트 사용 가능",
+  "agentUpdates.title.many": "{count}개 업데이트 사용 가능",
+  "agentUpdates.badgeTitle.one": "설치된 에이전트 {count}개에 카탈로그의 새 버전이 있습니다",
+  "agentUpdates.badgeTitle.many": "설치된 에이전트 {count}개에 카탈로그의 새 버전이 있습니다",
+  "agentUpdates.done.one": "{count}개 에이전트를 업데이트했습니다",
+  "agentUpdates.done.many": "{count}개 에이전트를 업데이트했습니다",
 } satisfies Partial<Messages>;
 
 export default ko;

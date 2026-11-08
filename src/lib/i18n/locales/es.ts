@@ -626,6 +626,22 @@ const es = {
   "tools.locationHint": "Apunta {tool} a un directorio base personalizado — por ejemplo, un directorio de inicio de WSL ({wsl}) desde la app de Windows. La detección y las instalaciones globales de usuario lo siguen; las instalaciones de proyecto no se ven afectadas.",
   "tools.locationChoose": "Elegir carpeta…",
   "tools.locationReset": "Restablecer a predeterminada",
+  "agents.divisionOverview.one": "{count} agente · implementa toda la división o abre una para instalar solo a ese especialista.",
+  "agents.divisionOverview.many": "{count} agentes · implementa toda la división o abre una para instalar solo a ese especialista.",
+  "install.sub.one": "{count} agente · alternar una celda para instalar en esa herramienta, globalmente o por proyecto.",
+  "install.sub.many": "{count} agentes · alternar una celda para instalar en esa herramienta, globalmente o por proyecto.",
+  "deploy.currentRosterDesc.one": "{count} agente ya está aquí",
+  "deploy.currentRosterDesc.many": "{count} agentes ya están aquí",
+  "deploy.savedTeamDesc.one": "{count} agente · guardado",
+  "deploy.savedTeamDesc.many": "{count} agentes · guardados",
+  "agentUpdates.badge.one": "{count} actualización",
+  "agentUpdates.badge.many": "{count} actualizaciones",
+  "agentUpdates.title.one": "{count} actualización disponible",
+  "agentUpdates.title.many": "{count} actualizaciones disponibles",
+  "agentUpdates.badgeTitle.one": "{count} agente instalado tiene una versión más reciente en el catálogo",
+  "agentUpdates.badgeTitle.many": "{count} agentes instalados tienen una versión más reciente en el catálogo",
+  "agentUpdates.done.one": "{count} agente actualizado",
+  "agentUpdates.done.many": "{count} agentes actualizados",
 } satisfies Partial<Messages>;
 
 export default es;

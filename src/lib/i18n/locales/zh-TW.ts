@@ -626,6 +626,22 @@ const zhTW = {
   "tools.locationHint": "將 {tool} 指向自訂的基礎目錄——例如從 Windows 應用程式指向 WSL 主目錄（{wsl}）。偵測與使用者全域安裝都會使用該目錄；專案安裝不受影響。",
   "tools.locationChoose": "選擇資料夾…",
   "tools.locationReset": "還原預設值",
+  "agents.divisionOverview.one": "{count} 個智慧體 · 部署整個分類，或進入分類後只安裝需要的專家。",
+  "agents.divisionOverview.many": "{count} 個智慧體 · 部署整個分類，或進入分類後只安裝需要的專家。",
+  "install.sub.one": "{count} 個智慧體程式 · 切換單元以全域或依專案安裝到該工具中。",
+  "install.sub.many": "{count} 個智慧體程式 · 切換單元以全域或依專案安裝到該工具中。",
+  "deploy.currentRosterDesc.one": "{count} 個智慧體程式已在此",
+  "deploy.currentRosterDesc.many": "{count} 個智慧體程式已在此",
+  "deploy.savedTeamDesc.one": "{count} 個智慧體程式 · 已儲存",
+  "deploy.savedTeamDesc.many": "{count} 個智慧體程式 · 已儲存",
+  "agentUpdates.badge.one": "{count} 個更新",
+  "agentUpdates.badge.many": "{count} 個更新",
+  "agentUpdates.title.one": "{count} 個更新可用",
+  "agentUpdates.title.many": "{count} 個更新可用",
+  "agentUpdates.badgeTitle.one": "已安裝的 {count} 個智慧體在目錄中有更新版本",
+  "agentUpdates.badgeTitle.many": "已安裝的 {count} 個智慧體在目錄中有更新版本",
+  "agentUpdates.done.one": "已更新 {count} 個智慧體",
+  "agentUpdates.done.many": "已更新 {count} 個智慧體",
 } satisfies Partial<Messages>;
 
 export default zhTW;

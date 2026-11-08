@@ -700,6 +700,14 @@ const tr = {
   "preset.ai-builders.description": "AI özelliklerini sağlam bir veri + istem temeli üzerinde gönderin.",
   "teamExample.ai-builders.1": "[AI özellik]ini sağlam bir veri + istem temeli üzerinde tasarlayıp oluşturun: şema, retrieval, istemler ve eval'ler — eval'ler ayrılmış bir kümede geçene kadar döngüde kalın.",
   "teamExample.ai-builders.2": "[kullanım senaryosu] için istemlerimizi sağlamlaştırın: bir test senaryosu paketi yazın, geçiş oranını ölçün ve güvenilir olana kadar yineleyin.",
+  "agents.divisionOverview.one": "{count} ajan · tüm birimi dağıtın veya yalnızca o uzmanı kurmak için birini açın.",
+  "agents.divisionOverview.many": "{count} ajan · tüm birimi dağıtın veya yalnızca o uzmanı kurmak için birini açın.",
+  "install.sub.one": "{count} ajan · o araca, genel veya proje bazında kurmak için bir hücreyi açın/kapatın.",
+  "install.sub.many": "{count} ajan · o araca, genel veya proje bazında kurmak için bir hücreyi açın/kapatın.",
+  "deploy.currentRosterDesc.one": "Burada zaten {count} ajan var",
+  "deploy.currentRosterDesc.many": "Burada zaten {count} ajan var",
+  "deploy.savedTeamDesc.one": "{count} ajan · kayıtlı",
+  "deploy.savedTeamDesc.many": "{count} ajan · kayıtlı",
 } satisfies Partial<Messages>;
 
 export default tr;
