@@ -390,14 +390,14 @@
   {@const label = install.toolLabel(confirm.tool)}
   <DestructiveConfirm
     open
-    title={i18n.t("install.deleteTitle", { count: n, label })}
+    title={i18n.count(n, "install.deleteTitle.one", "install.deleteTitle.many", { label })}
     confirmLabel={i18n.t("install.deleteConfirm", { count: n })}
     cancelLabel={i18n.t("common.cancel")}
     onConfirm={confirmRemove}
     onCancel={() => (confirm = null)}
   >
     <p>
-      {i18n.t("install.deleteBody", { count: n })}
+      {i18n.count(n, "install.deleteBody.one", "install.deleteBody.many")}
     </p>
   </DestructiveConfirm>
 {/if}

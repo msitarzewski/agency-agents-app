@@ -295,7 +295,7 @@
     try {
       const { ok, fail } = await install.bulk(action, targets);
       const verb = i18n.t(verbKey);
-      if (fail === 0) toast.success(i18n.t("agents.bulkSuccess", { verb, count: ok }));
+      if (fail === 0) toast.success(i18n.count(ok, "agents.bulkSuccess.one", "agents.bulkSuccess.many", { verb }));
       else toast.error(i18n.t("agents.bulkError", { verb, ok, fail }));
       selected = new Set();
     } finally {
@@ -544,9 +544,9 @@
       : i18n.count(selected.size, "agents.confirmUninstall.one", "agents.confirmUninstall.many")}</h2></div>
     <p class="cd-body">
       {#if selHasForeign}
-        {i18n.t("agents.deleteBody", { count: selInstalls.length })}
+        {i18n.count(selInstalls.length, "agents.deleteBody.one", "agents.deleteBody.many")}
       {:else}
-        {i18n.t("agents.uninstallBody", { count: selInstalls.length })}
+        {i18n.count(selInstalls.length, "agents.uninstallBody.one", "agents.uninstallBody.many")}
       {/if}
     </p>
     <p class="cd-note">{i18n.t("agents.confirmTip")}</p>
