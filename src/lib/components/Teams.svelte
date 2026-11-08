@@ -145,7 +145,7 @@
     if (key.startsWith("saved:")) {
       const id = key.slice("saved:".length);
       const t = teams.saved.find((x) => x.id === id);
-      return t ? { key, label: t.name, description: i18n.t("teams.savedTeamDesc", { count: t.agents.length }), color: null, icon: UsersIcon as unknown as Component, saved: true, agents: t.agents, examples: [] } : null;
+      return t ? { key, label: t.name, description: i18n.count(t.agents.length, "teams.savedTeamDesc.one", "teams.savedTeamDesc.many"), color: null, icon: UsersIcon as unknown as Component, saved: true, agents: t.agents, examples: [] } : null;
     }
     return null;
   });
@@ -236,7 +236,7 @@
     busy = true;
     try {
       const n = await install.exportLoadout(path);
-      toast.success(i18n.t("teams.exportedToast", { count: n }), path);
+      toast.success(i18n.count(n, "teams.exportedToast.one", "teams.exportedToast.many"), path);
     } catch (e) {
       toast.error(i18n.t("teams.exportFailed"), errorText(e));
     } finally {
@@ -249,7 +249,7 @@
     busy = true;
     try {
       const recs = await install.importLoadout(picked);
-      toast.success(i18n.t("teams.restoredToast", { count: recs.length }), picked);
+      toast.success(i18n.count(recs.length, "teams.restoredToast.one", "teams.restoredToast.many"), picked);
     } catch (e) {
       toast.error(i18n.t("teams.restoreFailed"), errorText(e));
     } finally {
@@ -370,7 +370,7 @@
           </section>
         {/each}
         {#if detailMissing > 0}
-          <p class="td-missing">{i18n.t("teams.missingAgents", { count: detailMissing })}</p>
+          <p class="td-missing">{i18n.count(detailMissing, "teams.missingAgents.one", "teams.missingAgents.many")}</p>
         {/if}
       </div>
     </div>
@@ -424,7 +424,7 @@
 
 {#if saveOpen}
   <Modal open title={i18n.t("teams.saveModalTitle")} defaultFocus="first" onClose={() => (saveOpen = false)}>
-    <p class="save-sub">{i18n.t("teams.saveModalBody", { count: managedSlugs.length })}</p>
+    <p class="save-sub">{i18n.count(managedSlugs.length, "teams.saveModalBody.one", "teams.saveModalBody.many")}</p>
     <Input bind:value={saveName} placeholder={i18n.t("teams.namePlaceholder")} ariaLabel={i18n.t("teams.nameAria")} />
     {#snippet actions()}
       <Button variant="secondary" modalAction="cancel" onclick={() => (saveOpen = false)}>{i18n.t("common.cancel")}</Button>

@@ -3,7 +3,7 @@
    * Settings.svelte — Phase 12b
    *
    * Modal container for app-wide preferences. Opens via ⌘, or the sidebar
-   * gear icon. Six sections rendered in a left-nav + right-pane layout,
+   * gear icon. Five sections rendered in a left-nav + right-pane layout,
    * inspired by the macOS System Settings shell.
    *
    * Focus-trap + Esc-to-close + click-outside-to-close mechanics borrowed
@@ -23,7 +23,6 @@
   import Library from "@lucide/svelte/icons/library";
   import Globe from "@lucide/svelte/icons/globe";
   import Github from "@lucide/svelte/icons/git-fork";
-  import Activity from "@lucide/svelte/icons/activity";
   import Info from "@lucide/svelte/icons/info";
 
   import { ui } from "$lib/stores/ui.svelte";
@@ -31,7 +30,6 @@
   import SettingsSectionCatalog from "./SettingsSectionCatalog.svelte";
   import SettingsSectionNetwork from "./SettingsSectionNetwork.svelte";
   import SettingsSectionGitHub from "./SettingsSectionGitHub.svelte";
-  import SettingsSectionActivity from "./SettingsSectionActivity.svelte";
   import SettingsSectionAbout from "./SettingsSectionAbout.svelte";
   import { i18n } from "$lib/stores/i18n.svelte";
   import type { SettingsSection } from "$lib/types";
@@ -46,7 +44,6 @@
     { id: "catalog",    icon: Library },
     { id: "network",    icon: Globe },
     { id: "github",     icon: Github },
-    { id: "activity",   icon: Activity },
     { id: "about",      icon: Info },
   ];
 
@@ -58,7 +55,6 @@
     if (id === "catalog") return i18n.t("settings.catalog");
     if (id === "network") return i18n.t("settings.network");
     if (id === "github") return i18n.t("settings.github");
-    if (id === "activity") return i18n.t("settings.activity");
     return i18n.t("settings.about");
   }
 
@@ -170,8 +166,6 @@
           <SettingsSectionNetwork />
         {:else if activeSection === "github"}
           <SettingsSectionGitHub />
-        {:else if activeSection === "activity"}
-          <SettingsSectionActivity />
         {:else if activeSection === "about"}
           <SettingsSectionAbout />
         {/if}

@@ -58,6 +58,8 @@
 
   /** Footer: live corpus size — the app's own at-a-glance status. */
   const agentCount = $derived(corpus.agents.length);
+  // Singular at 1 ("1 agent in the catalog"), plural otherwise.
+  const catalogStatus = $derived(i18n.count(agentCount, "nav.catalogStatus.one", "nav.catalogStatus.many"));
 </script>
 
 <aside
@@ -86,7 +88,7 @@
           >
             <span class="ico" aria-hidden="true"><item.icon size={16} /></span>
             <span class="label">{label(item.id)}</span>
-            {#if b}<span class="badge" title={i18n.t("agentUpdates.badgeTitle", { count: Number(b) })}>{b}</span>{/if}
+            {#if b}<span class="badge" title={i18n.count(Number(b), "agentUpdates.badgeTitle.one", "agentUpdates.badgeTitle.many")}>{b}</span>{/if}
           </button>
         </li>
       {/each}
@@ -94,9 +96,9 @@
   </nav>
 
   <footer class="foot">
-    <div class="status status-ready" title={i18n.t("nav.catalogStatus", { count: agentCount })}>
+    <div class="status status-ready" title={catalogStatus}>
       <span class="dot" aria-hidden="true"></span>
-      <span class="status-label">{i18n.t("nav.catalogStatus", { count: agentCount })}</span>
+      <span class="status-label">{catalogStatus}</span>
     </div>
   </footer>
 </aside>

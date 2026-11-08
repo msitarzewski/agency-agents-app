@@ -232,7 +232,7 @@
   {:else}
     <!-- ── List ── -->
     <header class="pr-head">
-      <p class="pr-count">{i18n.t("projects.count", { count: projects.list.length })}</p>
+      <p class="pr-count">{i18n.count(projects.list.length, "projects.count.one", "projects.count.many")}</p>
       <div class="pr-actions">
         <button class="btn primary" disabled={adding} onclick={addProject}>
           <FolderPlus size={15} /><span>{i18n.t("projects.add")}</span>

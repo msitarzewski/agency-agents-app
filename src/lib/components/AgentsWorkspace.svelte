@@ -295,7 +295,7 @@
     try {
       const { ok, fail } = await install.bulk(action, targets);
       const verb = i18n.t(verbKey);
-      if (fail === 0) toast.success(i18n.t("agents.bulkSuccess", { verb, count: ok }));
+      if (fail === 0) toast.success(i18n.count(ok, "agents.bulkSuccess.one", "agents.bulkSuccess.many", { verb }));
       else toast.error(i18n.t("agents.bulkError", { verb, ok, fail }));
       selected = new Set();
     } finally {
@@ -407,7 +407,7 @@
             <span class="dov-ic" style="color:{divisionMeta.color}"><Icon size={18} /></span>
             <div class="dov-id">
               <span class="dov-name">{divisionMeta.label}</span>
-              <span class="dov-sub">{i18n.t("agents.divisionOverview", { count: divisionMeta.slugs.length })}</span>
+              <span class="dov-sub">{i18n.count(divisionMeta.slugs.length, "agents.divisionOverview.one", "agents.divisionOverview.many")}</span>
             </div>
             <button class="dov-deploy" onclick={() => (divisionInstallOpen = true)}><DownloadIcon size={14} /> {i18n.t("agents.deployDivision")}</button>
           </div>
@@ -522,7 +522,7 @@
 
 {#if bulkInstallOpen && selected.size > 0}
   <InstallModal
-    title={i18n.t("agents.installSelectedTitle", { count: selected.size })}
+    title={i18n.count(selected.size, "agents.installSelectedTitle.one", "agents.installSelectedTitle.many")}
     agentSlugs={[...selected]}
     onClose={() => (bulkInstallOpen = false)}
   />
@@ -539,12 +539,14 @@
 {#if confirmDelete}
   <button class="cd-scrim" aria-label={i18n.t("common.cancel")} onclick={() => (confirmDelete = false)}></button>
   <div class="cd-box" role="alertdialog" aria-modal="true" aria-label={i18n.t("agents.confirmDeleteAria")}>
-    <div class="cd-head"><AlertTriangle size={20} /><h2>{i18n.t(selHasForeign ? "agents.confirmDelete" : "agents.confirmUninstall", { count: selected.size })}</h2></div>
+    <div class="cd-head"><AlertTriangle size={20} /><h2>{selHasForeign
+      ? i18n.count(selected.size, "agents.confirmDelete.one", "agents.confirmDelete.many")
+      : i18n.count(selected.size, "agents.confirmUninstall.one", "agents.confirmUninstall.many")}</h2></div>
     <p class="cd-body">
       {#if selHasForeign}
-        {i18n.t("agents.deleteBody", { count: selInstalls.length })}
+        {i18n.count(selInstalls.length, "agents.deleteBody.one", "agents.deleteBody.many")}
       {:else}
-        {i18n.t("agents.uninstallBody", { count: selInstalls.length })}
+        {i18n.count(selInstalls.length, "agents.uninstallBody.one", "agents.uninstallBody.many")}
       {/if}
     </p>
     <p class="cd-note">{i18n.t("agents.confirmTip")}</p>

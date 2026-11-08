@@ -20,7 +20,6 @@
     ui.loadDefaultSectionFromStorage();
     ui.loadVibrancyMaterialFromStorage();
     ui.loadConfirmDestructiveFromStorage();
-    ui.loadActivitySettingsFromStorage();
     ui.loadSidebarCollapsedFromStorage();
     ui.loadSidebarWidthFromStorage();
     ui.loadDetailPaneWidthFromStorage();

@@ -88,7 +88,7 @@
     busy = true;
     try {
       const { ok, fail } = await install.bulk("update", targets);
-      if (fail === 0) toast.success(i18n.t("agentUpdates.done", { count: ok }));
+      if (fail === 0) toast.success(i18n.count(ok, "agentUpdates.done.one", "agentUpdates.done.many"));
       else toast.error(i18n.t("agentUpdates.someFailed", { ok, fail }));
     } finally {
       busy = false;
@@ -97,7 +97,7 @@
   }
 </script>
 
-<Modal open size="wide" title={i18n.t("agentUpdates.title", { count: outdated.length })} onClose={onClose}>
+<Modal open size="wide" title={i18n.count(outdated.length, "agentUpdates.title.one", "agentUpdates.title.many")} onClose={onClose}>
   <p class="sub">{i18n.t("agentUpdates.sub")}</p>
 
   {#if outdated.length === 0}

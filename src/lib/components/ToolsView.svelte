@@ -287,7 +287,7 @@
     busy = true;
     try {
       const { ok, fail } = await install.bulk(action, targets);
-      if (fail === 0) toast.success(i18n.t("tools.bulkSuccess", { verb, count: ok }), sel?.label);
+      if (fail === 0) toast.success(i18n.count(ok, "tools.bulkSuccess.one", "tools.bulkSuccess.many", { verb }), sel?.label);
       else toast.error(i18n.t("tools.bulkError", { verb, ok, fail }));
     } finally {
       busy = false;
@@ -584,7 +584,7 @@
   <button class="cd-scrim" aria-label={i18n.t("common.cancel")} onclick={() => (confirmRemove = false)}></button>
   <div class="cd-box" role="alertdialog" aria-modal="true" aria-label={i18n.t("tools.removeAllTitle", { tool: sel.label })}>
     <div class="cd-head"><AlertTriangle size={20} /><h2>{i18n.t("tools.removeAllTitle", { tool: sel.label })}</h2></div>
-    <p class="cd-body">{i18n.t("tools.removeAllBody", { count: selRows.length })}</p>
+    <p class="cd-body">{i18n.count(selRows.length, "tools.removeAllBody.one", "tools.removeAllBody.many")}</p>
     <div class="cd-actions">
       <button class="cd-cancel" onclick={() => (confirmRemove = false)}>{i18n.t("common.cancel")}</button>
       <button class="cd-delete" disabled={busy} onclick={() => { confirmRemove = false; runToolBulk("uninstall", i18n.t("tools.removedVerb")); }}>

@@ -598,7 +598,6 @@ export type SettingsSection =
   | "catalog"
   | "network"
   | "github"
-  | "activity"
   | "about";
 
 /** Command-palette item — a verb (action). */

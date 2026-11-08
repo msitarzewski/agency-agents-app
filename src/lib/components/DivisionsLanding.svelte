@@ -100,8 +100,12 @@
       <span class="lead"><LayersIcon size={14} /> {i18n.t("divisions.title")}</span>
       <span class="spacer"></span>
       {#if outdatedCount > 0}
-        <button class="ghost updates" onclick={() => (updatesOpen = true)} title={i18n.t("agentUpdates.badgeTitle", { count: outdatedCount })}>
-          <ArrowUpCircle size={14} /> {i18n.t("agentUpdates.badge", { count: outdatedCount })}
+        <button
+          class="ghost updates"
+          onclick={() => (updatesOpen = true)}
+          title={i18n.count(outdatedCount, "agentUpdates.badgeTitle.one", "agentUpdates.badgeTitle.many")}
+        >
+          <ArrowUpCircle size={14} /> {i18n.count(outdatedCount, "agentUpdates.badge.one", "agentUpdates.badge.many")}
         </button>
       {/if}
       {#if tiles.length > 0}

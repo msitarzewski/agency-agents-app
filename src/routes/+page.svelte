@@ -70,20 +70,13 @@
       return;
     }
 
-    // Cmd+Shift+L: cycle theme (must precede Cmd+L)
+    // Cmd+Shift+L: cycle theme
     if (meta && e.shiftKey && e.key.toLowerCase() === "l") {
       e.preventDefault();
       const order = ["light", "dark", "system"] as const;
       const next = order[(order.indexOf(ui.theme) + 1) % order.length];
       ui.setTheme(next);
       toast.info(i18n.t("toast.theme", { theme: themeLabel(next) }));
-      return;
-    }
-
-    // Cmd+L (no shift): toggle drawer
-    if (meta && !e.shiftKey && e.key.toLowerCase() === "l") {
-      e.preventDefault();
-      ui.toggleDrawer();
       return;
     }
 

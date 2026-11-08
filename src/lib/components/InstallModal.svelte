@@ -192,7 +192,7 @@
 </script>
 
 <Modal open {title} size="wide" onClose={onClose}>
-  <p class="sub">{i18n.t("install.sub", { count: total })}</p>
+  <p class="sub">{i18n.count(total, "install.sub.one", "install.sub.many")}</p>
 
   {#if cols.length === 0}
     <p class="no-tools">{i18n.t("install.noTools")}</p>
@@ -287,14 +287,14 @@
   {@const label = install.toolLabel(confirm.tool)}
   <DestructiveConfirm
     open
-    title={i18n.t("install.deleteTitle", { count: n, label })}
+    title={i18n.count(n, "install.deleteTitle.one", "install.deleteTitle.many", { label })}
     confirmLabel={i18n.t("install.deleteConfirm", { count: n })}
     cancelLabel={i18n.t("common.cancel")}
     onConfirm={confirmRemove}
     onCancel={() => (confirm = null)}
   >
     <p>
-      {i18n.t("install.deleteBody", { count: n })}
+      {i18n.count(n, "install.deleteBody.one", "install.deleteBody.many")}
     </p>
   </DestructiveConfirm>
 {/if}

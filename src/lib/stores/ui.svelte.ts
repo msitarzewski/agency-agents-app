@@ -1,5 +1,5 @@
 /**
- * UI store — current sidebar section, theme, modal/drawer state.
+ * UI store — current sidebar section, theme, modal state.
  * Uses Svelte 5 runes inside a module-scope class instance.
  */
 
@@ -40,17 +40,7 @@ export function clampSidebarWidth(w: number): number {
 const DEFAULT_SECTION_KEY = "agency-agents:default-section";
 const VIBRANCY_MATERIAL_KEY = "agency-agents:vibrancy-material";
 const CONFIRM_DESTRUCTIVE_KEY = "agency-agents:confirm-destructive";
-const ACTIVITY_MAX_JOBS_KEY = "agency-agents:activity:max-jobs";
-const ACTIVITY_MAX_LINES_KEY = "agency-agents:activity:max-lines";
 const SIDEBAR_COLLAPSED_KEY = "agency-agents:sidebar-collapsed";
-
-/** Defaults for the Activity-retention settings (Phase 12b). */
-export const ACTIVITY_MAX_JOBS_DEFAULT = 50;
-export const ACTIVITY_MAX_JOBS_MIN = 1;
-export const ACTIVITY_MAX_JOBS_MAX = 1000;
-export const ACTIVITY_MAX_LINES_DEFAULT = 500;
-export const ACTIVITY_MAX_LINES_MIN = 100;
-export const ACTIVITY_MAX_LINES_MAX = 10_000;
 
 /** Known vibrancy materials per the macOS NSVisualEffectMaterial enum exposed
     by the `window-vibrancy` crate. Frozen as a const tuple so the type stays
@@ -68,14 +58,6 @@ const DEFAULT_SECTION_VALUES = [
   "projects",
   "activity",
 ] as const;
-
-function clampInt(v: number, lo: number, hi: number, fallback: number): number {
-  if (!Number.isFinite(v)) return fallback;
-  const n = Math.round(v);
-  if (n < lo) return lo;
-  if (n > hi) return hi;
-  return n;
-}
 
 /** Clamp `w` to [min, maxFromWindow]; maxFromWindow defaults to 60% of innerWidth. */
 export function clampDetailPaneWidth(w: number, windowWidth?: number): number {
@@ -100,8 +82,6 @@ class UiStore {
       sidebar brand returns here. */
   section: SidebarSection = $state(INITIAL_SECTION);
 
-  drawerOpen: boolean = $state(false);
-  drawerMinimized: boolean = $state(false);
   paletteOpen: boolean = $state(false);
   /** Settings modal (Phase 12b). Opened via the top-right gear icon or ⌘,. */
   settingsOpen: boolean = $state(false);
@@ -163,12 +143,6 @@ class UiStore {
       a confirm dialog. Defaults true; turning it off is a "trust me" mode
       for power users. */
   confirmDestructive: boolean = $state(true);
-
-  /** Activity persistence caps (Phase 12b). These are the future limits
-      for the `activity` store's localStorage mirror. Existing retained
-      data is not retroactively trimmed when the user changes these. */
-  activityMaxJobs: number = $state(ACTIVITY_MAX_JOBS_DEFAULT);
-  activityMaxLines: number = $state(ACTIVITY_MAX_LINES_DEFAULT);
 
   /** When true, the sidebar collapses to an icon-only rail with native
       tooltips on hover. Persisted to localStorage so the choice survives
@@ -301,27 +275,6 @@ class UiStore {
     this.applyingNav = false;
   }
 
-  openDrawer() {
-    this.drawerOpen = true;
-    this.drawerMinimized = false;
-  }
-
-  toggleDrawer() {
-    if (this.drawerOpen && !this.drawerMinimized) {
-      this.drawerMinimized = true;
-    } else if (this.drawerOpen && this.drawerMinimized) {
-      this.drawerMinimized = false;
-    } else {
-      this.drawerOpen = true;
-      this.drawerMinimized = false;
-    }
-  }
-
-  closeDrawer() {
-    this.drawerOpen = false;
-    this.drawerMinimized = false;
-  }
-
   openPalette() { this.paletteOpen = true; }
   closePalette() { this.paletteOpen = false; }
 
@@ -397,35 +350,6 @@ class UiStore {
       const v = localStorage.getItem(CONFIRM_DESTRUCTIVE_KEY);
       if (v === "0") this.confirmDestructive = false;
       else if (v === "1") this.confirmDestructive = true;
-    } catch { /* ignore */ }
-  }
-
-  setActivityMaxJobs(n: number) {
-    const clamped = clampInt(n, ACTIVITY_MAX_JOBS_MIN, ACTIVITY_MAX_JOBS_MAX, ACTIVITY_MAX_JOBS_DEFAULT);
-    this.activityMaxJobs = clamped;
-    try { localStorage.setItem(ACTIVITY_MAX_JOBS_KEY, String(clamped)); } catch { /* ignore */ }
-  }
-
-  setActivityMaxLines(n: number) {
-    const clamped = clampInt(n, ACTIVITY_MAX_LINES_MIN, ACTIVITY_MAX_LINES_MAX, ACTIVITY_MAX_LINES_DEFAULT);
-    this.activityMaxLines = clamped;
-    try { localStorage.setItem(ACTIVITY_MAX_LINES_KEY, String(clamped)); } catch { /* ignore */ }
-  }
-
-  /** Load both Activity-retention caps with clamp-on-read so a corrupted
-      or hostile localStorage entry can't ask us to keep "999999999 jobs". */
-  loadActivitySettingsFromStorage() {
-    try {
-      const j = localStorage.getItem(ACTIVITY_MAX_JOBS_KEY);
-      if (j !== null) {
-        const n = Number(j);
-        this.activityMaxJobs = clampInt(n, ACTIVITY_MAX_JOBS_MIN, ACTIVITY_MAX_JOBS_MAX, ACTIVITY_MAX_JOBS_DEFAULT);
-      }
-      const l = localStorage.getItem(ACTIVITY_MAX_LINES_KEY);
-      if (l !== null) {
-        const n = Number(l);
-        this.activityMaxLines = clampInt(n, ACTIVITY_MAX_LINES_MIN, ACTIVITY_MAX_LINES_MAX, ACTIVITY_MAX_LINES_DEFAULT);
-      }
     } catch { /* ignore */ }
   }
 
