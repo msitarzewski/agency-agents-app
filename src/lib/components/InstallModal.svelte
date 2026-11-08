@@ -192,7 +192,7 @@
 </script>
 
 <Modal open {title} size="wide" onClose={onClose}>
-  <p class="sub">{i18n.t("install.sub", { count: total })}</p>
+  <p class="sub">{i18n.count(total, "install.sub.one", "install.sub.many")}</p>
 
   {#if cols.length === 0}
     <p class="no-tools">{i18n.t("install.noTools")}</p>

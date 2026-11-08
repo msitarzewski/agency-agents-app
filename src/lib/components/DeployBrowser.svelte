@@ -83,10 +83,10 @@
     PRESET_TEAMS.map((p) => ({ key: `preset:${p.slug}`, label: presetLabel(p.slug), description: presetDescription(p.slug), icon: p.icon as unknown as SvelteComponent, color: p.color, slugs: p.agents })),
   );
   const savedTeamItems = $derived<Item[]>(
-    teams.saved.map((t) => ({ key: `team:${t.id}`, label: t.name, description: i18n.t("deploy.savedTeamDesc", { count: t.agents.length }), icon: UsersIcon as unknown as SvelteComponent, color: null, slugs: t.agents })),
+    teams.saved.map((t) => ({ key: `team:${t.id}`, label: t.name, description: i18n.count(t.agents.length, "deploy.savedTeamDesc.one", "deploy.savedTeamDesc.many"), icon: UsersIcon as unknown as SvelteComponent, color: null, slugs: t.agents })),
   );
   const divisionItems = $derived<Item[]>(
-    corpus.tiles.map((c) => ({ key: `div:${c.slug}`, label: c.label, description: i18n.t("deploy.divisionDesc", { count: c.count }), icon: resolveCategoryIcon(c.icon) as unknown as SvelteComponent, color: corpus.colorOf(c.slug), slugs: corpus.agents.filter((a) => a.category === c.slug).map((a) => a.slug) })),
+    corpus.tiles.map((c) => ({ key: `div:${c.slug}`, label: c.label, description: i18n.count(c.count, "common.agent.one", "common.agent.many"), icon: resolveCategoryIcon(c.icon) as unknown as SvelteComponent, color: corpus.colorOf(c.slug), slugs: corpus.agents.filter((a) => a.category === c.slug).map((a) => a.slug) })),
   );
   const agentItems = $derived<Item[]>(
     corpus.agents.map((a) => ({ key: `agent:${a.slug}`, label: a.name, description: corpus.labelOf(a.category), emoji: a.emoji ?? "🧩", color: null, slugs: [a.slug] })),
@@ -107,7 +107,7 @@
               {
                 key: "roster",
                 label: i18n.t("deploy.currentRoster"),
-                description: i18n.t("deploy.currentRosterDesc", { count: rosterSlugs.length }),
+                description: i18n.count(rosterSlugs.length, "deploy.currentRosterDesc.one", "deploy.currentRosterDesc.many"),
                 icon: FolderIcon as unknown as SvelteComponent,
                 color: null,
                 slugs: rosterSlugs,

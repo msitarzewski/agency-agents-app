@@ -145,7 +145,7 @@
     if (key.startsWith("saved:")) {
       const id = key.slice("saved:".length);
       const t = teams.saved.find((x) => x.id === id);
-      return t ? { key, label: t.name, description: i18n.t("teams.savedTeamDesc", { count: t.agents.length }), color: null, icon: UsersIcon as unknown as Component, saved: true, agents: t.agents, examples: [] } : null;
+      return t ? { key, label: t.name, description: i18n.count(t.agents.length, "teams.savedTeamDesc.one", "teams.savedTeamDesc.many"), color: null, icon: UsersIcon as unknown as Component, saved: true, agents: t.agents, examples: [] } : null;
     }
     return null;
   });

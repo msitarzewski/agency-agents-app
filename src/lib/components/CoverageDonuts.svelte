@@ -95,7 +95,19 @@
         {@const hot = hovered ? countIn(d.tool, hovered) : 0}
         <div class="cd-cell">
           <div class="cd-chart">
-            <svg width="132" height="132" viewBox="0 0 120 120" role="img" aria-label={i18n.t("coverage.donutAria", { tool: d.label, count: d.total, divisions: d.segs.length })}>
+            <!-- Both counts inflect independently: the agent count picks the
+                 donutAria form, and `{divisions}` receives an already-pluralised
+                 phrase ("1 division" / "18 divisions") from common.division. -->
+            <svg
+              width="132"
+              height="132"
+              viewBox="0 0 120 120"
+              role="img"
+              aria-label={i18n.count(d.total, "coverage.donutAria.one", "coverage.donutAria.many", {
+                tool: d.label,
+                divisions: i18n.count(d.segs.length, "common.division.one", "common.division.many"),
+              })}
+            >
               <g transform="rotate(-90 60 60)">
                 <circle cx="60" cy="60" r={R} fill="none" style="stroke: var(--color-surface-sunken)" stroke-width={STROKE} />
                 {#each arcs as a (a.slug)}

@@ -407,7 +407,7 @@
             <span class="dov-ic" style="color:{divisionMeta.color}"><Icon size={18} /></span>
             <div class="dov-id">
               <span class="dov-name">{divisionMeta.label}</span>
-              <span class="dov-sub">{i18n.t("agents.divisionOverview", { count: divisionMeta.slugs.length })}</span>
+              <span class="dov-sub">{i18n.count(divisionMeta.slugs.length, "agents.divisionOverview.one", "agents.divisionOverview.many")}</span>
             </div>
             <button class="dov-deploy" onclick={() => (divisionInstallOpen = true)}><DownloadIcon size={14} /> {i18n.t("agents.deployDivision")}</button>
           </div>
@@ -522,7 +522,7 @@
 
 {#if bulkInstallOpen && selected.size > 0}
   <InstallModal
-    title={i18n.t("agents.installSelectedTitle", { count: selected.size })}
+    title={i18n.count(selected.size, "agents.installSelectedTitle.one", "agents.installSelectedTitle.many")}
     agentSlugs={[...selected]}
     onClose={() => (bulkInstallOpen = false)}
   />
