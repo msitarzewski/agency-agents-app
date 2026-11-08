@@ -539,7 +539,9 @@
 {#if confirmDelete}
   <button class="cd-scrim" aria-label={i18n.t("common.cancel")} onclick={() => (confirmDelete = false)}></button>
   <div class="cd-box" role="alertdialog" aria-modal="true" aria-label={i18n.t("agents.confirmDeleteAria")}>
-    <div class="cd-head"><AlertTriangle size={20} /><h2>{i18n.t(selHasForeign ? "agents.confirmDelete" : "agents.confirmUninstall", { count: selected.size })}</h2></div>
+    <div class="cd-head"><AlertTriangle size={20} /><h2>{selHasForeign
+      ? i18n.count(selected.size, "agents.confirmDelete.one", "agents.confirmDelete.many")
+      : i18n.count(selected.size, "agents.confirmUninstall.one", "agents.confirmUninstall.many")}</h2></div>
     <p class="cd-body">
       {#if selHasForeign}
         {i18n.t("agents.deleteBody", { count: selInstalls.length })}

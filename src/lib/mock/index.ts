@@ -23,11 +23,6 @@ import { createMockInvokeHandler } from "./handlers";
 
 let active = false;
 
-/** True once the mock owns `window.__TAURI_INTERNALS__.invoke`. */
-export function isBrowserIpcMockActive(): boolean {
-  return active;
-}
-
 /**
  * Install the mock. Returns whether it is active.
  *
