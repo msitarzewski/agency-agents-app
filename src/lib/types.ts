@@ -406,6 +406,27 @@ export interface CatalogStatus {
   version: string;
   fetchedAt: string;
   agentCount: number;
+  /** Catalog files that look like agents but weren't indexed, and why (#79). */
+  skipped: SkippedFile[];
+}
+
+/** Why the indexer left a catalog file out of the agent list. */
+export type SkipReason =
+  | "unreadable"
+  | "notUtf8"
+  | "unclosedFrontmatter"
+  | "invalidYaml"
+  | "missingName"
+  | "duplicateSlug";
+
+/** One catalog file the indexer skipped. */
+export interface SkippedFile {
+  /** Path relative to the catalog root, `/`-separated. */
+  path: string;
+  reason: SkipReason;
+  /** The YAML parser's message (file line numbers), the read error, or for a
+      duplicate the path of the file that is listed. */
+  detail: string | null;
 }
 
 /** Result of checking the active catalog for upstream updates (diff stats). */
