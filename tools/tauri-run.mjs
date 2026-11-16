@@ -24,8 +24,9 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const repo = path.resolve(import.meta.dirname, "..");
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 let macOSPrivateApi = false;
 if (process.platform === "darwin") {

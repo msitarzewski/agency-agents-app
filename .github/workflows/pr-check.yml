@@ -1,10 +1,15 @@
 # PR check — runs on every pull request and every push to main.
 #
-# For now it checks Rust formatting only: `cargo fmt --check` over src-tauri.
-# rustfmt reads source files alone, so this job needs no system libraries and
-# no dependency build, and it finishes in seconds. svelte-check and
-# `cargo test` (memory-bank/decisions.md 2026-09-14) belong here as further
-# jobs; they need the Tauri Linux libraries, so they're a separate step.
+# Two cheap, dependency-free gates run here:
+#   - `cargo fmt --check` over src-tauri (rustfmt reads source files alone).
+#   - `tools/phase-c/validate-config.mjs`, which rejects the macOS-only
+#     `macos-private-api` feature leaking into the base `tauri` dependency —
+#     the Tauri CLI injects it there on every macOS build, and shipping that
+#     form breaks the Linux/Windows feature allowlist. This is the CI
+#     enforcement of that guard, so it cannot land by accident.
+# svelte-check and `cargo test` (memory-bank/decisions.md 2026-09-14) belong
+# here as further jobs; they need the Tauri Linux libraries, so they're a
+# separate step.
 #
 # Formatting is rustfmt's defaults (no rustfmt.toml), edition 2021. A PR that
 # fails here needs `cargo fmt --manifest-path src-tauri/Cargo.toml`.
@@ -37,3 +42,19 @@ jobs:
 
       - name: cargo fmt --check
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+
+  config:
+    name: Phase C config validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
+      - name: Validate config
+        run: node tools/phase-c/validate-config.mjs

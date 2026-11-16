@@ -2,8 +2,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
-const repo = path.resolve(import.meta.dirname, "../..");
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 function readJson(rel) {
   return JSON.parse(fs.readFileSync(path.join(repo, rel), "utf8"));
