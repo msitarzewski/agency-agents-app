@@ -1,7 +1,7 @@
 //! Child-process environment hygiene for the Linux AppImage build.
 //!
 //! linuxdeploy's `AppRun` wrapper exports `LD_LIBRARY_PATH` (and `PERLLIB`,
-//! `QT_PLUGIN_PATH`, `GST_PLUGIN_SYSTEM_PATH*`) with the bundle's directories
+//! `PYTHONPATH`, `QT_PLUGIN_PATH`, `GST_PLUGIN_SYSTEM_PATH*`) with the bundle's directories
 //! **first** and the caller's original appended, keeping no separate copy of the
 //! original. Every child process we spawn inherits that, so a *host* binary
 //! resolves the bundle's Ubuntu 22.04 libraries instead of its own.
@@ -30,6 +30,7 @@ use std::path::Path;
 const PATH_LIST_VARS: &[&str] = &[
     "LD_LIBRARY_PATH",
     "PERLLIB",
+    "PYTHONPATH",
     "QT_PLUGIN_PATH",
     "GST_PLUGIN_SYSTEM_PATH",
     "GST_PLUGIN_SYSTEM_PATH_1_0",
@@ -45,6 +46,7 @@ const BUNDLE_ONLY_VARS: &[&str] = &[
     "GTK_IM_MODULE_FILE",
     "GTK_EXE_PREFIX",
     "GTK_DATA_PREFIX",
+    "PYTHONHOME",
 ];
 
 /// A change to apply to a child's environment: `Some(v)` sets, `None` removes.
@@ -198,6 +200,43 @@ mod tests {
             overrides_from(Some(&appdir), env),
             vec![("GIO_EXTRA_MODULES".to_string(), None)]
         );
+    }
+
+    #[test]
+    fn python_path_entries_are_dropped_and_host_entries_kept() {
+        // `aider` is a pip-installed CLI spawned by `probe_version`; a bundled
+        // PYTHONPATH makes it resolve the bundle's interpreter instead of the
+        // user's, so the probe reports it as absent (#94's Python sibling).
+        let appdir = PathBuf::from("/tmp/.mount_Agency");
+        let env = env_of(&[(
+            "PYTHONPATH",
+            "/tmp/.mount_Agency/usr/lib/python3.12/site-packages:/home/user/.local/lib/python3.12/site-packages",
+        )]);
+        assert_eq!(
+            overrides_from(Some(&appdir), env),
+            vec![(
+                "PYTHONPATH".to_string(),
+                Some(OsString::from(
+                    "/home/user/.local/lib/python3.12/site-packages"
+                ))
+            )]
+        );
+    }
+
+    #[test]
+    fn python_home_in_the_bundle_is_removed_but_a_host_one_is_not() {
+        // The bundle ships no Python; a bundled PYTHONHOME kills any Python
+        // child with `ModuleNotFoundError: No module named 'encodings'`.
+        let appdir = PathBuf::from("/tmp/.mount_Agency");
+
+        let bundled = env_of(&[("PYTHONHOME", "/tmp/.mount_Agency/usr")]);
+        assert_eq!(
+            overrides_from(Some(&appdir), bundled),
+            vec![("PYTHONHOME".to_string(), None)]
+        );
+
+        let host = env_of(&[("PYTHONHOME", "/usr")]);
+        assert!(overrides_from(Some(&appdir), host).is_empty());
     }
 
     /// The behaviour that actually matters: a spawned child must not see the
