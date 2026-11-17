@@ -1,10 +1,16 @@
 # PR check — runs on every pull request and every push to main.
 #
-# For now it checks Rust formatting only: `cargo fmt --check` over src-tauri.
-# rustfmt reads source files alone, so this job needs no system libraries and
-# no dependency build, and it finishes in seconds. svelte-check and
-# `cargo test` (memory-bank/decisions.md 2026-09-14) belong here as further
-# jobs; they need the Tauri Linux libraries, so they're a separate step.
+# Four gates run here:
+#   - `cargo fmt --check` over src-tauri (rustfmt reads source files alone).
+#   - `tools/phase-c/validate-config.mjs`, which rejects the macOS-only
+#     `macos-private-api` feature leaking into the base `tauri` dependency —
+#     the Tauri CLI injects it there on every macOS build, and shipping that
+#     form breaks the Linux/Windows feature allowlist. This is the CI
+#     enforcement of that guard, so it cannot land by accident.
+#   - `svelte-check` (npm run check) over the frontend.
+#   - `cargo test` over the backend (memory-bank/decisions.md 2026-09-14).
+#     It needs the Tauri Linux libraries, so it installs them like
+#     linux-build.yml does and runs on the same ubuntu-22.04 floor.
 #
 # Formatting is rustfmt's defaults (no rustfmt.toml), edition 2021. A PR that
 # fails here needs `cargo fmt --manifest-path src-tauri/Cargo.toml`.
@@ -37,3 +43,74 @@ jobs:
 
       - name: cargo fmt --check
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+
+  config:
+    name: Phase C config validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
+      - name: Validate config
+        run: node tools/phase-c/validate-config.mjs
+
+  frontend:
+    name: Svelte check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: svelte-check
+        run: npm run check
+
+  backend:
+    name: Rust tests
+    # Same oldest-glibc floor as the release build, so a test that depends on
+    # a newer system library fails here before it reaches a tag.
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            build-essential
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
+        with:
+          toolchain: stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+
+      - name: cargo test
+        run: cargo test --manifest-path src-tauri/Cargo.toml
