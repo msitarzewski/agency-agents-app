@@ -276,6 +276,10 @@
     flex: none;
     height: 36px;
     position: relative;
+    /* Stack the title bar above `.main` so dropdowns anchored in it
+       (theme popover) aren't painted under sticky headers / content
+       panes below. Stays below modals (z-index >= 50). */
+    z-index: 10;
     background: var(--color-surface-raised);
     border-bottom: 1px solid var(--color-border);
   }
