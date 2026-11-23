@@ -213,3 +213,13 @@ export function updateSkip(version: string): Promise<void> {
 export function updateRelaunch(): Promise<void> {
   return invoke<void>("update_relaunch");
 }
+
+/** Reveal a path in the OS file manager. */
+export function revealPath(path: string): Promise<void> {
+  return invoke<void>("reveal_path", { path });
+}
+
+/** Open a supported tool in a directory. Currently only `opencode`. */
+export function openInTool(tool: string, dir: string): Promise<void> {
+  return invoke<void>("open_in_tool", { tool, dir });
+}

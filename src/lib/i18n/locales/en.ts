@@ -260,6 +260,8 @@ const en = {
   "tools.removeAll": "Remove all",
   "tools.projects": "Projects",
   "tools.revealInFileManager": "Reveal in file manager",
+  "tools.openInOpenCode": "Open in OpenCode",
+  "tools.openInOpenCodeTitle": "Launch OpenCode in this directory",
   "tools.noAgentsDeployed": "No agents deployed in {tool} yet. Open an agent and use the Use with switch to deploy it here.",
   "tools.noAgentsMatch": "No agents match “{query}”.",
   "tools.recognized": "Recognized",

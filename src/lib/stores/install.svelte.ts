@@ -189,6 +189,10 @@ class InstallStore {
     await invoke("reveal_path", { path });
   }
 
+  async openInTool(tool: Tool, dir: string): Promise<void> {
+    await invoke("open_in_tool", { tool, dir });
+  }
+
   /** All installed rows for an agent across tools/projects. */
   forSlug(slug: string): InstalledAgent[] {
     return this.installed.filter((i) => i.slug === slug);

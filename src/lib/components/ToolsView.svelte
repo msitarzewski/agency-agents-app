@@ -11,6 +11,7 @@
   import { onMount } from "svelte";
   import RefreshIcon from "@lucide/svelte/icons/refresh-cw";
   import FolderOpen from "@lucide/svelte/icons/folder-open";
+  import TerminalIcon from "@lucide/svelte/icons/terminal";
   import TrashIcon from "@lucide/svelte/icons/trash-2";
   import PlusIcon from "@lucide/svelte/icons/plus";
   import DiffIcon from "@lucide/svelte/icons/file-diff";
@@ -311,6 +312,16 @@
     }
   }
 
+  async function openInOpenCode(dir: string | null | undefined) {
+    if (!dir) return;
+    try {
+      await install.openInTool("opencode", dir);
+      toast.success(i18n.t("tools.openInOpenCode"));
+    } catch (e) {
+      toast.error(i18n.t("common.couldNotOpenTool"), errorText(e));
+    }
+  }
+
   // ── Per-tool custom install location (e.g. a WSL home from the Windows app) ──
   let editingLocation = $state(false);
   let locationBusy = $state(false);
@@ -498,7 +509,12 @@
                 <FolderOpen size={14} />
                 <span class="proj-name" title={p.path}>{p.path.split("/").pop()}</span>
                 <span class="proj-count">{p.count}</span>
-                <button class="mini" onclick={() => reveal(p.path)} title={i18n.t("tools.revealInFileManager")}><FolderOpen size={13} /></button>
+                <div class="proj-actions">
+                  {#if sel.id === "opencode"}
+                    <button class="mini" onclick={() => openInOpenCode(p.path)} title={i18n.t("tools.openInOpenCodeTitle")}><TerminalIcon size={13} /></button>
+                  {/if}
+                  <button class="mini" onclick={() => reveal(p.path)} title={i18n.t("tools.revealInFileManager")}><FolderOpen size={13} /></button>
+                </div>
               </div>
             {/each}
           </div>
@@ -540,6 +556,9 @@
                           <span class="a-name">{r.name}</span>
                           {#if r.projectPath}<span class="a-proj" title={r.projectPath}>{r.projectPath.split("/").pop()}</span>{/if}
                           <span class="a-acts">
+                            {#if sel.id === "opencode"}
+                              <button class="mini" title={i18n.t("tools.openInOpenCodeTitle")} disabled={isBusy} onclick={() => openInOpenCode(r.projectPath ?? r.dest)}><TerminalIcon size={13} /></button>
+                            {/if}
                             {#if DIFFABLE.includes(r.state)}
                               <button class="mini" title={i18n.t("tools.diffTitle")} onclick={() => (diffTarget = r)}><DiffIcon size={13} /></button>
                             {/if}
@@ -719,6 +738,7 @@
   .proj { display: flex; align-items: center; gap: var(--space-2); padding: 4px var(--space-2); color: var(--color-text-secondary); font-size: var(--text-body-sm); }
   .proj-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .proj-count { font-size: var(--text-caption); color: var(--color-text-muted); }
+  .proj-actions { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; }
 
   .empty { font-size: var(--text-body-sm); color: var(--color-text-muted); line-height: var(--lh-normal); }
   .list-head { display: flex; align-items: center; gap: var(--space-3); }
