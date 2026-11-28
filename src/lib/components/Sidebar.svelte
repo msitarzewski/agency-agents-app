@@ -14,6 +14,7 @@
   import { i18n } from "$lib/stores/i18n.svelte";
   import { shortcut } from "$lib/util/platform";
   import type { SidebarSection } from "$lib/types";
+  import AppBrandIcon from "./AppBrandIcon.svelte";
 
   interface NavItem {
     id: SidebarSection;
@@ -76,7 +77,7 @@
   aria-label={i18n.t("nav.primary")}
 >
   <button class="brand" onclick={() => ui.setSection("personas")} title={i18n.t("nav.homeTitle")}>
-    <span class="brand-mark" aria-hidden="true">🤖</span>
+    <AppBrandIcon size={24} />
     <span class="brand-name">Agency Agents</span>
   </button>
 
@@ -152,7 +153,6 @@
     cursor: pointer;
     text-align: left;
   }
-  .brand-mark { font-size: 18px; line-height: 1; }
   .brand-name { font-weight: var(--fw-semibold); font-size: var(--text-body); }
 
   nav { flex: 1; padding: var(--space-2); overflow-y: auto; }

@@ -10,8 +10,7 @@
   import { safeOpenUrl } from "$lib/util/url";
   import { SPONSOR_URL } from "$lib/util/donate";
   import { i18n } from "$lib/stores/i18n.svelte";
-  import appIcon from "$lib/assets/app-icon.png";
-  import appIconDark from "$lib/assets/app-icon-dark.png";
+  import AppBrandIcon from "./AppBrandIcon.svelte";
 
   const REPO_URL = "https://github.com/msitarzewski/agency-agents-app";
   const LICENSE_URL = "https://github.com/msitarzewski/agency-agents-app/blob/main/LICENSE";
@@ -67,8 +66,7 @@
       </button>
 
       <div class="hero">
-        <img class="brand-mark light" src={appIcon} alt="Agency Agents" width="80" height="80" />
-        <img class="brand-mark dark" src={appIconDark} alt="" aria-hidden="true" width="80" height="80" />
+        <div class="brand-mark"><AppBrandIcon size={80} /></div>
         <h1 id="about-title">Agency Agents</h1>
         <p class="tagline">{i18n.t("about.tagline")}</p>
       </div>
@@ -135,29 +133,8 @@
     margin-bottom: var(--space-5, 22px);
   }
   .brand-mark {
-    display: block;
-    width: 80px;
-    height: 80px;
-    margin: 0 auto var(--space-2);
-    /* The PNG already carries the rounded-square shape on transparent corners;
-       drop-shadow follows the alpha so the shadow is squircle-shaped, not boxy. */
+    margin-bottom: var(--space-2);
     filter: drop-shadow(0 6px 16px color-mix(in oklch, black 45%, transparent));
-  }
-
-  /* One export per appearance — a light plate in a dark window reads as a bug.
-     The swap keys off the resolved [data-theme] that ui.svelte.ts writes on
-     <html>, so it also tracks live system changes under the "system" setting
-     with no extra state here. Light is the default when no theme is set yet. */
-  .brand-mark.dark {
-    display: none;
-  }
-
-  :global([data-theme="dark"]) .brand-mark.light {
-    display: none;
-  }
-
-  :global([data-theme="dark"]) .brand-mark.dark {
-    display: block;
   }
   h1 {
     font-size: var(--text-h1, 1.4rem);

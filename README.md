@@ -80,7 +80,7 @@ Grab the build for your platform from the [latest release](https://github.com/ms
 
 - **macOS** (Apple Silicon & Intel) — signed + notarized `.dmg`, macOS 13+.
 - **Linux** (x86_64) — `.deb`, `.rpm`, or the portable `.AppImage`.
-- **Windows** (x64 & ARM64) — `.exe` installer (not code-signed yet; SmartScreen → *More info → Run anyway*).
+- **Windows** (x64 & ARM64) — `.exe` installer. Windows installers are code-signed starting with v0.3.3.
 
 Or on macOS via Homebrew:
 
