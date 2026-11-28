@@ -1040,6 +1040,102 @@ pub async fn tools_list(
     Ok(out)
 }
 
+fn shell_quote_posix(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
+}
+
+fn resolve_launch_dir(dir: &str) -> Result<std::path::PathBuf, AppError> {
+    let raw = dir.trim();
+    if raw.is_empty() {
+        return Err(AppError::InvalidArgument {
+            message: "launch directory is empty".to_string(),
+        });
+    }
+    let path = std::path::PathBuf::from(raw);
+    let dir = if path.is_dir() {
+        path
+    } else {
+        path.parent()
+            .map(std::path::Path::to_path_buf)
+            .ok_or_else(|| AppError::InvalidArgument {
+                message: format!("cannot resolve a launch directory from '{raw}'"),
+            })?
+    };
+    if !dir.is_dir() {
+        return Err(AppError::Io {
+            message: format!("launch directory does not exist: {}", dir.display()),
+        });
+    }
+    Ok(dir)
+}
+
+#[cfg(target_os = "macos")]
+fn launch_opencode_in_terminal(dir: &std::path::Path) -> Result<(), AppError> {
+    let script = format!("cd {} && opencode", shell_quote_posix(&dir.to_string_lossy()));
+    let escaped = script.replace('\\', "\\\\").replace('"', "\\\"");
+    let applescript = format!(
+        "tell application \"Terminal\" to do script \"{}\"\nactivate application \"Terminal\"",
+        escaped
+    );
+    let mut c = crate::util::process::headless_command("osascript");
+    crate::util::proc::sanitize(&mut c);
+    c.arg("-e").arg(applescript);
+    let status = c.status().map_err(|e| AppError::Io {
+        message: format!("could not launch OpenCode in Terminal: {e}"),
+    })?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(AppError::Io {
+            message: "Terminal declined to launch OpenCode".to_string(),
+        })
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn launch_opencode_in_terminal(dir: &std::path::Path) -> Result<(), AppError> {
+    let mut c = crate::util::process::console_command("cmd");
+    crate::util::proc::sanitize(&mut c);
+    c.current_dir(dir)
+        .args(["/C", "start", "OpenCode", "opencode"]);
+    c.spawn().map(|_| ()).map_err(|e| AppError::Io {
+        message: format!("could not launch OpenCode: {e}. Is 'opencode' on PATH?"),
+    })
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn launch_opencode_in_terminal(dir: &std::path::Path) -> Result<(), AppError> {
+    let script = format!(
+        "cd {} && opencode; exec $SHELL -l",
+        shell_quote_posix(&dir.to_string_lossy())
+    );
+    let terminals: [(&str, &[&str]); 5] = [
+        ("x-terminal-emulator", &["-e", "sh", "-lc"]),
+        ("gnome-terminal", &["--", "sh", "-lc"]),
+        ("konsole", &["-e", "sh", "-lc"]),
+        ("xfce4-terminal", &["-e"]),
+        ("alacritty", &["-e", "sh", "-lc"]),
+    ];
+    let mut last_err = None;
+    for (bin, args) in terminals {
+        let mut c = std::process::Command::new(bin);
+        crate::util::proc::sanitize(&mut c);
+        c.current_dir(dir).args(args).arg(&script);
+        match c.spawn() {
+            Ok(_) => return Ok(()),
+            Err(e) => last_err = Some(e),
+        }
+    }
+    Err(AppError::Io {
+        message: format!(
+            "could not find a terminal emulator to launch OpenCode: {}",
+            last_err
+                .map(|e| e.to_string())
+                .unwrap_or_else(|| "unknown error".to_string())
+        ),
+    })
+}
+
 /// Open a path in the OS file manager (Finder / Explorer / xdg-open).
 /// Best-effort: returns an error the UI can toast if the path is missing or no
 /// opener is available. Used by the Tools panel's "Reveal" affordance.
@@ -1057,6 +1153,26 @@ pub async fn reveal_path(path: String) -> Result<(), AppError> {
         c.arg(&path).status().map(|_| ()).map_err(|e| AppError::Io {
             message: format!("could not open {path}: {e}"),
         })
+    })
+    .await
+    .map_err(|e| AppError::Io {
+        message: e.to_string(),
+    })?
+}
+
+/// Open a supported tool in a directory. Currently supports OpenCode: launches
+/// `opencode` in the given directory so installed project/global agents are
+/// available in that session.
+#[tauri::command]
+pub async fn open_in_tool(tool: String, dir: String) -> Result<(), AppError> {
+    tokio::task::spawn_blocking(move || {
+        if tool != "opencode" {
+            return Err(AppError::InvalidArgument {
+                message: format!("open_in_tool is not supported for tool '{tool}'"),
+            });
+        }
+        let dir = resolve_launch_dir(&dir)?;
+        launch_opencode_in_terminal(&dir)
     })
     .await
     .map_err(|e| AppError::Io {

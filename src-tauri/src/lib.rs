@@ -188,6 +188,7 @@ pub fn run() {
             install::tools_list,
             install::tool_versions,
             install::reveal_path,
+            install::open_in_tool,
             install::projects_list,
             install::loadout_export,
             install::loadout_import,
