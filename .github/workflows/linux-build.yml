@@ -19,6 +19,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Tag or commit to build (defaults to the selected branch)'
+        required: false
+        type: string
 
 jobs:
   build:
@@ -31,6 +36,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
 
       # Standard Tauri 2 Linux build deps (https://v2.tauri.app/start/prerequisites/)
       # plus patchelf/file/wget for the AppImage bundler, and the xdg-utils +
@@ -94,7 +101,7 @@ jobs:
         run: |
           set -euo pipefail
           cd src-tauri/target/release/bundle/appimage
-          APP="$(ls *.AppImage)"
+          APP="$(ls -- *.AppImage)"
           echo "Repacking $APP without bundled libwayland-*"
           ./"$APP" --appimage-extract >/dev/null
           find squashfs-root -type f \( \
@@ -104,6 +111,9 @@ jobs:
               -name 'libwayland-server.so.*' \) -print -delete
           wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
           chmod +x appimagetool
+          # AppImage extraction can leave directories owner-readable only.
+          # Repacked files must be usable by every account that runs the app.
+          chmod -R a+rX squashfs-root
           ARCH=x86_64 ./appimagetool --appimage-extract-and-run squashfs-root "$APP.new"
           mv -f "$APP.new" "$APP"
           rm -rf squashfs-root appimagetool
