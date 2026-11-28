@@ -65,6 +65,16 @@ pub fn run() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
 
+    // On some Wayland sessions (seen on Ubuntu 26.04, GNOME, WebKitGTK
+    // 2.52 / GTK 3.24.52) the app dies on every launch with
+    // "thread 'main' has overflowed its stack" + SIGABRT. Running through
+    // XWayland avoids it. Default to the X11 GDK backend when a Wayland
+    // session is detected, unless the user set GDK_BACKEND themselves.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("GDK_BACKEND").is_none() && std::env::var_os("WAYLAND_DISPLAY").is_some() {
+        std::env::set_var("GDK_BACKEND", "x11");
+    }
+
     // Best-effort tracing setup — silent if RUST_LOG is unset.
     let _ = tracing_subscriber::fmt()
         .with_env_filter(
