@@ -4,6 +4,7 @@
    * surface for the Playbook content (practices + copyable starter prompts).
    * Opened from the title-bar ? button and the command palette.
    */
+  import AppBrandIcon from "./AppBrandIcon.svelte";
   import Modal from "./Modal.svelte";
   import Button from "./Button.svelte";
   import StarterPrompt from "./StarterPrompt.svelte";
@@ -14,7 +15,10 @@
 
 <Modal open={ui.playbookOpen} title={i18n.t("playbook.title")} size="wide" onClose={() => ui.closePlaybook()}>
   <div class="pb">
-    <p class="intro">{i18n.t("playbook.intro")}</p>
+    <div class="intro">
+      <AppBrandIcon size={40} />
+      <p>{i18n.t("playbook.intro")}</p>
+    </div>
 
     <ol class="practices">
       {#each PLAYBOOK_PRACTICES as p, i (p.id)}
@@ -48,7 +52,16 @@
 
 <style>
   .pb { max-height: 62vh; overflow-y: auto; padding-right: var(--space-1); }
-  .intro { font-size: var(--text-body); color: var(--color-text-secondary); line-height: var(--lh-normal); margin-bottom: var(--space-4); }
+  .intro {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    font-size: var(--text-body);
+    color: var(--color-text-secondary);
+    line-height: var(--lh-normal);
+  }
+  .intro p { margin: 0; }
 
   .practices { list-style: none; margin: 0 0 var(--space-5); padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
   .practices li { display: flex; gap: var(--space-3); }

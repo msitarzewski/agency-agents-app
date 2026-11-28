@@ -1,0 +1,62 @@
+{
+ "app": "agency",
+ "release": "2026-11-28-0105",
+ "synced": "2026-11-28T01:30:36-06:00",
+ "from": "~/Software/icon-lab/releases/2026-11-28-0105/agency",
+ "items": {
+  "docs/icon/AppIcon.icon": {
+   "from": "AppIcon.icon",
+   "kind": "dir",
+   "files": {
+    "Assets/Back bot.svg": "2487414a3b1dbaea78eb8adc8ab363dba0d613e7ea930f44bad4af926162d0b3",
+    "Assets/Front bot.svg": "f19c113f8928993c829a9dd4eacb3cf9f7e5b0509bb9dbe5eefef3e12c9b1421",
+    "Assets/Grain.png": "dcb0f41091edf0bb41e53cb0c0720c5c3afebfbc16e54a24cc6e1407dc056899",
+    "icon.json": "d66e296070f3ac6d911a78360783e3aec05c1126fa731dc812fe33931bd160f7"
+   }
+  },
+  "src-tauri/Assets.car": {
+   "from": "mac/Assets.car",
+   "kind": "file",
+   "files": {
+    "": "2e8cd722f8c1c696bc92927881138e4c6ec913f24281de0285bd0f30b6dd740b"
+   }
+  },
+  "src-tauri/icons/": {
+   "from": "tauri",
+   "kind": "merge",
+   "files": {
+    "128x128.png": "4652161218dc9c925b8aaef41668f8b5e85b8cf5b73ffd758cbbed2e2396886b",
+    "128x128@2x.png": "ae5c37624dba5b4d38d1f9daaa33d95df44336d6fc5b1c91c915d57ef6fb09a3",
+    "32x32.png": "acc875a44a34234ce4b7d7b41abdd3d99d366541d775a33fa927749380614150",
+    "64x64.png": "c4f26d6f8a7d383b48684cb0ac156ae3b194b8c81e77734500260049ffd48d3e",
+    "Square107x107Logo.png": "2523eeed9e0a1f00e7ddcdde7351e1cdd5cc62213a455cc87ef6c4e9dc48863d",
+    "Square142x142Logo.png": "062707a015d1c3e7480ea683d87a8ad96a591cf6310c1c8f40b24504650ab56b",
+    "Square150x150Logo.png": "a5f64e0dc275b591d690fcc639d47add14c74d43185b7cfa9711e0fe30f09d4b",
+    "Square284x284Logo.png": "913c83da2ac80bace204481cd9aeb76b0f39ab5a861b34d8e8484a106170f896",
+    "Square30x30Logo.png": "11a7d6c0b4c7f5122c01ed49844ef4f78e52d9788ced58a0a4d061ce03dc63cf",
+    "Square310x310Logo.png": "b8d8f5cebcf98d256609335a17412e086c3fdcc73259c9908f50e956f8a9c2e4",
+    "Square44x44Logo.png": "42f7ccff5cd44b9d6f11cbd8188bfbd9c81bdd3c2e6f86791afbfe586aa4208a",
+    "Square71x71Logo.png": "93dcdf6de49f2773869512c4e9cbcc439bab2cdab476fb71a32cbee14845f68c",
+    "Square89x89Logo.png": "1658d6203d41cdb2ce88c8de4ddd50750045111a16f5607a0d61136cfd114fc6",
+    "StoreLogo.png": "be9a6b35c1a84a74e1e6f6666075033c8295bd02aeed0c686ee10cc12fd5d4b1",
+    "icon.icns": "77b7be67fabc8afc8596a51d9bfd10b6b76ffd0ec18825a7555ce396ebf6eff1",
+    "icon.ico": "84cfba9ee280d868d4cea079b93333a9e3c33a0406602b54a6799878d170504a",
+    "icon.png": "8aff9ac7b33cf14937b3e372cfd1d1affc5438f059166b4a6e91b5d195179e79"
+   }
+  },
+  "src/lib/assets/app-icon.png": {
+   "from": "png/plated-256.png",
+   "kind": "file",
+   "files": {
+    "": "59ac1144ee1c875a727e296e4bf478626e7f077522eed5d93bf1b1a8c21acbd4"
+   }
+  },
+  "static/favicon.png": {
+   "from": "png/plated-32.png",
+   "kind": "file",
+   "files": {
+    "": "a2185e34875a3e68221fb41849c0e0ebf5162e9e734c909cf6de2eaa469e4761"
+   }
+  }
+ }
+}

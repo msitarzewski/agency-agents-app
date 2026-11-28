@@ -1,108 +1,34 @@
-# Liquid Glass app icon (macOS 26 Tahoe)
+# Agency Agents app icon
 
-## Current approved sources — 2026-09-06
+The approved artwork and exports come from `~/Software/icon-lab/current`.
+The app records the installed release and exact file hashes in
+[`.icon-release.json`](../../.icon-release.json).
 
-`AppIcon.icon` is now the approved red brain/circuit shipping master;
-`AppIcon-cobalt.icon` is the approved alternate. Both contain light/dark
-specializations. The original layer studies below are historical, not current
-shipping sources. The two current foreground layers are pure SVG geometry;
-edit `Sources/Front.svg` (brain) and `Sources/Middle.svg` (circuitry). The build
-script copies those masters into both palette documents before rendering.
+## Apply an approved release
 
-Regenerate with full Xcode and installed npm dependencies:
-`DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer bash docs/icon/build-icons.sh`.
-This compiles `src-tauri/Assets.car` and regenerates desktop PNG/ICO/ICNS
-fallbacks plus the in-app icon and favicon. Mobile assets remain unchanged.
-`bundle.resources` and `CFBundleIconName=AppIcon` retain the existing catalog
-integration. No dependency upgrade is required for this established path.
-
-Correction to the historical notes below: `actool` does compile `.icon` files;
-the asset catalog carries layered appearances, while exported PNG/ICNS files
-are static fallbacks. They are not interchangeable source formats.
-
-## Historical implementation notes (superseded by the sources above)
-
-On macOS 26, the system renders app icons with **Liquid Glass** — the specular
-edge highlight, depth, and Light/Dark/Clear/Tinted variants are applied *live by
-the OS* from a **layered** icon authored in **Icon Composer** (`.icon` format).
-A flat `.icns`/PNG (what `tauri icon` produces) is shown literally — no glass.
-
-This folder has everything staged to give Agency Agents the native treatment.
-
-## What's here
-
-```
-layers/
-  Foreground.png         brain-circuit glyph, COLOR, transparent, 1024² (≈71% inset)
-  Foreground-white.png   same glyph as a white silhouette (reads great on glass)
-  Background.png         deep purple→teal gradient, 1024², full-bleed
-  preview-flat.png       flat composite (reference only — NOT the glassed result)
-AppIcon.icon/            a starter Icon Composer bundle (icon.json + Assets/)
-```
-
-`AppIcon.icon/icon.json` is hand-authored and **validates with `actool`** (zero
-schema errors). It uses Background as the base layer and the colored glyph on
-top. Swap in `Foreground-white.png` if you prefer the white glyph.
-
-## Authoring (the 2-minute step — Icon Composer is installed)
-
-Standalone `actool` won't compile a Liquid Glass `.icon` (Xcode 26 does it through
-an internal build path the CLI doesn't expose), so author/export via the app:
-
-1. Open **Icon Composer** (`/Applications/Xcode.app/Contents/Applications/Icon Composer.app`).
-2. Either **open `docs/icon/AppIcon.icon`**, or **New → drag** `Background.png`
-   then `Foreground.png` from `layers/` as two layers (background first).
-3. Confirm it looks right (it renders the glass live). Tweak glyph scale/position,
-   the background fill, and the Dark/Tinted variants if you like.
-4. **Export** → choose the **`.icns`** export (Tahoe-compatible, carries the
-   layered glass representation).
-
-## Integration into the build — DONE (2026-06-09, this is what's wired)
-
-macOS 26 Tahoe renders app icons from a **compiled `Assets.car`** (Icon
-Composer's Liquid Glass), not from `.icns`. Shipping only an `.icns` lands the
-app in Tahoe "icon jail" → a blank/gray squircle. `tauri icon` can't produce
-`Assets.car` yet (tauri-apps/tauri#14207, #14979), so we compile it ourselves.
-
-**1. Compile `AppIcon.icon` → `Assets.car` (+ a Tahoe-aware `AppIcon.icns`):**
-`actool` lives only inside full Xcode (not Command Line Tools), so call it by
-path:
+Run these commands on macOS from the app repository root.
 
 ```sh
-ACTOOL="/Applications/Xcode-beta.app/Contents/Developer/usr/bin/actool"   # or Xcode.app
-"$ACTOOL" docs/icon/AppIcon.icon --compile /tmp/iconcar \
-  --platform macosx --minimum-deployment-target 15.0 \
-  --app-icon AppIcon --include-all-app-icons \
-  --output-partial-info-plist /tmp/iconcar/partial.plist
-# → /tmp/iconcar/{Assets.car, AppIcon.icns, partial.plist}
-cp /tmp/iconcar/Assets.car     src-tauri/Assets.car        # shipped via bundle.resources
-cp /tmp/iconcar/AppIcon.icns   src-tauri/icons/icon.icns   # legacy fallback (≤ macOS 25)
+python3 ~/Software/icon-lab/sync.py agency
+bash docs/icon/build-icons.sh
+python3 ~/Software/icon-lab/check.py . --strict
 ```
 
-**2. Wire it (already committed):**
-- `tauri.conf.json` → `bundle.resources` includes `"Assets.car"` → lands at
-  `Contents/Resources/Assets.car`.
-- `src-tauri/Info.plist` (Tauri 2 merges it) → `CFBundleIconName = AppIcon`.
-- `bundle.icon` still lists `icons/icon.icns` → Tauri sets `CFBundleIconFile`
-  for older macOS. Both paths coexist.
+`sync.py` updates the Icon Composer source, Apple asset catalog, Tauri
+fallback icons, light in-app icon, and app favicon. `build-icons.sh` uses
+the same release to update the dark in-app icon and the landing page's
+light and dark artwork, favicons, and install icons. Pass a pinned Icon Lab
+release directory to `build-icons.sh` when updating from a specific release.
 
-**3. `npm run tauri build`** → Tahoe shows the live glass; older macOS shows the
-icns. Verify: `Contents/Resources/` has BOTH `Assets.car` + `icon.icns`, and
-Info.plist has BOTH `CFBundleIconName` + `CFBundleIconFile`.
+The in-app brand component follows the app's resolved theme. For the landing
+pages, refresh the social cards with the matching artwork and update the icon
+URLs' version parameter. The catalog site's light and dark PNGs can reuse the
+app landing page's exports.
 
-> Re-run step 1 whenever `docs/icon/AppIcon.icon` changes. Do NOT run
-> `npm run tauri icon` afterward — it overwrites `icon.icns` with a flat
-> (non-glass, Tahoe-jailed) version.
+## Verify the macOS bundle
 
-## Regenerating the layers from source art
-
-Source: `brain-circuit.svg` (Affinity export). To rebuild the layers:
-
-```sh
-SVG="/path/to/brain-circuit.svg"
-rsvg-convert -h 760 "$SVG" -o /tmp/g.png
-magick -size 1024x1024 xc:none /tmp/g.png -gravity center -composite layers/Foreground.png
-magick /tmp/g.png -channel RGB -evaluate set 100% +channel /tmp/gw.png
-magick -size 1024x1024 xc:none /tmp/gw.png -gravity center -composite layers/Foreground-white.png
-magick -size 1024x1024 gradient:'#4c1d95'-'#0e7490' layers/Background.png
-```
+Build with `npm run tauri -- build --bundles app` using the normal local
+signing configuration. Check that `Contents/Resources` contains both
+`Assets.car` and `icon.icns`, and that `Contents/Info.plist` sets
+`CFBundleIconName` to `AppIcon`. macOS Tahoe uses the layered asset catalog
+for Liquid Glass appearances. Older macOS versions use the ICNS fallback.

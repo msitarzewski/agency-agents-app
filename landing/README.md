@@ -8,12 +8,12 @@ Same setup as the brew-browser landing: a self-contained static site (no build s
 
 - `index.html` — the page
 - `style.css` — design tokens (dark-first, OKLCH, indigo accent)
-- `agency-agents.png` — hero icon (Liquid Glass app icon)
+- `agency-agents.png` and `agency-agents-dark.png` are the light and dark hero icons.
 - `favicon.ico`, `favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`
 - `social-card.png` — 1200×630 Open Graph / Twitter card
 - `manifest.json`, `robots.txt`, `sitemap.xml`
 
-Icons are generated from `../docs/icon/agency-icon-*.png` via `sips`; `favicon.ico` is `../src-tauri/icons/icon.ico`.
+Run `bash docs/icon/build-icons.sh` from the repository root after syncing a release from Icon Lab. See the [icon runbook](../docs/icon/README-liquid-glass.md).
 
 > **TODO:** add an app screenshot to `screenshots/` and uncomment the `.section-shots`
 > block in `index.html`. Capture the Dashboard (cross-tool coverage) for the strongest shot.

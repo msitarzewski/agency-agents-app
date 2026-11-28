@@ -1,94 +1,129 @@
 {
-  "fill-specializations": [
-    {
-      "value": {
-        "linear-gradient": [
-          "srgb:0.98500,0.98500,0.98500,1.00000",
-          "srgb:0.94500,0.94500,0.94500,1.00000"
-        ]
-      }
-    },
-    {
-      "appearance": "dark",
-      "value": {
-        "linear-gradient": [
-          "srgb:0.18000,0.19000,0.21000,1.00000",
-          "srgb:0.07500,0.08000,0.09500,1.00000"
-        ]
-      }
-    }
-  ],
-  "groups": [
-    {
-      "blur-material": null,
-      "layers": [
-        {
-          "glass": true,
-          "image-name": "Front.svg",
-          "name": "Front",
-          "fill-specializations": [
-            {
-              "value": {
-                "solid": "srgb:1.00000,0.00000,0.00000,1.00000"
-              }
-            },
-            {
-              "appearance": "dark",
-              "value": {
-                "solid": "srgb:1.00000,0.00000,0.00000,1.00000"
-              }
-            }
-          ]
-        }
-      ],
-      "name": "Front",
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.04
-      },
-      "specular": false,
-      "translucency": {
-        "enabled": false,
-        "value": 0.05
-      }
-    },
-    {
-      "blur-material": null,
-      "layers": [
-        {
-          "glass": true,
-          "image-name": "Middle.svg",
-          "name": "Middle",
-          "fill-specializations": [
-            {
-              "value": {
-                "solid": "srgb:0.66225,0.62725,0.62725,1.00000"
-              }
-            },
-            {
-              "appearance": "dark",
-              "value": {
-                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            }
-          ]
-        }
-      ],
-      "name": "Middle",
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.04
-      },
-      "specular": false,
-      "translucency": {
-        "enabled": false,
-        "value": 0.12
-      }
-    }
-  ],
-  "supported-platforms": {
-    "squares": [
-      "macOS"
+ "fill-specializations": [
+  {
+   "value": {
+    "linear-gradient": [
+     "srgb:0.88627,0.89804,0.91765,1.00000",
+     "srgb:0.73725,0.75686,0.79608,1.00000"
     ]
+   }
+  },
+  {
+   "appearance": "dark",
+   "value": {
+    "linear-gradient": [
+     "srgb:0.22745,0.23922,0.26275,1.00000",
+     "srgb:0.13725,0.14510,0.16078,1.00000"
+    ]
+   }
   }
+ ],
+ "groups": [
+  {
+   "blur-material": null,
+   "name": "Front bot",
+   "layers": [
+    {
+     "name": "Front bot",
+     "glass": true,
+     "image-name": "Front bot.svg",
+     "fill-specializations": [
+      {
+       "value": {
+        "linear-gradient": [
+         "srgb:1.00000,0.10196,0.06275,1.00000",
+         "srgb:0.87843,0.00000,0.00000,1.00000"
+        ]
+       }
+      },
+      {
+       "appearance": "dark",
+       "value": {
+        "linear-gradient": [
+         "srgb:1.00000,0.10196,0.06275,1.00000",
+         "srgb:0.87843,0.00000,0.00000,1.00000"
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "shadow": {
+    "kind": "neutral",
+    "opacity": 0.15
+   },
+   "specular": true,
+   "translucency": {
+    "enabled": false,
+    "value": 0.05
+   }
+  },
+  {
+   "blur-material": null,
+   "name": "Back bot",
+   "layers": [
+    {
+     "name": "Back bot",
+     "glass": true,
+     "image-name": "Back bot.svg",
+     "fill-specializations": [
+      {
+       "value": {
+        "linear-gradient": [
+         "srgb:0.26275,0.27451,0.30588,1.00000",
+         "srgb:0.07843,0.08235,0.09412,1.00000"
+        ]
+       }
+      },
+      {
+       "appearance": "dark",
+       "value": {
+        "linear-gradient": [
+         "srgb:0.78824,0.80392,0.83922,1.00000",
+         "srgb:0.58431,0.61176,0.67059,1.00000"
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "shadow": {
+    "kind": "neutral",
+    "opacity": 0.15
+   },
+   "specular": true,
+   "translucency": {
+    "enabled": false,
+    "value": 0.05
+   }
+  },
+  {
+   "blend-mode": "normal",
+   "blur-material": null,
+   "name": "Grain",
+   "layers": [
+    {
+     "name": "Grain",
+     "image-name": "Grain.png",
+     "fill": "none",
+     "glass": false
+    }
+   ],
+   "shadow": {
+    "kind": "none",
+    "opacity": 0.5
+   },
+   "specular": false,
+   "translucency": {
+    "enabled": false,
+    "value": 0.5
+   }
+  }
+ ],
+ "supported-platforms": {
+  "circles": [
+   "watchOS"
+  ],
+  "squares": "shared"
+ }
 }

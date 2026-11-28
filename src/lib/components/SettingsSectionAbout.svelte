@@ -11,6 +11,7 @@
 
   import { onMount } from "svelte";
   import ExternalLink from "@lucide/svelte/icons/external-link";
+  import AppBrandIcon from "./AppBrandIcon.svelte";
 
   import { appVersion } from "$lib/api";
   import { safeOpenUrl } from "$lib/util/url";
@@ -30,7 +31,7 @@
 </script>
 
 <div class="section">
-  <h2>{i18n.t("settings.about.title")}</h2>
+  <h2><AppBrandIcon size={32} /> {i18n.t("settings.about.title")}</h2>
 
   <dl class="meta">
     <div class="row">
@@ -72,6 +73,9 @@
 <style>
   .section { display: flex; flex-direction: column; gap: var(--space-5); max-width: 560px; }
   h2 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
     font-size: var(--text-h1);
     font-weight: var(--fw-semibold);
     color: var(--color-text-primary);
