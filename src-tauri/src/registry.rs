@@ -22,6 +22,7 @@ const IMPLEMENTED_FORMATS: &[&str] = &[
     "identity",
     "codex-toml",
     "gemini-md",
+    "pi-agent-md",
     "qwen-md",
     "zcode-md",
     "cursor-mdc",
@@ -186,7 +187,7 @@ mod tests {
 
     #[test]
     fn registry_loads_and_derives_installable() {
-        assert_eq!(all().len(), 17, "expected the full bundled tool set");
+        assert_eq!(all().len(), 18, "expected the full bundled tool set");
         // The tools whose format we render are installable.
         for id in [
             "claudeCode",
@@ -195,6 +196,7 @@ mod tests {
             "copilot",
             "qwen",
             "zcode",
+            "pi",
             "cursor",
             "opencode",
             "osaurus",
